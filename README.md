@@ -4,6 +4,7 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **SSR Authentication Fix**: Updated Supabase client to use cookie-based authentication for SSR compatibility, fixing login redirection issues
 - **Authentication Flow Improvements**: Fixed issues with session persistence and navigation between dashboard and profile pages
 - **Dark Theme UI**: Updated entire application with a consistent dark theme for better visual appeal
 - **User Avatar Component**: Added personalized user avatars with initials and tooltips for better UX
@@ -11,11 +12,27 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Features
 
-- User authentication with email/password
+- User authentication with email/password (SSR-compatible)
 - Profile management
 - Workout tracking
 - Progress analytics
 - Health app integration
+
+## Authentication
+
+The app uses Supabase Authentication with Server-Side Rendering (SSR) support:
+
+1. Middleware-based session verification for protected routes
+2. Cookie-based authentication using the `@supabase/ssr` package
+3. Separation of client and server authentication contexts
+4. Clear error handling for authentication failures
+
+### Auth File Structure
+
+- `src/lib/supabase.ts` - Browser client setup
+- `src/utils/supabase/server.ts` - Server components client
+- `src/utils/supabase/middleware.ts` - Middleware-specific client
+- `src/middleware.ts` - Route protection and session verification
 
 ## Design
 
@@ -72,7 +89,7 @@ All images are sourced from Unsplash and are free to use under the Unsplash Lice
 
 - Built with Next.js 14 (App Router)
 - Styled with Tailwind CSS
-- Authentication via Supabase
+- Authentication via Supabase SSR
 - Form handling with React Hook Form
 - Validation with Zod
 

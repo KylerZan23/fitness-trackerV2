@@ -27,10 +27,10 @@ ChartJS.register(
 
 interface WorkoutChartProps {
   data: WorkoutTrend[]
-  period: 'week' | 'month'
+  period?: 'week' | 'month'
 }
 
-export function WorkoutChart({ data, period }: WorkoutChartProps) {
+export function WorkoutChart({ data, period = 'week' }: WorkoutChartProps) {
   const chartData: ChartData<'line'> = {
     labels: data.map(item => item.date),
     datasets: [

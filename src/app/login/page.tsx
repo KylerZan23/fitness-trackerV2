@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
@@ -14,42 +14,10 @@ interface AuthError {
   status?: number;
 }
 
-/**
- * Clears any existing Supabase auth tokens from localStorage
- * This helps when there are stale or invalid tokens causing authentication issues
- */
-function clearAuthStorage() {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    // Clear specific Supabase auth tokens
-    window.localStorage.removeItem('fitness-tracker-auth');
-    window.localStorage.removeItem('sb-fitness-tracker-auth');
-    window.localStorage.removeItem('supabase.auth.token');
-    
-    // Clear any item that might be related to supabase auth
-    Object.keys(window.localStorage)
-      .filter(key => key.includes('supabase') || key.includes('sb-') || key.includes('auth'))
-      .forEach(key => {
-        console.log(`Clearing potentially stale auth token: ${key}`);
-        window.localStorage.removeItem(key);
-      });
-      
-    console.log('Auth storage cleared before login');
-  } catch (e) {
-    console.error('Error clearing auth storage:', e);
-  }
-}
-
 export default function LoginPage() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-
-  // Clear any stale auth tokens when the login page loads
-  useEffect(() => {
-    clearAuthStorage();
-  }, []);
 
   const {
     register,
@@ -65,10 +33,7 @@ export default function LoginPage() {
       setIsLoading(true)
       setError(null)
 
-      // Clear any existing tokens before logging in
-      clearAuthStorage();
-
-      // First, sign in with password
+      // Sign in with password
       console.log('Attempting to sign in with credentials...')
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: data.email,
@@ -100,25 +65,6 @@ export default function LoginPage() {
         },
         provider: signInData.session.user.app_metadata?.provider
       })
-
-      // Instructions for checking cookies in Chrome DevTools
-      console.log(`
-=== How to Check Auth Cookies ===
-1. Open Chrome DevTools (F12 or Right Click -> Inspect)
-2. Go to Application tab
-3. Expand Cookies under Storage (left sidebar)
-4. Click on your site's domain
-5. Look for these cookies:
-   - sb-access-token
-   - sb-refresh-token
-   
-Check these attributes:
-- Secure: Should be true
-- HttpOnly: Should be true
-- SameSite: Should be Lax or Strict
-- Expiry: Should match token expiry above
-- Domain: Should match your site's domain
-      `)
 
       // Check/create profile
       console.log('Checking user profile...')
@@ -154,8 +100,8 @@ Check these attributes:
         console.log('Existing profile found')
       }
 
-      // Force a hard navigation to landing page
-      window.location.href = '/'
+      // Navigate to dashboard after login
+      router.push('/dashboard')
       
     } catch (err) {
       console.error('Login process error:', err)
@@ -250,25 +196,13 @@ Check these attributes:
       </div>
 
       {/* Right Panel - Image */}
-      <div className="hidden md:block relative flex-1">
-        <div className="absolute inset-0">
-          <Image
-            src="/login-bg.jpg"
-            alt="Fitness motivation"
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black to-black/50" />
-        </div>
-        <div className="relative z-10 h-full flex items-center justify-center p-12">
-          <blockquote className="max-w-lg">
-            <p className="text-3xl font-serif leading-relaxed">
-              "The only bad workout is the one that didn't happen."
-            </p>
-            <footer className="mt-4 text-gray-400">- Fitness Motivation</footer>
-          </blockquote>
-        </div>
+      <div className="hidden md:block flex-1 relative">
+        <Image 
+          src="/login-bg.jpg"
+          alt="Fitness background" 
+          fill
+          className="object-cover" 
+        />
       </div>
     </div>
   )

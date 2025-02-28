@@ -1,5 +1,5 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { createMiddlewareClient } from '@/utils/supabase/middleware'
 
 // Validate environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -38,39 +38,11 @@ export async function middleware(request: NextRequest) {
     const cookieString = allCookies.map(c => `${c.name}=${c.value?.substring(0, 10)}...`).join('; ')
     console.log(`Middleware cookies [${request.nextUrl.pathname}]:`, cookieString)
 
-    // Create Supabase client
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            response.cookies.set({
-              name,
-              value,
-              ...options,
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-              path: '/',
-              maxAge: 60 * 60 * 24 * 7, // 1 week
-            })
-          },
-          remove(name: string, options: CookieOptions) {
-            response.cookies.delete({
-              name,
-              ...options,
-              path: '/',
-            })
-          },
-        },
-      }
-    )
+    // Create Supabase client using the middleware helper
+    const supabase = createMiddlewareClient(request, response)
 
-    // Get session
+    // IMPORTANT: Auth operations must happen immediately after creating the client
+    // to avoid issues with session refresh
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
     if (sessionError) {
