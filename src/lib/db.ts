@@ -1,11 +1,13 @@
 import { supabase } from './supabase'
 import { WorkoutFormData } from './schemas'
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from 'date-fns'
+import { MuscleGroup, findMuscleGroupForExercise } from './types'
 
 export interface Workout extends WorkoutFormData {
   id: string
   user_id: string
   created_at: string
+  muscleGroup?: string
 }
 
 export interface WorkoutStats {
@@ -38,7 +40,24 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
       return null
     }
 
+    // Convert weight to a decimal format to match database expectations
+    const formattedWeight = parseFloat(workout.weight.toString()).toFixed(2)
+    
+    // Determine muscle group from exercise name
+    const muscleGroup = findMuscleGroupForExercise(workout.exerciseName)
+    
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
+    console.log('Attempting to insert workout with data:', { 
+      user_id: session.user.id,
+      exercise_name: workout.exerciseName,
+      sets: workout.sets,
+      reps: workout.reps,
+      weight: formattedWeight,
+      duration: workout.duration,
+      notes: workout.notes || null,
+      muscle_group: muscleGroup
+    })
+    
     const { data, error } = await supabase
       .from('workouts')
       .insert({
@@ -46,19 +65,21 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
         exercise_name: workout.exerciseName,
         sets: workout.sets,
         reps: workout.reps,
-        weight: workout.weight,
+        weight: formattedWeight,
         duration: workout.duration,
-        notes: workout.notes,
+        notes: workout.notes || null,
+        muscle_group: muscleGroup
       })
       .select()
       .single()
 
     if (error) {
       console.error('Error inserting workout:', error)
+      console.error('Error details:', JSON.stringify(error))
       throw error
     }
 
-    console.log('Workout logged successfully')
+    console.log('Workout logged successfully, returned data:', data)
     return {
       id: data.id,
       user_id: data.user_id,
@@ -69,9 +90,16 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
       duration: data.duration,
       notes: data.notes,
       created_at: data.created_at,
+      muscleGroup: data.muscle_group
     }
   } catch (error) {
     console.error('Error logging workout:', error)
+    // Log more details if it's a Supabase error
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error('Supabase error code:', (error as any).code)
+      console.error('Supabase error message:', (error as any).message)
+      console.error('Supabase error details:', (error as any).details)
+    }
     return null
   }
 }
@@ -79,9 +107,10 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
 /**
  * Retrieves workouts for the authenticated user
  * @param limit - Maximum number of workouts to retrieve
+ * @param muscleGroup - Optional muscle group to filter by
  * @returns Array of workouts or empty array if there's an error
  */
-export async function getWorkouts(limit = 10): Promise<Workout[]> {
+export async function getWorkouts(limit = 10, muscleGroup?: MuscleGroup): Promise<Workout[]> {
   try {
     console.log('Getting workouts, checking for active session...')
     const { data: { session } } = await supabase.auth.getSession()
@@ -91,10 +120,20 @@ export async function getWorkouts(limit = 10): Promise<Workout[]> {
     }
 
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
-    const { data, error } = await supabase
+    
+    // Build query
+    let query = supabase
       .from('workouts')
       .select('*')
       .eq('user_id', session.user.id)
+      
+    // Add muscle group filter if provided
+    if (muscleGroup) {
+      query = query.eq('muscle_group', muscleGroup)
+    }
+    
+    // Complete the query
+    const { data, error } = await query
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -114,6 +153,7 @@ export async function getWorkouts(limit = 10): Promise<Workout[]> {
       duration: workout.duration,
       notes: workout.notes,
       created_at: workout.created_at,
+      muscleGroup: workout.muscle_group
     }))
   } catch (error) {
     console.error('Error fetching workouts:', error)
@@ -123,9 +163,10 @@ export async function getWorkouts(limit = 10): Promise<Workout[]> {
 
 /**
  * Gets workout statistics for the authenticated user
+ * @param muscleGroup - Optional muscle group to filter by
  * @returns Workout statistics or null if there's an error
  */
-export async function getWorkoutStats(): Promise<WorkoutStats | null> {
+export async function getWorkoutStats(muscleGroup?: MuscleGroup): Promise<WorkoutStats | null> {
   try {
     console.log('Getting workout stats, checking for active session...')
     const { data: { session } } = await supabase.auth.getSession()
@@ -142,10 +183,20 @@ export async function getWorkoutStats(): Promise<WorkoutStats | null> {
     }
 
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
-    const { data, error } = await supabase
+    
+    // Build query
+    let query = supabase
       .from('workouts')
       .select('sets, reps, weight, duration')
       .eq('user_id', session.user.id)
+      
+    // Add muscle group filter if provided
+    if (muscleGroup) {
+      query = query.eq('muscle_group', muscleGroup)
+    }
+    
+    // Complete the query
+    const { data, error } = await query
 
     if (error) {
       console.error('Error fetching workout stats:', error)

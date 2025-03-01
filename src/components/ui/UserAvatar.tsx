@@ -6,9 +6,10 @@ import Link from 'next/link'
 interface UserAvatarProps {
   name: string
   email?: string
+  size?: number
 }
 
-export function UserAvatar({ name, email }: UserAvatarProps) {
+export function UserAvatar({ name, email, size = 8 }: UserAvatarProps) {
   const [showTooltip, setShowTooltip] = useState(false)
   
   // Generate the initials from the user's name
@@ -37,7 +38,7 @@ export function UserAvatar({ name, email }: UserAvatarProps) {
   return (
     <div className="relative flex items-center">
       <div 
-        className={`relative ${avatarColor} h-8 w-8 rounded-full flex items-center justify-center text-white font-medium text-sm cursor-pointer`}
+        className={`relative ${avatarColor} h-${size} w-${size} rounded-full flex items-center justify-center text-white font-medium text-sm cursor-pointer`}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >

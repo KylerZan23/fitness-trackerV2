@@ -66,6 +66,16 @@ export default function LoginPage() {
         provider: signInData.session.user.app_metadata?.provider
       })
 
+      // Verify session was properly saved
+      const { data: verifySession } = await supabase.auth.getSession()
+      
+      if (!verifySession.session) {
+        console.error('Session not persisted after login')
+        throw new Error('Failed to persist your session. Please clear cookies and try again.')
+      }
+      
+      console.log('Session verified and persisted successfully')
+
       // Check/create profile
       console.log('Checking user profile...')
       const { data: profile, error: profileError } = await supabase
@@ -80,10 +90,10 @@ export default function LoginPage() {
           .from('profiles')
           .upsert({
             id: signInData.session.user.id,
-            email: signInData.session.user.email,
-            name: signInData.session.user.user_metadata?.name ?? null,
-            age: signInData.session.user.user_metadata?.age ?? null,
-            fitness_goals: signInData.session.user.user_metadata?.fitness_goals ?? null,
+            email: signInData.session.user.email || '',
+            name: signInData.session.user.user_metadata?.name || signInData.session.user.email?.split('@')[0] || 'User',
+            age: signInData.session.user.user_metadata?.age || 0,
+            fitness_goals: signInData.session.user.user_metadata?.fitness_goals || 'Get fit',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
@@ -100,7 +110,15 @@ export default function LoginPage() {
         console.log('Existing profile found')
       }
 
+      // Double-check session before navigating
+      const { data: finalCheck } = await supabase.auth.getUser()
+      
+      if (!finalCheck.user) {
+        throw new Error('Session verification failed. Please try again.')
+      }
+
       // Navigate to dashboard after login
+      console.log('Login successful, redirecting to dashboard...')
       router.push('/dashboard')
       
     } catch (err) {

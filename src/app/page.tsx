@@ -22,10 +22,31 @@ export default function HomePage() {
     const checkAuth = async () => {
       setIsLoading(true)
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        setIsAuthenticated(!!session)
+        console.log('Checking authentication status...')
+        // Force a fresh session check from the server
+        const { data: { session }, error } = await supabase.auth.getSession()
         
-        if (session?.user) {
+        if (error) {
+          console.error('Session error:', error)
+          setIsAuthenticated(false)
+          return
+        }
+        
+        // Validate the session is still valid
+        if (session) {
+          const { data: userResponse, error: userError } = await supabase.auth.getUser()
+          
+          if (userError || !userResponse.user) {
+            console.error('Invalid session detected, clearing...')
+            await supabase.auth.signOut()
+            setIsAuthenticated(false)
+            return
+          }
+          
+          console.log('Valid session detected')
+          setIsAuthenticated(true)
+          
+          // Profile handling
           const fallbackProfile: UserProfile = {
             name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
             email: session.user.email || '',
@@ -64,6 +85,9 @@ export default function HomePage() {
             console.log('Error loading profile:', error)
             setProfile(fallbackProfile)
           }
+        } else {
+          console.log('No session found')
+          setIsAuthenticated(false)
         }
       } catch (error) {
         console.log('Error checking auth:', error)
@@ -78,15 +102,47 @@ export default function HomePage() {
 
   const handleDashboardNavigation = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      console.log('Dashboard navigation requested...')
+      // Force fresh session check
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('Session error during navigation:', error)
+        router.push('/login')
+        return
+      }
+      
       if (session) {
+        console.log('Session found, navigating to dashboard')
         router.push('/dashboard')
       } else {
+        console.log('No session found, redirecting to login')
         router.push('/login')
       }
     } catch (error) {
       console.error('Navigation error:', error)
       router.push('/login')
+    }
+  }
+
+  const handleSignOut = async () => {
+    setIsLoading(true)
+    try {
+      console.log('Signing out...')
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Error signing out:', error)
+      } else {
+        console.log('Successfully signed out')
+        setIsAuthenticated(false)
+        setProfile(null)
+      }
+    } catch (error) {
+      console.error('Sign out error:', error)
+    } finally {
+      setIsLoading(false)
+      // Force refresh the page
+      window.location.href = '/'
     }
   }
 
@@ -126,6 +182,12 @@ export default function HomePage() {
                     className="px-6 py-2 bg-white text-black text-sm font-medium rounded-full hover:bg-white/90 transition-colors mr-4"
                   >
                     Your Dashboard
+                  </button>
+                  <button
+                    onClick={handleSignOut}
+                    className="px-6 py-2 bg-red-600 text-white text-sm font-medium rounded-full hover:bg-red-700 transition-colors"
+                  >
+                    Sign Out
                   </button>
                 </div>
                 <UserAvatar name={profile.name} email={profile.email} />
@@ -179,17 +241,12 @@ export default function HomePage() {
             ) : (
               <div className="space-y-4">
                 <Link
-                  href="/signup"
+                  href="/login"
                   className="inline-block px-8 py-4 bg-white text-black font-medium rounded-full text-lg hover:bg-white/90 transition-colors"
                 >
-                  Start Your Journey
+                  Sign In Now
                 </Link>
-                <Link
-                  href="/login"
-                  className="inline-block ml-4 text-white hover:text-gray-300 transition-colors"
-                >
-                  Already have an account?
-                </Link>
+                <p className="text-gray-400 ml-2">It's free to get started!</p>
               </div>
             )}
           </div>

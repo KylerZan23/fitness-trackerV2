@@ -4,13 +4,14 @@ interface StatsCardProps {
   title: string
   value: string | number
   description?: string
+  iconName?: string
   trend?: {
     value: number
     isPositive: boolean
   }
 }
 
-export function StatsCard({ title, value, description, trend }: StatsCardProps) {
+export function StatsCard({ title, value, description, iconName, trend }: StatsCardProps) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-lg p-6">
       <div className="flex items-center justify-between">

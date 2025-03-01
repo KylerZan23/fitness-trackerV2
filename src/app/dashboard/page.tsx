@@ -74,7 +74,8 @@ export default function DashboardPage() {
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
         
         if (sessionError) {
-          throw new Error(sessionError.message)
+          setError(`Session error: ${sessionError.message}`)
+          return
         }
         
         if (!currentSession) {
@@ -121,8 +122,8 @@ export default function DashboardPage() {
         
         // Fetch workout data
         try {
-          const userStats = await getWorkoutStats(currentSession.user.id)
-          const userTrends = await getWorkoutTrends(currentSession.user.id)
+          const userStats = await getWorkoutStats()
+          const userTrends = await getWorkoutTrends('week')
           
           setStats(userStats || emptyStats)
           setTrends(userTrends || emptyTrends)
@@ -135,7 +136,11 @@ export default function DashboardPage() {
         
       } catch (err) {
         console.error('Dashboard error:', err)
-        setError(err instanceof Error ? err.message : 'An error occurred while loading the dashboard')
+        // Safe error handling with type checking
+        const errorMessage = err && typeof err === 'object' && 'message' in err 
+          ? String(err.message) 
+          : 'An error occurred while loading the dashboard'
+        setError(errorMessage)
       } finally {
         setIsLoading(false)
       }
@@ -170,12 +175,8 @@ export default function DashboardPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
-          <h2 className="text-xl font-medium">Loading your dashboard...</h2>
-          <p className="text-gray-400 mt-2">Please wait while we fetch your fitness data</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto"></div>
       </div>
     )
   }
@@ -183,9 +184,9 @@ export default function DashboardPage() {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center justify-center">
-        <div className="max-w-md w-full bg-gray-800 p-8 rounded-lg shadow-lg">
-          <h1 className="text-2xl font-bold mb-4">Dashboard Error</h1>
+      <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center">
+        <div className="max-w-md w-full bg-black/60 backdrop-blur-sm p-8 rounded-xl border border-white/20 shadow-lg">
+          <h1 className="text-2xl font-serif font-bold mb-4">Dashboard Error</h1>
           <Error message={error} className="mb-6" />
           <p className="mb-6 text-gray-300">
             We encountered an error while loading your dashboard. This could be due to a network issue or session expiration.
@@ -193,13 +194,13 @@ export default function DashboardPage() {
           <div className="flex space-x-4">
             <button
               onClick={() => window.location.reload()}
-              className="bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-gray-200 transition-colors flex-1"
+              className="bg-white text-black px-4 py-2 rounded-full font-medium hover:bg-white/90 transition-colors flex-1"
             >
               Retry
             </button>
             <Link
               href="/login"
-              className="border border-white text-white px-4 py-2 rounded-md font-medium hover:bg-white/10 transition-colors flex-1 text-center"
+              className="border border-white text-white px-4 py-2 rounded-full font-medium hover:bg-white/20 transition-colors flex-1 text-center"
             >
               Back to Login
             </Link>
@@ -211,9 +212,9 @@ export default function DashboardPage() {
 
   // Main dashboard content
   return (
-    <div className="min-h-screen bg-gray-900 text-white pb-20">
+    <div className="min-h-screen bg-black text-white pb-20">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700">
+      <header className="bg-black/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/" className="text-2xl font-bold">FitnessTracker</Link>
           
@@ -230,7 +231,7 @@ export default function DashboardPage() {
             
             <button
               onClick={handleSignOut}
-              className="px-4 py-2 rounded-md border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors"
+              className="px-4 py-2 rounded-full border border-white/20 text-white hover:bg-white/10 transition-colors"
             >
               Sign Out
             </button>
@@ -240,15 +241,15 @@ export default function DashboardPage() {
       
       {/* Welcome message for new users */}
       {showWelcome && (
-        <div className="bg-blue-900/30 border border-blue-800 rounded-lg p-4 m-4 relative">
+        <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 backdrop-blur-sm border border-white/10 rounded-xl p-6 mx-4 mt-6 relative">
           <button 
             onClick={() => setShowWelcome(false)}
             className="absolute top-3 right-3 text-gray-400 hover:text-white"
           >
             ✕
           </button>
-          <h2 className="text-xl font-bold mb-2">Welcome to your Fitness Dashboard!</h2>
-          <p className="text-gray-300">
+          <h2 className="text-2xl font-serif font-bold mb-2">Welcome to your Fitness Dashboard!</h2>
+          <p className="text-gray-300 text-lg">
             This is where you'll track your progress and see your fitness journey. Get started by recording your first workout.
           </p>
         </div>
@@ -257,41 +258,41 @@ export default function DashboardPage() {
       {/* Main content */}
       <main className="container mx-auto px-4 py-8">
         {/* Profile summary */}
-        <section className="mb-10">
+        <section className="mb-12">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <h1 className="text-3xl font-bold">Your Fitness Dashboard</h1>
+            <h1 className="text-4xl font-serif">Your Fitness Dashboard</h1>
             
             <button
               onClick={() => router.push('/profile')}
-              className="px-4 py-2 bg-gray-800 rounded-md hover:bg-gray-700 transition-colors"
+              className="px-6 py-2 bg-white text-black rounded-full hover:bg-white/90 transition-colors"
             >
               Edit Profile
             </button>
           </div>
           
           {profile && (
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
               <div className="flex items-center">
                 <UserAvatar name={profile.name} email={profile.email} size={60} />
                 <div className="ml-4">
-                  <h2 className="text-xl font-bold">{profile.name}</h2>
+                  <h2 className="text-2xl font-serif">{profile.name}</h2>
                   <p className="text-gray-400">{profile.email}</p>
                 </div>
               </div>
               
-              <div className="mt-4 pt-4 border-t border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-gray-400">Age</p>
-                  <p className="font-medium">{profile.age || 'Not specified'}</p>
+                  <p className="text-gray-400 text-sm">Age</p>
+                  <p className="font-medium text-xl">{profile.age || 'Not specified'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400">Fitness Goals</p>
-                  <p className="font-medium">{profile.fitness_goals || 'No goals set'}</p>
+                  <p className="text-gray-400 text-sm">Fitness Goals</p>
+                  <p className="font-medium text-xl">{profile.fitness_goals || 'No goals set'}</p>
                 </div>
                 <div className="md:col-span-2 mt-2">
                   <button
                     onClick={() => router.push('/profile')}
-                    className="text-blue-400 hover:text-blue-300 text-sm"
+                    className="text-white/80 hover:text-white transition-colors text-sm font-medium"
                   >
                     Update Profile Information →
                   </button>
@@ -302,8 +303,8 @@ export default function DashboardPage() {
         </section>
         
         {/* Stats cards */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold mb-6">Your Workout Statistics</h2>
+        <section className="mb-12">
+          <h2 className="text-3xl font-serif mb-6">Your Workout Statistics</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             <StatsCard 
               title="Total Workouts" 
@@ -334,17 +335,17 @@ export default function DashboardPage() {
         </section>
         
         {/* Workout trends chart */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold mb-6">Workout Trends</h2>
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <section className="mb-12">
+          <h2 className="text-3xl font-serif mb-6">Workout Trends</h2>
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
             {trends.length > 0 ? (
               <WorkoutChart data={trends} />
             ) : (
-              <div className="text-center py-10">
-                <p className="text-gray-400 mb-4">No workout data available yet</p>
+              <div className="text-center py-12">
+                <p className="text-gray-400 mb-6 text-lg">No workout data available yet</p>
                 <Link 
                   href="/workout/new" 
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  className="px-6 py-3 bg-white text-black rounded-full hover:bg-white/90 transition-colors font-medium"
                 >
                   Log Your First Workout
                 </Link>
@@ -354,30 +355,30 @@ export default function DashboardPage() {
         </section>
         
         {/* Health app integrations */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold mb-6">Connect Health Apps</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-xl font-bold mb-3">Apple HealthKit</h3>
-              <p className="text-gray-400 mb-4">
+        <section className="mb-12">
+          <h2 className="text-3xl font-serif mb-6">Connect Health Apps</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
+              <h3 className="text-2xl font-serif mb-3">Apple HealthKit</h3>
+              <p className="text-gray-300 mb-6">
                 Sync your Apple Watch and iPhone health data with FitnessTracker
               </p>
               <button
                 onClick={() => alert('Apple HealthKit integration coming soon!')}
-                className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-900 transition-colors"
+                className="px-6 py-2 bg-black border border-white/20 text-white rounded-full hover:bg-white/10 transition-colors"
               >
                 Connect
               </button>
             </div>
             
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-xl font-bold mb-3">Google Fit</h3>
-              <p className="text-gray-400 mb-4">
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
+              <h3 className="text-2xl font-serif mb-3">Google Fit</h3>
+              <p className="text-gray-300 mb-6">
                 Import your Google Fit activity and workout data
               </p>
               <button
                 onClick={() => alert('Google Fit integration coming soon!')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="px-6 py-2 bg-white text-black rounded-full hover:bg-white/90 transition-colors"
               >
                 Connect
               </button>

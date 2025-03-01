@@ -4,6 +4,7 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Workout Entry Feature**: Added a new page for logging individual workouts with exercise details
 - **SSR Authentication Fix**: Updated Supabase client to use cookie-based authentication for SSR compatibility, fixing login redirection issues
 - **Authentication Flow Improvements**: Fixed issues with session persistence and navigation between dashboard and profile pages
 - **Dark Theme UI**: Updated entire application with a consistent dark theme for better visual appeal
@@ -14,9 +15,10 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 - User authentication with email/password (SSR-compatible)
 - Profile management
-- Workout tracking
+- Workout tracking with detailed exercise logging
 - Progress analytics
 - Health app integration
+- Exercise categorization
 
 ## Authentication
 
@@ -93,6 +95,57 @@ All images are sourced from Unsplash and are free to use under the Unsplash Lice
 - Form handling with React Hook Form
 - Validation with Zod
 
+## Code Quality
+
+This project uses ESLint and Prettier to maintain code quality and consistent styling:
+
+### Linting
+
+- ESLint is configured with TypeScript-specific rules
+- Run linting checks:
+  ```bash
+  yarn lint
+  ```
+- Fix automatically fixable issues:
+  ```bash
+  yarn lint:fix
+  ```
+
+### Formatting
+
+- Prettier ensures consistent code formatting
+- Format all files:
+  ```bash
+  yarn format
+  ```
+- Check if files are properly formatted:
+  ```bash
+  yarn format:check
+  ```
+
+### Pre-commit Hooks
+
+Consider adding pre-commit hooks with Husky to ensure code quality before committing:
+
+```bash
+yarn add --dev husky lint-staged
+```
+
+Then add to package.json:
+```json
+{
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": ["eslint --fix", "prettier --write"],
+    "*.{json,css,md}": ["prettier --write"]
+  }
+}
+```
+
 ## Contributing
 
 1. Fork the repository
@@ -104,3 +157,21 @@ All images are sourced from Unsplash and are free to use under the Unsplash Lice
 ## License
 
 MIT License - see LICENSE for details
+
+## Workout Tracking
+
+The application includes comprehensive workout tracking capabilities:
+
+1. **Exercise Logging**: Record individual exercises with sets, reps, weight, and duration
+2. **Workout History**: View past workouts and track progress over time
+3. **Performance Metrics**: Analyze workout trends and statistics
+4. **Notes and Tags**: Add custom notes to each workout session
+
+### Workout Data Schema
+
+- `exerciseName`: Name of the exercise performed
+- `sets`: Number of sets completed
+- `reps`: Repetitions per set
+- `weight`: Weight used (in kg)
+- `duration`: Time spent on the exercise (in minutes)
+- `notes`: Optional notes about the workout

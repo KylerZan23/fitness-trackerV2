@@ -52,7 +52,8 @@ export async function middleware(request: NextRequest) {
 
     // Define protected paths
     const isProtectedPath = request.nextUrl.pathname.startsWith('/dashboard') || 
-                          request.nextUrl.pathname.startsWith('/profile')
+                          request.nextUrl.pathname.startsWith('/profile') ||
+                          request.nextUrl.pathname.startsWith('/workout')
     const isAuthPath = request.nextUrl.pathname.startsWith('/login') || 
                       request.nextUrl.pathname.startsWith('/signup')
 
@@ -92,5 +93,5 @@ function redirectToLogin(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/profile/:path*', '/login', '/signup']
+  matcher: ['/dashboard/:path*', '/profile/:path*', '/workout/:path*', '/login', '/signup']
 } 
