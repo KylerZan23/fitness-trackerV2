@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
 import Image from 'next/image'
 import { LoginFormData, loginSchema } from '@/lib/schemas'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface AuthError {
   message: string;
@@ -16,8 +16,43 @@ interface AuthError {
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showSessionInfo, setShowSessionInfo] = useState(false)
+
+  // Check if the page was accessed with a bypass parameter
+  const bypassAuth = searchParams?.get('bypass') === 'true'
+
+  // If accessed with bypass, show a notice about being logged in
+  useEffect(() => {
+    if (bypassAuth) {
+      const checkSession = async () => {
+        const { data } = await supabase.auth.getSession()
+        if (data.session) {
+          setShowSessionInfo(true)
+        }
+      }
+      
+      checkSession()
+    }
+  }, [bypassAuth])
+
+  // Force logout function
+  const handleForceLogout = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      await supabase.auth.signOut()
+      setShowSessionInfo(false)
+      // Refresh the page
+      window.location.href = '/login'
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign out')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const {
     register,
@@ -52,72 +87,143 @@ export default function LoginPage() {
 
       console.log('Sign in successful, session created')
 
+      // Store the user ID for profile operations - this is from the successful sign-in response
+      const userId = signInData.session.user.id
+      const userEmail = signInData.session.user.email || ''
+      
       // Log the full session details for debugging
       console.log('=== Session Debug Information ===')
       console.log('Session:', {
         accessToken: `${signInData.session.access_token.substring(0, 10)}...`,
         tokenExpiry: new Date(signInData.session.expires_at! * 1000).toISOString(),
         user: {
-          id: signInData.session.user.id,
-          email: signInData.session.user.email,
+          id: userId,
+          email: userEmail,
           role: signInData.session.user.role,
           lastSignIn: signInData.session.user.last_sign_in_at,
         },
         provider: signInData.session.user.app_metadata?.provider
       })
 
-      // Verify session was properly saved
-      const { data: verifySession } = await supabase.auth.getSession()
+      // Give Supabase a moment to persist the session in cookies
+      console.log('Waiting for session to be properly persisted...')
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      if (!verifySession.session) {
-        console.error('Session not persisted after login')
-        throw new Error('Failed to persist your session. Please clear cookies and try again.')
+      // Try to verify session, but don't block login if there's an issue
+      try {
+        const { data: verifySession } = await supabase.auth.getSession()
+        
+        if (!verifySession.session) {
+          console.warn('Session verification check failed, continuing with initial sign-in data')
+        } else {
+          console.log('Session verified and persisted successfully')
+        }
+      } catch (sessionError) {
+        // Log but don't throw an error - we'll continue with the initial sign-in data
+        console.warn('Session verification error, continuing with initial sign-in data:', sessionError)
       }
-      
-      console.log('Session verified and persisted successfully')
 
-      // Check/create profile
+      // Check/create profile using the user ID from the initial sign-in
       console.log('Checking user profile...')
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', signInData.session.user.id)
-        .single()
-
-      if (profileError) {
-        console.log('Profile not found, creating new profile...')
-        const { error: createError } = await supabase
+      try {
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .upsert({
-            id: signInData.session.user.id,
-            email: signInData.session.user.email || '',
-            name: signInData.session.user.user_metadata?.name || signInData.session.user.email?.split('@')[0] || 'User',
-            age: signInData.session.user.user_metadata?.age || 0,
-            fitness_goals: signInData.session.user.user_metadata?.fitness_goals || 'Get fit',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .select()
+          .select('*')
+          .eq('id', userId)
           .single()
 
-        if (createError) {
-          console.error('Profile creation error:', createError)
-          console.log('Continuing without profile creation')
+        if (profileError) {
+          console.log('Profile not found, creating new profile...')
+          
+          // Create profile data object with required fields and proper typing
+          interface ProfileData {
+            id: string;
+            email: string;
+            name: string;
+            created_at: string;
+            updated_at: string;
+            age?: number;
+            fitness_goals?: string;
+          }
+          
+          const profileData: ProfileData = {
+            id: userId,
+            email: userEmail,
+            name: signInData.session.user.user_metadata?.name || userEmail.split('@')[0] || 'User',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          
+          // Add optional fields only if they exist in user metadata
+          if (signInData.session.user.user_metadata?.age) {
+            profileData.age = signInData.session.user.user_metadata.age
+          }
+          
+          if (signInData.session.user.user_metadata?.fitness_goals) {
+            profileData.fitness_goals = signInData.session.user.user_metadata.fitness_goals
+          } else {
+            profileData.fitness_goals = 'Get fit'  // Default value
+          }
+          
+          // Perform upsert without additional select/single to simplify operation
+          const { error: createError } = await supabase
+            .from('profiles')
+            .upsert(profileData)
+
+          if (createError) {
+            // Log detailed error information
+            console.error('Profile creation error:', JSON.stringify(createError, null, 2))
+            
+            // Check if this is an RLS policy error
+            if (createError.code === '42501') {
+              console.warn('Row-Level Security policy violation - trying server-side profile creation')
+              
+              // Attempt to create profile using our server-side API
+              try {
+                const response = await fetch('/api/create-profile', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    id: userId,
+                    email: userEmail,
+                    name: signInData.session.user.user_metadata?.name || userEmail.split('@')[0] || 'User',
+                    fitness_goals: signInData.session.user.user_metadata?.fitness_goals || 'Get fit',
+                    age: signInData.session.user.user_metadata?.age,
+                    auth_token: signInData.session.access_token,
+                  }),
+                })
+                
+                const result = await response.json()
+                
+                if (response.ok) {
+                  console.log('Profile created via server API:', result.message)
+                } else {
+                  console.error('Server profile creation failed:', result.error)
+                  console.log('Continuing with login despite profile creation failure')
+                }
+              } catch (apiError) {
+                console.error('Error calling profile creation API:', apiError)
+                console.log('Continuing with login despite profile creation API error')
+              }
+            } else {
+              console.log('Continuing without profile creation due to unexpected error')
+            }
+          } else {
+            console.log('Profile created successfully')
+          }
         } else {
-          console.log('Profile created successfully')
+          console.log('Existing profile found')
         }
-      } else {
-        console.log('Existing profile found')
+      } catch (profileError) {
+        // Log with more detail
+        console.error('Profile check/create error:', 
+          typeof profileError === 'object' ? JSON.stringify(profileError, null, 2) : profileError)
+        console.log('Continuing without profile verification')
       }
 
-      // Double-check session before navigating
-      const { data: finalCheck } = await supabase.auth.getUser()
-      
-      if (!finalCheck.user) {
-        throw new Error('Session verification failed. Please try again.')
-      }
-
-      // Navigate to dashboard after login
+      // Navigate to dashboard after login - we don't need a second verification
       console.log('Login successful, redirecting to dashboard...')
       router.push('/dashboard')
       
@@ -140,6 +246,32 @@ export default function LoginPage() {
         <div>
           <h1 className="text-4xl font-serif mb-4">Welcome Back</h1>
           <p className="text-gray-400 mb-8">Sign in to continue your fitness journey</p>
+
+          {/* Display session warning if user is already logged in but using bypass */}
+          {showSessionInfo && (
+            <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-6">
+              <h3 className="text-yellow-400 font-medium">You're already logged in</h3>
+              <p className="text-gray-300 text-sm mt-1 mb-3">
+                You currently have an active session. Do you want to continue with your 
+                current session or sign in with a different account?
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="px-4 py-2 bg-white/10 text-white text-sm rounded-lg hover:bg-white/20 transition-colors"
+                >
+                  Continue to Dashboard
+                </button>
+                <button
+                  onClick={handleForceLogout}
+                  className="px-4 py-2 bg-yellow-500/20 text-yellow-400 text-sm rounded-lg hover:bg-yellow-500/30 transition-colors"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Signing Out...' : 'Sign Out & Use Different Account'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {error && (

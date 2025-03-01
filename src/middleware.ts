@@ -32,6 +32,13 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  // Helper function to check if a path is protected
+  function checkProtectedPath(req: NextRequest) {
+    return req.nextUrl.pathname.startsWith('/dashboard') || 
+           req.nextUrl.pathname.startsWith('/profile') ||
+           req.nextUrl.pathname.startsWith('/workout')
+  }
+
   try {
     // Debug cookie information
     const allCookies = request.cookies.getAll()
@@ -47,13 +54,18 @@ export async function middleware(request: NextRequest) {
     
     if (sessionError) {
       console.error('Error getting session:', sessionError.message)
-      return redirectToLogin(request)
+      
+      // If this is a protected path, redirect to login
+      if (checkProtectedPath(request)) {
+        return redirectToLogin(request)
+      }
+      
+      // Otherwise allow the request to continue
+      return response
     }
 
-    // Define protected paths
-    const isProtectedPath = request.nextUrl.pathname.startsWith('/dashboard') || 
-                          request.nextUrl.pathname.startsWith('/profile') ||
-                          request.nextUrl.pathname.startsWith('/workout')
+    // Define path types
+    const isProtectedPath = checkProtectedPath(request)
     const isAuthPath = request.nextUrl.pathname.startsWith('/login') || 
                       request.nextUrl.pathname.startsWith('/signup')
 
@@ -64,6 +76,9 @@ export async function middleware(request: NextRequest) {
         return redirectToLogin(request)
       }
 
+      // Debug log successful auth for protected routes
+      console.log(`Authenticated access to ${request.nextUrl.pathname} for user ${session.user.id}`)
+      
       // Add session info to headers
       response.headers.set('x-user-id', session.user.id)
       response.headers.set('x-user-email', session.user.email ?? '')
@@ -71,8 +86,14 @@ export async function middleware(request: NextRequest) {
 
     // Handle auth routes when user is already logged in
     if (isAuthPath && session) {
-      console.log('User is authenticated, redirecting to dashboard')
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      // Check for a bypass parameter to allow access to login/signup even when authenticated
+      const bypassAuth = request.nextUrl.searchParams.get('bypass') === 'true'
+      
+      if (!bypassAuth) {
+        console.log('User is authenticated, redirecting to dashboard')
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+      console.log('Auth bypass enabled, allowing access to login page while authenticated')
     }
 
     return response

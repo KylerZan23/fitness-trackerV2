@@ -1,14 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { z } from 'zod'
+import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase'
 import { logWorkout } from '@/lib/db'
 import { workoutSchema } from '@/lib/schemas'
-import { supabase } from '@/lib/supabase'
 import { MuscleGroup } from '@/lib/types'
 import { MuscleGroupSelector } from '@/components/workout/MuscleGroupSelector'
 import { ExerciseSelector } from '@/components/workout/ExerciseSelector'
+import { MuscleHeatmap } from '@/components/workout/MuscleHeatmap'
 
 interface WorkoutFormData {
   exerciseName: string
@@ -25,6 +28,8 @@ export default function NewWorkoutPage() {
   const [error, setError] = useState<string | null>(null)
   const [detailedError, setDetailedError] = useState<any>(null)
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<MuscleGroup | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [showHeatmap, setShowHeatmap] = useState(true)
   const [formData, setFormData] = useState<WorkoutFormData>({
     exerciseName: '',
     sets: 3,
@@ -33,6 +38,22 @@ export default function NewWorkoutPage() {
     duration: 30,
     notes: ''
   })
+
+  // Check authentication and get userId for the heatmap
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          setUserId(session.user.id)
+        }
+      } catch (err) {
+        console.error('Error checking authentication:', err)
+      }
+    }
+    
+    checkAuth()
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -131,8 +152,44 @@ export default function NewWorkoutPage() {
             >
               ← Back to Dashboard
             </Link>
-            <h1 className="text-3xl font-serif">Log New Workout</h1>
+            <h1 className="text-3xl font-serif">Workout Tracker</h1>
           </div>
+
+          {/* Toggle button for heatmap visibility */}
+          <div className="flex justify-end mb-6">
+            <button 
+              onClick={() => setShowHeatmap(!showHeatmap)}
+              className="flex items-center text-white/70 hover:text-white"
+            >
+              {showHeatmap ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                    <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                  </svg>
+                  Hide Muscle Heatmap
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                  </svg>
+                  Show Muscle Heatmap
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Integrated Muscle Heatmap */}
+          {showHeatmap && (
+            <div className="mb-10 bg-black/20 border border-white/10 rounded-xl p-4">
+              <h2 className="text-xl font-medium mb-4">Your Muscle Training Map</h2>
+              <MuscleHeatmap userId={userId || undefined} />
+            </div>
+          )}
+
+          <h2 className="text-2xl font-medium mb-6">Log a New Workout</h2>
 
           {/* Muscle Group Selector */}
           <MuscleGroupSelector 

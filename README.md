@@ -4,6 +4,10 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Improved Authentication Flow**: Added ability to bypass authentication redirection for accessing the login page and switching accounts
+- **Integrated Muscle Heatmap**: Muscle heatmap visualization now directly integrated into the workout page for a more cohesive experience
+- **Muscle Group Filtering**: Added muscle group selector for filtering exercises when logging workouts
+- **Muscle Heatmap Visualization**: Added visualization to track workout intensity across different muscle groups
 - **Workout Entry Feature**: Added a new page for logging individual workouts with exercise details
 - **SSR Authentication Fix**: Updated Supabase client to use cookie-based authentication for SSR compatibility, fixing login redirection issues
 - **Authentication Flow Improvements**: Fixed issues with session persistence and navigation between dashboard and profile pages
@@ -19,6 +23,7 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - Progress analytics
 - Health app integration
 - Exercise categorization
+- Muscle heatmap visualization for tracking training balance
 
 ## Authentication
 
@@ -29,12 +34,16 @@ The app uses Supabase Authentication with Server-Side Rendering (SSR) support:
 3. Separation of client and server authentication contexts
 4. Clear error handling for authentication failures
 
+For troubleshooting authentication issues, see [Authentication Troubleshooting Guide](docs/auth-troubleshooting.md).
+
 ### Auth File Structure
 
 - `src/lib/supabase.ts` - Browser client setup
 - `src/utils/supabase/server.ts` - Server components client
 - `src/utils/supabase/middleware.ts` - Middleware-specific client
 - `src/middleware.ts` - Route protection and session verification
+- `docs/auth-flow.md` - Authentication flow documentation
+- `docs/auth-troubleshooting.md` - Solutions for common authentication issues
 
 ## Design
 
@@ -45,6 +54,7 @@ The application features a modern, minimalist design inspired by high-end fitnes
 - Clean typography with serif headings
 - Motivational imagery
 - Smooth transitions and animations
+- Interactive muscle group visualization
 
 ## Image Attribution
 
@@ -166,6 +176,7 @@ The application includes comprehensive workout tracking capabilities:
 2. **Workout History**: View past workouts and track progress over time
 3. **Performance Metrics**: Analyze workout trends and statistics
 4. **Notes and Tags**: Add custom notes to each workout session
+5. **Muscle Heatmap**: Visualize which muscle groups you've trained and identify imbalances
 
 ### Workout Data Schema
 
@@ -175,3 +186,4 @@ The application includes comprehensive workout tracking capabilities:
 - `weight`: Weight used (in kg)
 - `duration`: Time spent on the exercise (in minutes)
 - `notes`: Optional notes about the workout
+- `muscleGroup`: The primary muscle group targeted by the exercise
