@@ -4,6 +4,9 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Enhanced Auth Session Debugging**: Added comprehensive client and server-side logging for authentication troubleshooting and a standalone token verification testing tool
+- **Improved Auth Token Verification**: Enhanced security by using service role for token verification with proper error handling
+- **Enhanced Authentication & Profile Creation**: Fixed RLS policy issues and improved server-side API token verification for robust user registration
 - **Improved Authentication Flow**: Added ability to bypass authentication redirection for accessing the login page and switching accounts
 - **Integrated Muscle Heatmap**: Muscle heatmap visualization now directly integrated into the workout page for a more cohesive experience
 - **Muscle Group Filtering**: Added muscle group selector for filtering exercises when logging workouts
@@ -35,6 +38,8 @@ The app uses Supabase Authentication with Server-Side Rendering (SSR) support:
 4. Clear error handling for authentication failures
 
 For troubleshooting authentication issues, see [Authentication Troubleshooting Guide](docs/auth-troubleshooting.md).
+For information on recent authentication fixes, see [Authentication Fixes Documentation](docs/authentication-fixes.md).
+For specific help with "Auth session missing" errors, see [Auth Session Troubleshooting Guide](docs/auth-session-troubleshooting.md).
 
 ### Auth File Structure
 
@@ -42,8 +47,12 @@ For troubleshooting authentication issues, see [Authentication Troubleshooting G
 - `src/utils/supabase/server.ts` - Server components client
 - `src/utils/supabase/middleware.ts` - Middleware-specific client
 - `src/middleware.ts` - Route protection and session verification
+- `src/app/api/create-profile/route.ts` - Server-side profile creation with enhanced logging
 - `docs/auth-flow.md` - Authentication flow documentation
 - `docs/auth-troubleshooting.md` - Solutions for common authentication issues
+- `docs/authentication-fixes.md` - Documentation of fixes for authentication issues
+- `docs/auth-session-troubleshooting.md` - Specific guide for troubleshooting auth session issues
+- `scripts/test-token.js` - Standalone script for testing Supabase token verification
 
 ## Design
 

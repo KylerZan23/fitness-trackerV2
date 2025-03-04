@@ -178,8 +178,37 @@ export default function LoginPage() {
             if (createError.code === '42501') {
               console.warn('Row-Level Security policy violation - trying server-side profile creation')
               
+              // Add a small delay to ensure session is fully established
+              await new Promise(resolve => setTimeout(resolve, 1000))
+              
+              // Log access token availability
+              console.log(`Access token available: ${!!signInData.session.access_token}`)
+              if (signInData.session.access_token) {
+                console.log(`Token length: ${signInData.session.access_token.length}, First 10 chars: ${signInData.session.access_token.substring(0, 10)}...`)
+              }
+              
+              // Verify session before proceeding
+              console.log('Verifying session before server-side profile creation')
+              const { data: verifiedSession, error: sessionVerifyError } = await supabase.auth.getSession()
+              
+              if (sessionVerifyError) {
+                console.error('Session verification error:', sessionVerifyError)
+              }
+              
+              console.log(`Verified session exists: ${!!verifiedSession.session}`)
+              console.log(`Session user ID: ${verifiedSession.session?.user.id}`)
+              console.log(`Session expiry: ${verifiedSession.session ? new Date((verifiedSession.session.expires_at ?? 0) * 1000).toISOString() : 'N/A'}`)
+              
+              // Increase delay to 1.5 seconds to ensure token propagation
+              console.log('Adding additional delay before API call for token propagation...')
+              await new Promise(resolve => setTimeout(resolve, 1500))
+              
               // Attempt to create profile using our server-side API
               try {
+                console.log('Sending profile creation request to server API...')
+                console.log(`Using token from verified session: ${!!verifiedSession.session?.access_token}`)
+                console.log(`Using user ID: ${userId}`)
+                
                 const response = await fetch('/api/create-profile', {
                   method: 'POST',
                   headers: {
@@ -191,7 +220,7 @@ export default function LoginPage() {
                     name: signInData.session.user.user_metadata?.name || userEmail.split('@')[0] || 'User',
                     fitness_goals: signInData.session.user.user_metadata?.fitness_goals || 'Get fit',
                     age: signInData.session.user.user_metadata?.age,
-                    auth_token: signInData.session.access_token,
+                    auth_token: verifiedSession.session?.access_token || signInData.session.access_token,
                   }),
                 })
                 
@@ -201,10 +230,24 @@ export default function LoginPage() {
                   console.log('Profile created via server API:', result.message)
                 } else {
                   console.error('Server profile creation failed:', result.error)
+                  console.error('Response status:', response.status)
+                  console.error('Response status text:', response.statusText)
+                  
+                  // Check for specific error types
+                  if (result.error && result.error.includes('Auth session missing')) {
+                    console.error('Auth session missing detected - this suggests token verification issues')
+                    console.log('Possible causes:')
+                    console.log('1. Token not propagated to server yet')
+                    console.log('2. Token expired between client verification and server use')
+                    console.log('3. Token format issues between client and server')
+                  }
+                  
+                  setError(`Profile creation error: ${result.error}`)
                   console.log('Continuing with login despite profile creation failure')
                 }
               } catch (apiError) {
                 console.error('Error calling profile creation API:', apiError)
+                setError('Failed to create profile. Please try again.')
                 console.log('Continuing with login despite profile creation API error')
               }
             } else {

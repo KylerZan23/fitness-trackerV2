@@ -1,16 +1,17 @@
-import { createClient } from '@supabase/supabase-js'
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config({ path: '.env.local' });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY // This needs to be added to .env.local
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function createTestUser() {
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('Missing environment variables. Please check .env.local')
-    process.exit(1)
+    console.error('Missing environment variables. Please check .env.local');
+    process.exit(1);
   }
 
   // Create Supabase admin client
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   const testUser = {
     email: 'test@fitnesstrack.local',
@@ -20,7 +21,7 @@ async function createTestUser() {
       age: 25,
       fitness_goals: 'Build strength and improve endurance'
     }
-  }
+  };
 
   try {
     // Create user
@@ -29,14 +30,14 @@ async function createTestUser() {
       password: testUser.password,
       email_confirm: true, // Auto-confirm email
       user_metadata: testUser.user_metadata
-    })
+    });
 
     if (createError) {
-      throw createError
+      throw createError;
     }
 
     if (!user.user) {
-      throw new Error('Failed to create test user')
+      throw new Error('Failed to create test user');
     }
 
     // Create profile
@@ -50,22 +51,22 @@ async function createTestUser() {
         fitness_goals: testUser.user_metadata.fitness_goals,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      })
+      });
 
     if (profileError) {
-      console.error('Error creating profile:', profileError)
+      console.error('Error creating profile:', profileError);
     }
 
-    console.log('\n=== Test User Created Successfully ===')
-    console.log('Email:', testUser.email)
-    console.log('Password:', testUser.password)
-    console.log('User ID:', user.user.id)
-    console.log('\nYou can now log in with these credentials at http://localhost:3001/login')
+    console.log('\n=== Test User Created Successfully ===');
+    console.log('Email:', testUser.email);
+    console.log('Password:', testUser.password);
+    console.log('User ID:', user.user.id);
+    console.log('\nYou can now log in with these credentials at http://localhost:3001/login');
 
   } catch (error) {
-    console.error('Error creating test user:', error)
-    process.exit(1)
+    console.error('Error creating test user:', error);
+    process.exit(1);
   }
 }
 
-createTestUser() 
+createTestUser(); 

@@ -29,69 +29,75 @@ export default function HomePage() {
         if (error) {
           console.error('Session error:', error)
           setIsAuthenticated(false)
+          setIsLoading(false)
+          return
+        }
+        
+        // If there's no session, set isAuthenticated to false
+        if (!session) {
+          console.log('No session found')
+          setIsAuthenticated(false)
+          setIsLoading(false)
           return
         }
         
         // Validate the session is still valid
-        if (session) {
-          const { data: userResponse, error: userError } = await supabase.auth.getUser()
-          
-          if (userError || !userResponse.user) {
-            console.error('Invalid session detected, clearing...')
-            await supabase.auth.signOut()
-            setIsAuthenticated(false)
-            return
-          }
-          
-          console.log('Valid session detected')
-          setIsAuthenticated(true)
-          
-          // Profile handling
-          const fallbackProfile: UserProfile = {
-            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-            email: session.user.email || '',
-          }
-          
-          try {
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('name, email')
-              .eq('id', session.user.id)
-              .single()
-            
-            if (profileError) {
-              console.log('Could not load profile from database:', profileError.message)
-              setProfile(fallbackProfile)
-              
-              if (profileError.code === 'PGRST116') {
-                const { error: insertError } = await supabase
-                  .from('profiles')
-                  .insert({
-                    id: session.user.id,
-                    name: fallbackProfile.name,
-                    email: fallbackProfile.email,
-                    age: 0,
-                    fitness_goals: 'Set your fitness goals',
-                  })
-                
-                if (insertError) {
-                  console.log('Could not create profile:', insertError.message)
-                }
-              }
-            } else {
-              setProfile(profileData)
-            }
-          } catch (error) {
-            console.log('Error loading profile:', error)
-            setProfile(fallbackProfile)
-          }
-        } else {
-          console.log('No session found')
+        const { data: userResponse, error: userError } = await supabase.auth.getUser()
+        
+        if (userError || !userResponse.user) {
+          console.error('Invalid session detected, clearing...')
+          await supabase.auth.signOut()
           setIsAuthenticated(false)
+          setIsLoading(false)
+          return
+        }
+        
+        console.log('Valid session detected')
+        setIsAuthenticated(true)
+        
+        // Profile handling
+        const fallbackProfile: UserProfile = {
+          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+          email: session.user.email || '',
+        }
+        
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('name, email')
+            .eq('id', session.user.id)
+            .single()
+          
+          if (profileError) {
+            console.log('Could not load profile from database:', profileError.message)
+            setProfile(fallbackProfile)
+            
+            if (profileError.code === 'PGRST116') {
+              const { error: insertError } = await supabase
+                .from('profiles')
+                .insert({
+                  id: session.user.id,
+                  name: fallbackProfile.name,
+                  email: fallbackProfile.email,
+                  age: 0,
+                  fitness_goals: 'Set your fitness goals',
+                })
+              
+              if (insertError) {
+                console.log('Could not create profile:', insertError.message)
+              }
+            }
+          } else {
+            setProfile(profileData)
+          }
+        } catch (error) {
+          console.log('Error loading profile:', error)
+          setProfile(fallbackProfile)
         }
       } catch (error) {
         console.log('Error checking auth:', error)
         setIsAuthenticated(false)
+        setIsLoading(false)
       } finally {
         setIsLoading(false)
       }
