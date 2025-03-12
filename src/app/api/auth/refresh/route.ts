@@ -20,22 +20,24 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            response.cookies.set({
+          getAll() {
+            return request.cookies.getAll().map(({ name, value }) => ({
               name,
               value,
-              ...options,
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-              path: '/',
-            })
+            }))
           },
-          remove(name: string, options: CookieOptions) {
-            response.cookies.delete(name)
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set({
+                name,
+                value,
+                ...options,
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/',
+              })
+            })
           },
         },
       }
@@ -74,19 +76,6 @@ export async function POST(request: NextRequest) {
         },
       }
     )
-
-    // Copy all cookies from the request to the response
-    const cookies = request.cookies.getAll()
-    for (const cookie of cookies) {
-      response.cookies.set({
-        name: cookie.name,
-        value: cookie.value,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-      })
-    }
 
     return response
   } catch (error) {
