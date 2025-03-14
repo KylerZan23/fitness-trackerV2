@@ -43,11 +43,15 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
     // Convert weight to a decimal format to match database expectations
     const formattedWeight = parseFloat(workout.weight.toString()).toFixed(2)
     
-    // Determine muscle group from exercise name
+    // Note: The muscle_group column doesn't exist in the database yet
+    // This is just for logging purposes
     const muscleGroup = findMuscleGroupForExercise(workout.exerciseName)
+    console.log(`Determined muscle group for "${workout.exerciseName}": ${muscleGroup} (for reference only)`)
     
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
-    console.log('Attempting to insert workout with data:', { 
+    
+    // Create the workout data object
+    const workoutData = {
       user_id: session.user.id,
       exercise_name: workout.exerciseName,
       sets: workout.sets,
@@ -55,27 +59,36 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
       weight: formattedWeight,
       duration: workout.duration,
       notes: workout.notes || null,
-      muscle_group: muscleGroup
-    })
+      // Note: muscle_group column doesn't exist in the database yet
+    }
+    
+    console.log('Attempting to insert workout with data:', workoutData)
     
     const { data, error } = await supabase
       .from('workouts')
-      .insert({
-        user_id: session.user.id,
-        exercise_name: workout.exerciseName,
-        sets: workout.sets,
-        reps: workout.reps,
-        weight: formattedWeight,
-        duration: workout.duration,
-        notes: workout.notes || null,
-        muscle_group: muscleGroup
-      })
+      .insert(workoutData)
       .select()
       .single()
 
     if (error) {
       console.error('Error inserting workout:', error)
-      console.error('Error details:', JSON.stringify(error))
+      console.error('Error code:', error.code)
+      console.error('Error message:', error.message)
+      console.error('Error details:', error.details)
+      
+      // Check for specific error types
+      if (error.code === '23502') {
+        console.error('NOT NULL constraint violation - a required field is missing')
+      } else if (error.code === '23503') {
+        console.error('Foreign key constraint violation - referenced record does not exist')
+      } else if (error.code === '23505') {
+        console.error('Unique constraint violation - record already exists')
+      } else if (error.code === '23514') {
+        console.error('Check constraint violation - value outside allowed range')
+      } else if (error.code === '42501') {
+        console.error('Permission denied - RLS policy violation')
+      }
+      
       throw error
     }
 
@@ -248,10 +261,10 @@ export async function getWorkoutStats(muscleGroup?: MuscleGroup): Promise<Workou
 
 /**
  * Gets workout trends over time for the authenticated user
- * @param period - 'week' or 'month'
+ * @param period - 'day', 'week' or 'month'
  * @returns Array of workout trends or empty array if there's an error
  */
-export async function getWorkoutTrends(period: 'week' | 'month' = 'week'): Promise<WorkoutTrend[]> {
+export async function getWorkoutTrends(period: 'day' | 'week' | 'month' = 'week'): Promise<WorkoutTrend[]> {
   try {
     console.log('Getting workout trends, checking for active session...')
     const { data: { session } } = await supabase.auth.getSession()
@@ -262,8 +275,14 @@ export async function getWorkoutTrends(period: 'week' | 'month' = 'week'): Promi
     }
 
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
-    const startDate = period === 'week' ? startOfWeek(new Date()) : startOfMonth(new Date())
-    const endDate = period === 'week' ? endOfWeek(new Date()) : endOfMonth(new Date())
+    const startDate = period === 'week' ? startOfWeek(new Date()) : 
+                     period === 'month' ? startOfMonth(new Date()) :
+                     // For 'day', get data for the last 7 days
+                     new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    
+    const endDate = period === 'week' ? endOfWeek(new Date()) : 
+                   period === 'month' ? endOfMonth(new Date()) :
+                   new Date()
 
     const { data, error } = await supabase
       .from('workouts')
@@ -284,9 +303,14 @@ export async function getWorkoutTrends(period: 'week' | 'month' = 'week'): Promi
     }
 
     console.log(`Found trend data for ${data.length} workouts`)
+    
     // Group workouts by date
     const trendsMap = data.reduce((acc, workout) => {
-      const date = format(new Date(workout.created_at), 'yyyy-MM-dd')
+      // For 'day' period, include time in the format for individual workout entries
+      const date = period === 'day' 
+        ? format(new Date(workout.created_at), 'yyyy-MM-dd HH:mm') 
+        : format(new Date(workout.created_at), 'yyyy-MM-dd')
+      
       if (!acc[date]) {
         acc[date] = {
           date,
@@ -324,4 +348,38 @@ export async function syncWithGoogleFit(): Promise<boolean> {
   // TODO: Implement Google Fit integration
   console.log('Google Fit sync not yet implemented')
   return false
+}
+
+/**
+ * Gets the user profile for the authenticated user
+ * @returns User profile or null if there's an error
+ */
+export async function getUserProfile() {
+  try {
+    console.log('Getting user profile, checking for active session...')
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session?.user) {
+      console.log('No active session found when fetching user profile')
+      return null
+    }
+
+    console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single()
+
+    if (error) {
+      console.error('Error fetching user profile:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('Error fetching user profile:', error)
+    return null
+  }
 } 

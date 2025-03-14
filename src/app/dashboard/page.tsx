@@ -17,6 +17,7 @@ import { Error } from '@/components/ui/error'
 import Link from 'next/link'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Session } from '@supabase/supabase-js'
+import { MuscleDistributionChart } from '@/components/workout/MuscleDistributionChart'
 
 interface UserProfile {
   id: string
@@ -24,6 +25,7 @@ interface UserProfile {
   age: number
   fitness_goals: string
   email: string
+  weight_unit?: 'kg' | 'lbs'
 }
 
 // Mock data for testing - only used when no user is logged in
@@ -63,6 +65,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<WorkoutStats>(emptyStats)
   const [trends, setTrends] = useState<WorkoutTrend[]>(emptyTrends)
   const [showWelcome, setShowWelcome] = useState(true)
+  const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
 
   // Check authentication and fetch data
   useEffect(() => {
@@ -98,6 +101,10 @@ export default function DashboardPage() {
         
         if (profileData) {
           setProfile(profileData)
+          // Set weight unit from profile if available
+          if (profileData.weight_unit) {
+            setWeightUnit(profileData.weight_unit)
+          }
         } else {
           // Create a basic profile if none exists
           const newProfile = {
@@ -106,6 +113,7 @@ export default function DashboardPage() {
             email: currentSession.user.email || '',
             age: currentSession.user.user_metadata?.age || 0,
             fitness_goals: currentSession.user.user_metadata?.fitness_goals || 'Get fit',
+            weight_unit: 'kg' as 'kg' | 'lbs'
           }
           
           setProfile(newProfile)
@@ -123,7 +131,7 @@ export default function DashboardPage() {
         // Fetch workout data
         try {
           const userStats = await getWorkoutStats()
-          const userTrends = await getWorkoutTrends('week')
+          const userTrends = await getWorkoutTrends('day')
           
           setStats(userStats || emptyStats)
           setTrends(userTrends || emptyTrends)
@@ -328,7 +336,7 @@ export default function DashboardPage() {
             />
             <StatsCard 
               title="Avg. Weight" 
-              value={`${stats.averageWeight} kg`} 
+              value={`${stats.averageWeight} ${weightUnit}`} 
               iconName="weight" 
             />
             <StatsCard 
@@ -337,6 +345,16 @@ export default function DashboardPage() {
               iconName="clock" 
             />
           </div>
+          
+          {/* Log New Workout button */}
+          <div className="mt-8 flex justify-center">
+            <Link 
+              href="/workout/new"
+              className="px-8 py-3 bg-white text-black rounded-full hover:bg-white/90 transition-colors font-medium"
+            >
+              Log New Workout
+            </Link>
+          </div>
         </section>
         
         {/* Workout trends chart */}
@@ -344,7 +362,7 @@ export default function DashboardPage() {
           <h2 className="text-3xl font-serif mb-6">Workout Trends</h2>
           <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
             {trends.length > 0 ? (
-              <WorkoutChart data={trends} />
+              <WorkoutChart data={trends} period="day" />
             ) : (
               <div className="text-center py-12">
                 <p className="text-gray-400 mb-6 text-lg">No workout data available yet</p>
@@ -363,24 +381,19 @@ export default function DashboardPage() {
         <section className="mb-12">
           <h2 className="text-3xl font-serif mb-6">Analyze Your Training</h2>
           <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
-            <div className="flex flex-col md:flex-row items-center justify-between">
+            <div className="flex flex-col md:flex-row items-center justify-between mb-6">
               <div>
-                <h3 className="text-2xl font-serif mb-3">Muscle Heatmap</h3>
+                <h3 className="text-2xl font-serif mb-3">Muscle Group Distribution</h3>
                 <p className="text-gray-300 mb-6 max-w-2xl">
-                  Visualize which muscle groups you've been training and identify imbalances in your workout routine
+                  See which muscle groups you've been training and identify imbalances in your workout routine
                 </p>
               </div>
-              <div className="mt-4 md:mt-0">
-                <Link 
-                  href="/workout/heatmap" 
-                  className="px-6 py-3 bg-white text-black rounded-full hover:bg-white/90 transition-colors font-medium inline-flex items-center"
-                >
-                  View Muscle Heatmap
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </Link>
-              </div>
+            </div>
+            
+            {/* Embed the MuscleDistributionChart directly in the dashboard */}
+            <div className="mt-4">
+              {profile && <MuscleDistributionChart userId={profile.id} />}
+              {!profile && <div className="text-center py-8 text-gray-400">Sign in to view your muscle group distribution</div>}
             </div>
           </div>
         </section>

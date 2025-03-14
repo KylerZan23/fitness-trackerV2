@@ -27,7 +27,7 @@ ChartJS.register(
 
 interface WorkoutChartProps {
   data: WorkoutTrend[]
-  period?: 'week' | 'month'
+  period?: 'day' | 'week' | 'month'
 }
 
 export function WorkoutChart({ data, period = 'week' }: WorkoutChartProps) {
@@ -73,7 +73,11 @@ export function WorkoutChart({ data, period = 'week' }: WorkoutChartProps) {
       },
       title: {
         display: true,
-        text: `Workout Trends - Past ${period === 'week' ? 'Week' : 'Month'}`,
+        text: `Workout Trends - ${
+          period === 'day' ? 'Daily' : 
+          period === 'week' ? 'Past Week' : 
+          'Past Month'
+        }`,
         color: 'rgba(255, 255, 255, 0.9)',
         font: {
           family: 'serif',

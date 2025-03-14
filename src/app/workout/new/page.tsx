@@ -6,12 +6,12 @@ import Link from 'next/link'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
-import { logWorkout } from '@/lib/db'
+import { logWorkout, getUserProfile } from '@/lib/db'
 import { workoutSchema } from '@/lib/schemas'
-import { MuscleGroup } from '@/lib/types'
+import { MuscleGroup, getAllMuscleGroups, getExercisesByMuscleGroup } from '@/lib/types'
 import { MuscleGroupSelector } from '@/components/workout/MuscleGroupSelector'
 import { ExerciseSelector } from '@/components/workout/ExerciseSelector'
-import { MuscleHeatmap } from '@/components/workout/MuscleHeatmap'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 interface WorkoutFormData {
   exerciseName: string
@@ -29,7 +29,7 @@ export default function NewWorkoutPage() {
   const [detailedError, setDetailedError] = useState<any>(null)
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<MuscleGroup | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [showHeatmap, setShowHeatmap] = useState(true)
+  const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
   const [formData, setFormData] = useState<WorkoutFormData>({
     exerciseName: '',
     sets: 3,
@@ -39,13 +39,34 @@ export default function NewWorkoutPage() {
     notes: ''
   })
 
-  // Check authentication and get userId for the heatmap
+  // Check authentication and get userId for the chart
   useEffect(() => {
     async function checkAuth() {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.user) {
           setUserId(session.user.id)
+          
+          // Get user profile to get weight unit preference
+          const profile = await getUserProfile()
+          if (profile && profile.weight_unit) {
+            setWeightUnit(profile.weight_unit)
+          }
+        } else {
+          // If no session, try to refresh it
+          const { data: refreshData } = await supabase.auth.refreshSession()
+          if (refreshData.session?.user) {
+            setUserId(refreshData.session.user.id)
+            
+            // Get user profile to get weight unit preference
+            const profile = await getUserProfile()
+            if (profile && profile.weight_unit) {
+              setWeightUnit(profile.weight_unit)
+            }
+          } else {
+            console.warn('No active session found. User may need to log in again.')
+            // Don't redirect here, let the middleware handle it if needed
+          }
         }
       } catch (err) {
         console.error('Error checking authentication:', err)
@@ -112,8 +133,25 @@ export default function NewWorkoutPage() {
         throw err
       }
       
-      // Redirect back to dashboard
-      router.push('/dashboard')
+      // Show success message
+      toast.success('Workout logged successfully!')
+      
+      // Reset form data for a new workout
+      setFormData({
+        exerciseName: '',
+        sets: 3,
+        reps: 10,
+        weight: 0,
+        duration: 30,
+        notes: ''
+      })
+      
+      // Stay on the same page to allow logging another workout
+      // Only redirect if explicitly requested
+      const shouldRedirect = new URLSearchParams(window.location.search).get('redirect') === 'true'
+      if (shouldRedirect) {
+        router.push('/dashboard')
+      }
     } catch (err) {
       console.error('Error creating workout:', err)
       setDetailedError(err)
@@ -155,55 +193,9 @@ export default function NewWorkoutPage() {
             <h1 className="text-3xl font-serif">Workout Tracker</h1>
           </div>
 
-          {/* Toggle button for heatmap visibility */}
-          <div className="flex justify-end mb-6">
-            <button 
-              onClick={() => setShowHeatmap(!showHeatmap)}
-              className="flex items-center text-white/70 hover:text-white"
-            >
-              {showHeatmap ? (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                    <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                  </svg>
-                  Hide Muscle Heatmap
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                  </svg>
-                  Show Muscle Heatmap
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Integrated Muscle Heatmap */}
-          {showHeatmap && (
-            <div className="mb-10 bg-black/20 border border-white/10 rounded-xl p-4">
-              <h2 className="text-xl font-medium mb-4">Your Muscle Training Map</h2>
-              <MuscleHeatmap userId={userId || undefined} />
-            </div>
-          )}
-
-          <h2 className="text-2xl font-medium mb-6">Log a New Workout</h2>
-
-          {/* Muscle Group Selector */}
-          <MuscleGroupSelector 
-            selectedMuscleGroup={selectedMuscleGroup}
-            onSelectMuscleGroup={setSelectedMuscleGroup}
-          />
-
-          {/* Exercise Selector */}
-          <ExerciseSelector
-            selectedMuscleGroup={selectedMuscleGroup}
-            onSelectExercise={handleSelectExercise}
-          />
-
           <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
+            <h2 className="text-2xl font-medium mb-6">Log a New Workout</h2>
+            
             {error && (
               <div className="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-6">
                 <p className="text-red-200 font-medium mb-1">{error}</p>
@@ -220,133 +212,179 @@ export default function NewWorkoutPage() {
 
             <form onSubmit={handleSubmit}>
               <div className="mb-6">
-                <label htmlFor="exerciseName" className="block text-gray-300 mb-2">
-                  Exercise Name
-                </label>
-                <input
-                  type="text"
-                  id="exerciseName"
-                  name="exerciseName"
-                  value={formData.exerciseName}
-                  onChange={handleChange}
-                  placeholder="e.g., Bench Press, Squats, Running"
-                  className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label htmlFor="sets" className="block text-gray-300 mb-2">
-                    Sets
-                  </label>
-                  <input
-                    type="number"
-                    id="sets"
-                    name="sets"
-                    value={formData.sets}
-                    onChange={handleChange}
-                    min="1"
-                    max="20"
-                    className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="reps" className="block text-gray-300 mb-2">
-                    Reps per Set
-                  </label>
-                  <input
-                    type="number"
-                    id="reps"
-                    name="reps"
-                    value={formData.reps}
-                    onChange={handleChange}
-                    min="1"
-                    max="100"
-                    className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label htmlFor="weight" className="block text-gray-300 mb-2">
-                    Weight (kg)
-                  </label>
-                  <input
-                    type="number"
-                    id="weight"
-                    name="weight"
-                    value={formData.weight}
-                    onChange={handleChange}
-                    min="0"
-                    max="1000"
-                    className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="duration" className="block text-gray-300 mb-2">
-                    Duration (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    id="duration"
-                    name="duration"
-                    value={formData.duration}
-                    onChange={handleChange}
-                    min="1"
-                    max="360"
-                    className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                    required
-                  />
+                <h3 className="text-xl font-medium mb-4">1. Select Muscle Group</h3>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMuscleGroup(null)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      selectedMuscleGroup === null
+                        ? 'bg-white text-black'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    All Exercises
+                  </button>
+                  
+                  {getAllMuscleGroups().map((muscleGroup) => (
+                    <button
+                      type="button"
+                      key={muscleGroup}
+                      onClick={() => setSelectedMuscleGroup(muscleGroup)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                        selectedMuscleGroup === muscleGroup
+                          ? 'bg-white text-black'
+                          : 'bg-white/10 text-white hover:bg-white/20'
+                      }`}
+                    >
+                      {muscleGroup}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <div className="mb-6">
-                <label htmlFor="notes" className="block text-gray-300 mb-2">
-                  Notes (Optional)
-                </label>
-                <textarea
-                  id="notes"
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleChange}
-                  rows={4}
-                  placeholder="How did this workout go? Any PRs or challenges?"
-                  className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                />
+                <h3 className="text-xl font-medium mb-4">2. Select Exercise</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label htmlFor="exerciseName" className="block text-gray-300 mb-2">
+                      Exercise Name
+                    </label>
+                    <input
+                      type="text"
+                      id="exerciseName"
+                      name="exerciseName"
+                      value={formData.exerciseName}
+                      onChange={handleChange}
+                      placeholder="e.g., Bench Press, Squats, Running"
+                      className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="mt-2">
+                    <p className="text-gray-300 mb-2">Suggested Exercises:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 max-h-[200px] overflow-y-auto pr-2">
+                      {(selectedMuscleGroup ? getExercisesByMuscleGroup(selectedMuscleGroup) : getExercisesByMuscleGroup(MuscleGroup.CHEST)).slice(0, 9).map((exercise) => (
+                        <button
+                          type="button"
+                          key={exercise.name}
+                          onClick={() => handleSelectExercise(exercise.name)}
+                          className="text-left p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors group"
+                        >
+                          <div className="font-medium text-white group-hover:text-white text-sm">{exercise.name}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex justify-end space-x-4">
-                <Link
-                  href="/dashboard"
-                  className="px-6 py-3 border border-white/20 rounded-full hover:bg-white/10 transition-colors"
-                >
-                  Cancel
-                </Link>
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-white text-black font-medium rounded-full hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <span className="flex items-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Logging Workout...
-                    </span>
-                  ) : (
-                    'Log Workout'
-                  )}
-                </button>
+              <div className="mb-6">
+                <h3 className="text-xl font-medium mb-4">3. Enter Workout Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label htmlFor="sets" className="block text-gray-300 mb-2">
+                      Sets
+                    </label>
+                    <input
+                      type="number"
+                      id="sets"
+                      name="sets"
+                      value={formData.sets}
+                      onChange={handleChange}
+                      min="1"
+                      max="20"
+                      className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="reps" className="block text-gray-300 mb-2">
+                      Reps
+                    </label>
+                    <input
+                      type="number"
+                      id="reps"
+                      name="reps"
+                      value={formData.reps}
+                      onChange={handleChange}
+                      min="1"
+                      max="100"
+                      className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label htmlFor="weight" className="block text-gray-300 mb-2">
+                      Weight ({weightUnit})
+                    </label>
+                    <input
+                      type="number"
+                      id="weight"
+                      name="weight"
+                      value={formData.weight}
+                      onChange={handleChange}
+                      min="0"
+                      max="1000"
+                      step="0.5"
+                      className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="duration" className="block text-gray-300 mb-2">
+                      Duration (minutes)
+                    </label>
+                    <input
+                      type="number"
+                      id="duration"
+                      name="duration"
+                      value={formData.duration}
+                      onChange={handleChange}
+                      min="0"
+                      max="360"
+                      className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <label htmlFor="notes" className="block text-gray-300 mb-2">
+                    Notes (optional)
+                  </label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleChange}
+                    rows={3}
+                    placeholder="Add any notes about this workout..."
+                    className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
+                  ></textarea>
+                </div>
               </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
+                    Logging workout...
+                  </div>
+                ) : (
+                  'Log Workout'
+                )}
+              </button>
             </form>
           </div>
         </div>
