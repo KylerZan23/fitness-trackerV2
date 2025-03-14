@@ -24,6 +24,9 @@ try {
 const validatedSupabaseUrl: string = supabaseUrl
 const validatedSupabaseAnonKey: string = supabaseAnonKey
 
+// Cookie name for Supabase auth - this might change based on your project ID
+const SUPABASE_AUTH_COOKIE = 'sb-oimcnjdkcqwdltdpkmnu-auth-token'
+
 export async function middleware(request: NextRequest) {
   // Create a response object
   let response = NextResponse.next({
@@ -45,61 +48,99 @@ export async function middleware(request: NextRequest) {
     const cookieString = allCookies.map(c => `${c.name}=${c.value?.substring(0, 10)}...`).join('; ')
     console.log(`Middleware cookies [${request.nextUrl.pathname}]:`, cookieString)
 
-    // Create Supabase client using the middleware helper
-    const supabase = createMiddlewareClient(request, response)
-
-    // IMPORTANT: Auth operations must happen immediately after creating the client
-    // to avoid issues with session refresh
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    // Check for special query parameters
+    const isForceLogin = request.nextUrl.searchParams.get('force_login') === 'true'
+    const bypassAuth = request.nextUrl.searchParams.get('bypass') === 'true'
     
-    if (sessionError) {
-      console.error('Error getting session:', sessionError.message)
+    // If force_login is true and we're on a login page, clear the auth cookie and allow access
+    if (isForceLogin && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
+      console.log('Force login parameter detected, bypassing authentication check')
       
-      // If this is a protected path, redirect to login
-      if (checkProtectedPath(request)) {
-        return redirectToLogin(request)
-      }
+      // Clear the auth cookie to ensure a fresh login
+      response.cookies.delete(SUPABASE_AUTH_COOKIE)
       
-      // Otherwise allow the request to continue
       return response
     }
 
+    // Create Supabase client using the middleware helper
+    const supabase = createMiddlewareClient(request, response)
+    
+    // Get the session - this will refresh the session if needed
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    // Check if session exists and is valid (not expired)
+    const isValidSession = session && 
+                          session.access_token && 
+                          session.expires_at && 
+                          (session.expires_at * 1000) > Date.now()
+    
     // Define path types
     const isProtectedPath = checkProtectedPath(request)
     const isAuthPath = request.nextUrl.pathname.startsWith('/login') || 
                       request.nextUrl.pathname.startsWith('/signup')
 
-    // Handle protected routes
-    if (isProtectedPath) {
-      if (!session) {
-        console.log('No session found, redirecting to login')
+    // Handle invalid sessions
+    if (sessionError || !isValidSession) {
+      console.log('Invalid or expired session detected')
+      
+      // Clear the auth cookie to prevent authentication loops
+      response.cookies.delete(SUPABASE_AUTH_COOKIE)
+      
+      // If this is a protected path, redirect to login
+      if (isProtectedPath) {
+        console.log('Protected path with invalid session, redirecting to login')
         return redirectToLogin(request)
       }
+      
+      // For auth paths with invalid session, just continue (they're trying to log in)
+      if (isAuthPath) {
+        console.log('Auth path with invalid session, allowing access')
+        return response
+      }
+      
+      // For other paths with invalid session, just continue
+      return response
+    }
 
-      // Debug log successful auth for protected routes
+    // At this point, we have a valid session
+
+    // Handle protected routes with valid session
+    if (isProtectedPath) {
       console.log(`Authenticated access to ${request.nextUrl.pathname} for user ${session.user.id}`)
       
-      // Add session info to headers
+      // Add user info to headers
       response.headers.set('x-user-id', session.user.id)
       response.headers.set('x-user-email', session.user.email ?? '')
+      
+      return response
     }
 
     // Handle auth routes when user is already logged in
-    if (isAuthPath && session) {
-      // Check for a bypass parameter to allow access to login/signup even when authenticated
-      const bypassAuth = request.nextUrl.searchParams.get('bypass') === 'true'
-      
-      if (!bypassAuth) {
-        console.log('User is authenticated, redirecting to dashboard')
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+    if (isAuthPath) {
+      // If bypass is set, allow access to auth pages even when logged in
+      if (bypassAuth) {
+        console.log('Auth bypass enabled, allowing access to login page while authenticated')
+        return response
       }
-      console.log('Auth bypass enabled, allowing access to login page while authenticated')
+      
+      // Otherwise redirect to dashboard
+      console.log('User is authenticated, redirecting to dashboard')
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
+    // For all other routes with valid session, just continue
     return response
   } catch (err) {
     console.error('Middleware error:', err)
-    return redirectToLogin(request)
+    
+    // If there's an error in the middleware, we should clear the auth cookie
+    // to prevent authentication loops
+    const response = NextResponse.redirect(new URL('/login?force_login=true', request.url))
+    
+    // Clear the auth cookie
+    response.cookies.delete(SUPABASE_AUTH_COOKIE)
+    
+    return response
   }
 }
 
@@ -110,6 +151,8 @@ function redirectToLogin(request: NextRequest) {
   if (!request.nextUrl.pathname.startsWith('/login')) {
     redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
   }
+  // Add force_login parameter to ensure we can access the login page
+  redirectUrl.searchParams.set('force_login', 'true')
   return NextResponse.redirect(redirectUrl)
 }
 

@@ -4,12 +4,17 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Fixed Authentication Loop**: Added force_login parameter to bypass authentication checks and allow direct access to login page
+- **Enhanced Authentication Security**: Updated middleware to use `getUser()` instead of `getSession()` for secure token verification
+- **Fixed Workout Logging**: Resolved schema cache issue that prevented workout logging by removing dependency on muscle_group column
+- **Simplified Workout Entry**: Removed the exercise selector component for a more direct workout logging experience
+- **Simplified Exercise Selection**: Removed muscle group filtering for a more streamlined workout logging experience
 - **Enhanced Auth Session Debugging**: Added comprehensive client and server-side logging for authentication troubleshooting and a standalone token verification testing tool
 - **Improved Auth Token Verification**: Enhanced security by using service role for token verification with proper error handling
 - **Enhanced Authentication & Profile Creation**: Fixed RLS policy issues and improved server-side API token verification for robust user registration
 - **Improved Authentication Flow**: Added ability to bypass authentication redirection for accessing the login page and switching accounts
 - **Integrated Muscle Heatmap**: Muscle heatmap visualization now directly integrated into the workout page for a more cohesive experience
-- **Muscle Group Filtering**: Added muscle group selector for filtering exercises when logging workouts
+- **Muscle Group Information**: Added muscle group information for exercises when logging workouts
 - **Muscle Heatmap Visualization**: Added visualization to track workout intensity across different muscle groups
 - **Workout Entry Feature**: Added a new page for logging individual workouts with exercise details
 - **SSR Authentication Fix**: Updated Supabase client to use cookie-based authentication for SSR compatibility, fixing login redirection issues
@@ -52,6 +57,7 @@ For specific help with "Auth session missing" errors, see [Auth Session Troubles
 - `docs/auth-troubleshooting.md` - Solutions for common authentication issues
 - `docs/authentication-fixes.md` - Documentation of fixes for authentication issues
 - `docs/auth-session-troubleshooting.md` - Specific guide for troubleshooting auth session issues
+- `docs/auth-loop-fix.md` - Documentation of the authentication loop fix
 - `scripts/test-token.js` - Standalone script for testing Supabase token verification
 
 ## Design

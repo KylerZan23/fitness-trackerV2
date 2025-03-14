@@ -8,6 +8,7 @@ import Image from 'next/image'
 import { LoginFormData, loginSchema } from '@/lib/schemas'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface AuthError {
   message: string;
@@ -23,12 +24,17 @@ export default function LoginPage() {
 
   // Check if the page was accessed with a bypass parameter
   const bypassAuth = searchParams?.get('bypass') === 'true'
+  // Check if the page was accessed with a force_login parameter
+  const forceLogin = searchParams?.get('force_login') === 'true'
+  // Check if there's a redirect URL
+  const redirectTo = searchParams?.get('redirectTo') || '/dashboard'
 
   // If accessed with bypass, show a notice about being logged in
   useEffect(() => {
-    if (bypassAuth) {
+    if (bypassAuth && !forceLogin) {
       const checkSession = async () => {
-        const { data } = await supabase.auth.getSession()
+        // Use getSession() instead of getUser() for secure authentication verification
+        const { data, error } = await supabase.auth.getSession()
         if (data.session) {
           setShowSessionInfo(true)
         }
@@ -36,17 +42,27 @@ export default function LoginPage() {
       
       checkSession()
     }
-  }, [bypassAuth])
+  }, [bypassAuth, forceLogin])
 
   // Force logout function
   const handleForceLogout = async () => {
     try {
       setIsLoading(true)
       setError(null)
+      
+      // Sign out from Supabase
       await supabase.auth.signOut()
+      
+      // Clear any local storage items related to auth
+      localStorage.removeItem('supabase.auth.token')
+      
+      // Show success message
+      toast.success('Successfully signed out')
+      
       setShowSessionInfo(false)
-      // Refresh the page
-      window.location.href = '/login'
+      
+      // Refresh the page with force_login parameter to ensure we can access the login page
+      window.location.href = '/login?force_login=true'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign out')
     } finally {
@@ -67,6 +83,14 @@ export default function LoginPage() {
       console.log('Starting login process...')
       setIsLoading(true)
       setError(null)
+
+      // First, ensure we're starting with a clean state by signing out
+      if (forceLogin) {
+        console.log('Force login detected, signing out first to ensure clean state')
+        await supabase.auth.signOut()
+        // Small delay to ensure signout is processed
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
 
       // Sign in with password
       console.log('Attempting to sign in with credentials...')
@@ -105,22 +129,55 @@ export default function LoginPage() {
         provider: signInData.session.user.app_metadata?.provider
       })
 
-      // Give Supabase a moment to persist the session in cookies
+      // Give Supabase more time to persist the session in cookies
       console.log('Waiting for session to be properly persisted...')
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Try to verify session, but don't block login if there's an issue
-      try {
-        const { data: verifySession } = await supabase.auth.getSession()
-        
-        if (!verifySession.session) {
-          console.warn('Session verification check failed, continuing with initial sign-in data')
-        } else {
-          console.log('Session verified and persisted successfully')
+      // Verify session is properly established - with retry mechanism
+      let sessionVerified = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!sessionVerified && retryCount < maxRetries) {
+        try {
+          console.log(`Session verification attempt ${retryCount + 1}/${maxRetries}...`);
+          
+          // Use getSession() for secure authentication verification
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.warn(`Session verification error on attempt ${retryCount + 1}:`, sessionError);
+            // Wait longer between retries
+            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+            retryCount++;
+            continue;
+          }
+          
+          if (!sessionData.session) {
+            console.warn(`No session found on attempt ${retryCount + 1}, waiting longer...`);
+            // Wait longer between retries
+            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+            retryCount++;
+            continue;
+          }
+          
+          // Session verified successfully
+          console.log('Session verified and persisted successfully');
+          sessionVerified = true;
+          
+        } catch (error) {
+          console.error(`Session verification exception on attempt ${retryCount + 1}:`, error);
+          // Wait longer between retries
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+          retryCount++;
         }
-      } catch (sessionError) {
-        // Log but don't throw an error - we'll continue with the initial sign-in data
-        console.warn('Session verification error, continuing with initial sign-in data:', sessionError)
+      }
+      
+      // If we couldn't verify the session after all retries, we'll continue anyway
+      // since we have the initial session from signInWithPassword
+      if (!sessionVerified) {
+        console.warn('Could not verify session persistence after multiple attempts. Continuing with initial session data.');
+        // We'll continue with the initial session from signInWithPassword
       }
 
       // Check/create profile using the user ID from the initial sign-in
@@ -188,16 +245,15 @@ export default function LoginPage() {
               }
               
               // Verify session before proceeding
-              console.log('Verifying session before server-side profile creation')
-              const { data: verifiedSession, error: sessionVerifyError } = await supabase.auth.getSession()
+              console.log('Verifying user before server-side profile creation')
+              const { data: sessionData, error: sessionVerifyError } = await supabase.auth.getSession()
               
               if (sessionVerifyError) {
                 console.error('Session verification error:', sessionVerifyError)
               }
               
-              console.log(`Verified session exists: ${!!verifiedSession.session}`)
-              console.log(`Session user ID: ${verifiedSession.session?.user.id}`)
-              console.log(`Session expiry: ${verifiedSession.session ? new Date((verifiedSession.session.expires_at ?? 0) * 1000).toISOString() : 'N/A'}`)
+              console.log(`Verified session exists: ${!!sessionData.session}`)
+              console.log(`User ID: ${sessionData.session?.user.id}`)
               
               // Increase delay to 1.5 seconds to ensure token propagation
               console.log('Adding additional delay before API call for token propagation...')
@@ -206,7 +262,7 @@ export default function LoginPage() {
               // Attempt to create profile using our server-side API
               try {
                 console.log('Sending profile creation request to server API...')
-                console.log(`Using token from verified session: ${!!verifiedSession.session?.access_token}`)
+                console.log(`Using token from verified session: ${!!sessionData.session?.user.id}`)
                 console.log(`Using user ID: ${userId}`)
                 
                 const response = await fetch('/api/create-profile', {
@@ -220,7 +276,7 @@ export default function LoginPage() {
                     name: signInData.session.user.user_metadata?.name || userEmail.split('@')[0] || 'User',
                     fitness_goals: signInData.session.user.user_metadata?.fitness_goals || 'Get fit',
                     age: signInData.session.user.user_metadata?.age,
-                    auth_token: verifiedSession.session?.access_token || signInData.session.access_token,
+                    auth_token: signInData.session.access_token,
                   }),
                 })
                 
@@ -266,9 +322,13 @@ export default function LoginPage() {
         console.log('Continuing without profile verification')
       }
 
-      // Navigate to dashboard after login - we don't need a second verification
+      // Show success message
+      toast.success('Login successful!')
+
+      // We'll use the initial session from signInWithPassword for navigation
+      // instead of requiring another verification that might fail
       console.log('Login successful, redirecting to dashboard...')
-      router.push('/dashboard')
+      router.push(redirectTo)
       
     } catch (err) {
       console.error('Login process error:', err)
@@ -313,6 +373,32 @@ export default function LoginPage() {
                   {isLoading ? 'Signing Out...' : 'Sign Out & Use Different Account'}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Display complete sign out button if force_login is true */}
+          {forceLogin && (
+            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg mb-6">
+              <h3 className="text-blue-400 font-medium">Fresh Login</h3>
+              <p className="text-gray-300 text-sm mt-1 mb-3">
+                You're accessing the login page directly. Please sign in with your credentials.
+              </p>
+            </div>
+          )}
+
+          {/* Add troubleshooting section for authentication issues */}
+          {!forceLogin && !showSessionInfo && (
+            <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg mb-6">
+              <h3 className="text-purple-400 font-medium">Having trouble signing in?</h3>
+              <p className="text-gray-300 text-sm mt-1 mb-3">
+                If you're experiencing authentication issues, try a complete sign out first.
+              </p>
+              <button
+                onClick={() => window.location.href = '/login?force_login=true'}
+                className="px-4 py-2 bg-purple-500/20 text-purple-400 text-sm rounded-lg hover:bg-purple-500/30 transition-colors"
+              >
+                Force Complete Sign Out
+              </button>
             </div>
           )}
 
