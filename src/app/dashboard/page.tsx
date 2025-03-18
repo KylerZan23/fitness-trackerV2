@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getWorkoutStats, getWorkoutTrends, type WorkoutStats, type WorkoutTrend } from '@/lib/db'
+import { getWorkoutStats, getTodayWorkoutStats, getWorkoutTrends, type WorkoutStats, type WorkoutTrend } from '@/lib/db'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { WorkoutChart } from '@/components/dashboard/WorkoutChart'
 import { Error } from '@/components/ui/error'
@@ -63,9 +63,11 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [stats, setStats] = useState<WorkoutStats>(emptyStats)
+  const [todayStats, setTodayStats] = useState<WorkoutStats>(emptyStats)
   const [trends, setTrends] = useState<WorkoutTrend[]>(emptyTrends)
   const [showWelcome, setShowWelcome] = useState(true)
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
+  const [isMuscleChartCollapsed, setIsMuscleChartCollapsed] = useState(false)
 
   // Check authentication and fetch data
   useEffect(() => {
@@ -131,14 +133,17 @@ export default function DashboardPage() {
         // Fetch workout data
         try {
           const userStats = await getWorkoutStats()
-          const userTrends = await getWorkoutTrends('day')
+          const todayUserStats = await getTodayWorkoutStats()
+          const userTrends = await getWorkoutTrends('week')
           
           setStats(userStats || emptyStats)
+          setTodayStats(todayUserStats || emptyStats)
           setTrends(userTrends || emptyTrends)
         } catch (dataError) {
           console.error('Error fetching workout data:', dataError)
           // Use empty data rather than failing completely
           setStats(emptyStats)
+          setTodayStats(emptyStats)
           setTrends(emptyTrends)
         }
         
@@ -274,13 +279,6 @@ export default function DashboardPage() {
         <section className="mb-12">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
             <h1 className="text-4xl font-serif">Your Fitness Dashboard</h1>
-            
-            <button
-              onClick={() => router.push('/profile')}
-              className="px-6 py-2 bg-white text-black rounded-full hover:bg-white/90 transition-colors"
-            >
-              Edit Profile
-            </button>
           </div>
           
           {profile && (
@@ -317,31 +315,31 @@ export default function DashboardPage() {
         
         {/* Stats cards */}
         <section className="mb-12">
-          <h2 className="text-3xl font-serif mb-6">Your Workout Statistics</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          <h2 className="text-3xl font-serif mb-6">Today's Workout Statistics</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             <StatsCard 
-              title="Total Workouts" 
-              value={stats.totalWorkouts} 
+              title="Total Exercises" 
+              value={todayStats.totalWorkouts} 
               iconName="dumbbell" 
             />
             <StatsCard 
               title="Total Sets" 
-              value={stats.totalSets} 
+              value={todayStats.totalSets} 
               iconName="layers" 
             />
             <StatsCard 
               title="Total Reps" 
-              value={stats.totalReps} 
+              value={todayStats.totalReps} 
               iconName="repeat" 
             />
             <StatsCard 
-              title="Avg. Weight" 
-              value={`${stats.averageWeight} ${weightUnit}`} 
+              title="Total Weight" 
+              value={`${todayStats.totalWeight} ${weightUnit}`} 
               iconName="weight" 
             />
             <StatsCard 
-              title="Avg. Duration" 
-              value={`${stats.averageDuration} min`} 
+              title="Total Duration" 
+              value={`${todayStats.totalDuration} min`} 
               iconName="clock" 
             />
           </div>
@@ -362,7 +360,7 @@ export default function DashboardPage() {
           <h2 className="text-3xl font-serif mb-6">Workout Trends</h2>
           <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
             {trends.length > 0 ? (
-              <WorkoutChart data={trends} period="day" />
+              <WorkoutChart data={trends} period="week" />
             ) : (
               <div className="text-center py-12">
                 <p className="text-gray-400 mb-6 text-lg">No workout data available yet</p>
@@ -381,51 +379,44 @@ export default function DashboardPage() {
         <section className="mb-12">
           <h2 className="text-3xl font-serif mb-6">Analyze Your Training</h2>
           <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
-            <div className="flex flex-col md:flex-row items-center justify-between mb-6">
+            <div 
+              className="flex flex-col md:flex-row items-center justify-between mb-6 cursor-pointer"
+              onClick={() => setIsMuscleChartCollapsed(!isMuscleChartCollapsed)}
+            >
               <div>
                 <h3 className="text-2xl font-serif mb-3">Muscle Group Distribution</h3>
-                <p className="text-gray-300 mb-6 max-w-2xl">
+                <p className="text-gray-300 mb-6 md:mb-0 max-w-2xl">
                   See which muscle groups you've been training and identify imbalances in your workout routine
                 </p>
               </div>
+              <button 
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors flex items-center"
+                aria-label={isMuscleChartCollapsed ? "Expand muscle chart" : "Collapse muscle chart"}
+              >
+                {isMuscleChartCollapsed ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                    Expand
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                    </svg>
+                    Collapse
+                  </>
+                )}
+              </button>
             </div>
             
             {/* Embed the MuscleDistributionChart directly in the dashboard */}
-            <div className="mt-4">
-              {profile && <MuscleDistributionChart userId={profile.id} />}
+            <div 
+              className={`transition-all duration-300 ease-in-out overflow-hidden ${isMuscleChartCollapsed ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100 mt-4'}`}
+            >
+              {profile && <MuscleDistributionChart userId={profile.id} weightUnit={weightUnit} />}
               {!profile && <div className="text-center py-8 text-gray-400">Sign in to view your muscle group distribution</div>}
-            </div>
-          </div>
-        </section>
-        
-        {/* Health app integrations */}
-        <section className="mb-12">
-          <h2 className="text-3xl font-serif mb-6">Connect Health Apps</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
-              <h3 className="text-2xl font-serif mb-3">Apple HealthKit</h3>
-              <p className="text-gray-300 mb-6">
-                Sync your Apple Watch and iPhone health data with FitnessTracker
-              </p>
-              <button
-                onClick={() => alert('Apple HealthKit integration coming soon!')}
-                className="px-6 py-2 bg-black border border-white/20 text-white rounded-full hover:bg-white/10 transition-colors"
-              >
-                Connect
-              </button>
-            </div>
-            
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
-              <h3 className="text-2xl font-serif mb-3">Google Fit</h3>
-              <p className="text-gray-300 mb-6">
-                Import your Google Fit activity and workout data
-              </p>
-              <button
-                onClick={() => alert('Google Fit integration coming soon!')}
-                className="px-6 py-2 bg-white text-black rounded-full hover:bg-white/90 transition-colors"
-              >
-                Connect
-              </button>
             </div>
           </div>
         </section>

@@ -40,6 +40,29 @@ export const workoutSchema = z.object({
     .optional(),
 })
 
+export const workoutExerciseSchema = workoutSchema.omit({ duration: true, notes: true })
+
+export const workoutGroupSchema = z.object({
+  name: z
+    .string()
+    .min(2, 'Workout name must be at least 2 characters')
+    .max(50, 'Workout name must be less than 50 characters'),
+  exercises: z
+    .array(workoutExerciseSchema)
+    .min(1, 'Must have at least 1 exercise')
+    .max(20, 'Maximum 20 exercises allowed'),
+  duration: z
+    .number()
+    .min(0, 'Duration cannot be negative')
+    .max(360, 'Maximum duration 360 minutes'),
+  notes: z
+    .string()
+    .max(500, 'Notes must be less than 500 characters')
+    .optional(),
+})
+
 export type LoginFormData = z.infer<typeof loginSchema>
 export type SignupFormData = z.infer<typeof signupSchema>
-export type WorkoutFormData = z.infer<typeof workoutSchema> 
+export type WorkoutFormData = z.infer<typeof workoutSchema>
+export type WorkoutExerciseData = z.infer<typeof workoutExerciseSchema>
+export type WorkoutGroupData = z.infer<typeof workoutGroupSchema> 

@@ -14,9 +14,10 @@ interface MuscleData {
 
 interface MuscleDistributionChartProps {
   userId?: string
+  weightUnit?: 'kg' | 'lbs'
 }
 
-export function MuscleDistributionChart({ userId }: MuscleDistributionChartProps) {
+export function MuscleDistributionChart({ userId, weightUnit = 'kg' }: MuscleDistributionChartProps) {
   const [period, setPeriod] = useState<'week' | 'month'>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [muscleData, setMuscleData] = useState<Record<string, MuscleData>>({})
@@ -256,7 +257,7 @@ export function MuscleDistributionChart({ userId }: MuscleDistributionChartProps
               </div>
               <div className="mt-2 text-xs text-gray-400 flex justify-between">
                 <span>{data.reps} total reps</span>
-                <span>{Math.round(data.weight)} kg total</span>
+                <span>{Math.round(data.weight)} {weightUnit} total</span>
               </div>
             </div>
           ))}
