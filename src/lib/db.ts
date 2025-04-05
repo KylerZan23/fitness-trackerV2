@@ -66,6 +66,16 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
     
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
     
+    // Determine the created_at timestamp
+    let createdAt = new Date().toISOString()
+    
+    // If a workout date is provided, set the timestamp to that date at noon (to avoid timezone issues)
+    if (workout.workoutDate) {
+      const workoutDate = new Date(workout.workoutDate)
+      workoutDate.setHours(12, 0, 0, 0) // Set to noon on the specified date
+      createdAt = workoutDate.toISOString()
+    }
+    
     // Create the workout data object
     const workoutData = {
       user_id: session.user.id,
@@ -75,6 +85,7 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
       weight: formattedWeight,
       duration: workout.duration,
       notes: workout.notes || null,
+      created_at: createdAt
       // Note: muscle_group column doesn't exist in the database yet
     }
     
@@ -494,6 +505,16 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
     
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
     
+    // Determine the created_at timestamp
+    let createdAt = new Date().toISOString()
+    
+    // If a workout date is provided, set the timestamp to that date at noon (to avoid timezone issues)
+    if (workoutGroup.workoutDate) {
+      const workoutDate = new Date(workoutGroup.workoutDate)
+      workoutDate.setHours(12, 0, 0, 0) // Set to noon on the specified date
+      createdAt = workoutDate.toISOString()
+    }
+    
     // Start a transaction by creating the workout group first
     const { data: groupData, error: groupError } = await supabase
       .from('workout_groups')
@@ -502,6 +523,7 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
         name: workoutGroup.name,
         duration: workoutGroup.duration,
         notes: workoutGroup.notes || null,
+        created_at: createdAt
       })
       .select()
       .single()
@@ -522,7 +544,8 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
       weight: parseFloat(exercise.weight.toString()).toFixed(2),
       duration: Math.floor(workoutGroup.duration / workoutGroup.exercises.length), // Split duration evenly
       notes: null,
-      workout_group_id: groupData.id
+      workout_group_id: groupData.id,
+      created_at: createdAt // Use the same created_at timestamp as the workout group
     }))
     
     const { data: exercisesResult, error: exercisesError } = await supabase

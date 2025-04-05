@@ -22,6 +22,9 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - **Dark Theme UI**: Updated entire application with a consistent dark theme for better visual appeal
 - **User Avatar Component**: Added personalized user avatars with initials and tooltips for better UX
 - **Error Handling**: Improved error handling for database operations to ensure a smoother user experience
+- **Added Run Logger Page**: New dedicated page for tracking running activities accessible from the dashboard
+- **Strava API Integration**: Added Strava OAuth authentication and run logging capabilities to the Run Logger page
+- **Imperial Unit Support**: Updated run logging and display to use miles, feet, and miles-per-minute metrics instead of kilometers
 
 ## Features
 
@@ -191,7 +194,6 @@ The application includes comprehensive workout tracking capabilities:
 2. **Workout History**: View past workouts and track progress over time
 3. **Performance Metrics**: Analyze workout trends and statistics
 4. **Notes and Tags**: Add custom notes to each workout session
-5. **Muscle Heatmap**: Visualize which muscle groups you've trained and identify imbalances
 
 ### Workout Data Schema
 
@@ -202,3 +204,41 @@ The application includes comprehensive workout tracking capabilities:
 - `duration`: Time spent on the exercise (in minutes)
 - `notes`: Optional notes about the workout
 - `muscleGroup`: The primary muscle group targeted by the exercise
+
+## Strava Integration
+
+The application integrates with Strava to provide run tracking capabilities:
+
+### Setup
+
+1. Create a Strava API application at https://www.strava.com/settings/api
+2. Add your Strava API credentials to the `.env.local` file:
+   ```bash
+   NEXT_PUBLIC_STRAVA_CLIENT_ID=YOUR_STRAVA_CLIENT_ID
+   STRAVA_CLIENT_SECRET=YOUR_STRAVA_CLIENT_SECRET
+   NEXT_PUBLIC_STRAVA_REDIRECT_URI=http://localhost:3000/run-logger/callback
+   ```
+
+### Features
+
+1. **OAuth Authentication**: Securely connect to the Strava API using OAuth 2.0
+2. **Run Retrieval**: Fetch run data from Strava and display it in a table
+3. **Manual Run Logging**: Manually log runs to Strava when not tracked with a device
+4. **Token Management**: Automatic handling of token refresh and secure storage
+5. **Imperial Unit Support**: Display all distances in miles, pace in minutes per mile, and elevation in feet
+
+### Architecture
+
+- **OAuth Flow**: Implementation of the authorization code flow for secure authentication
+- **Token Storage**: Tokens stored securely in Supabase database with user profiles
+- **Modular Components**: Reusable components for connecting to Strava, viewing runs, and logging runs
+- **Unit Conversion**: Automatic conversion between Strava's metric units and display units (imperial)
+
+### Data Schema Updates
+
+The `profiles` table has been updated with the following fields to support Strava integration:
+
+- `strava_access_token`: User's Strava access token
+- `strava_refresh_token`: User's Strava refresh token
+- `strava_token_expires_at`: Expiration timestamp for the access token
+- `strava_connected`: Boolean flag indicating if the user has connected their Strava account

@@ -345,12 +345,18 @@ export default function DashboardPage() {
           </div>
           
           {/* Log New Workout button */}
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex justify-center gap-4">
             <Link 
               href="/workout/new"
               className="px-8 py-3 bg-white text-black rounded-full hover:bg-white/90 transition-colors font-medium"
             >
               Log New Workout
+            </Link>
+            <Link 
+              href="/run-logger"
+              className="px-8 py-3 bg-white/10 text-white rounded-full hover:bg-white/20 transition-colors font-medium"
+            >
+              Run Logger
             </Link>
           </div>
         </section>

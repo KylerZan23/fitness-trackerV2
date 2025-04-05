@@ -20,6 +20,7 @@ interface WorkoutFormData {
   weight: number
   duration: number
   notes: string
+  workoutDate: string
 }
 
 interface WorkoutExercise {
@@ -34,10 +35,18 @@ interface WorkoutGroupFormData {
   exercises: WorkoutExercise[]
   duration: number
   notes: string
+  workoutDate: string
 }
 
 export default function NewWorkoutPage() {
   const router = useRouter()
+  
+  // Format today's date as YYYY-MM-DD for input fields
+  const getTodayDateString = () => {
+    const today = new Date()
+    return today.toISOString().split('T')[0] // Returns YYYY-MM-DD
+  }
+  
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [detailedError, setDetailedError] = useState<any>(null)
@@ -58,13 +67,15 @@ export default function NewWorkoutPage() {
     reps: 10,
     weight: 0,
     duration: 30,
-    notes: ''
+    notes: '',
+    workoutDate: getTodayDateString()
   })
   const [groupFormData, setGroupFormData] = useState<WorkoutGroupFormData>({
     name: '',
     exercises: [],
     duration: 30,
-    notes: ''
+    notes: '',
+    workoutDate: getTodayDateString()
   })
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
@@ -113,7 +124,7 @@ export default function NewWorkoutPage() {
         const groupField = name.split('.')[1]
         setGroupFormData(prev => ({
           ...prev,
-          [groupField]: groupField === 'name' || groupField === 'notes' 
+          [groupField]: groupField === 'name' || groupField === 'notes' || groupField === 'workoutDate'
             ? value 
             : parseInt(value) || 0
         }))
@@ -202,7 +213,8 @@ export default function NewWorkoutPage() {
           name: groupFormData.name,
           exercises: exercises,
           duration: groupFormData.duration,
-          notes: groupFormData.notes
+          notes: groupFormData.notes,
+          workoutDate: groupFormData.workoutDate
         }
         
         const validationResult = workoutGroupSchema.safeParse(groupPayload)
@@ -253,7 +265,8 @@ export default function NewWorkoutPage() {
           name: '',
           exercises: [],
           duration: 30,
-          notes: ''
+          notes: '',
+          workoutDate: getTodayDateString()
         })
       } else {
         // Single exercise mode - original functionality
@@ -305,7 +318,8 @@ export default function NewWorkoutPage() {
           reps: 10,
           weight: 0,
           duration: 30,
-          notes: ''
+          notes: '',
+          workoutDate: getTodayDateString()
         })
       }
       
@@ -576,16 +590,54 @@ export default function NewWorkoutPage() {
                   </div>
                 )}
 
+                {groupMode ? (
+                  <div className={`grid grid-cols-1 gap-4 mb-6`}>
+                    <div>
+                      <label htmlFor="group.workoutDate" className="block text-gray-300 mb-2">
+                        Workout Date <span className="text-gray-500">(select a past date to log retroactively)</span>
+                      </label>
+                      <input
+                        type="date"
+                        id="group.workoutDate"
+                        name="group.workoutDate"
+                        value={groupFormData.workoutDate}
+                        onChange={handleChange}
+                        className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
+                        max={getTodayDateString()} // Don't allow future dates
+                        required
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`grid grid-cols-1 gap-4 mb-6`}>
+                    <div>
+                      <label htmlFor="workoutDate" className="block text-gray-300 mb-2">
+                        Workout Date <span className="text-gray-500">(select a past date to log retroactively)</span>
+                      </label>
+                      <input
+                        type="date"
+                        id="workoutDate"
+                        name="workoutDate"
+                        value={formData.workoutDate}
+                        onChange={handleChange}
+                        className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
+                        max={getTodayDateString()} // Don't allow future dates
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className={`grid grid-cols-1 gap-4 mb-6`}>
                   <div>
-                    <label htmlFor="group.duration" className="block text-gray-300 mb-2">
+                    <label htmlFor={groupMode ? "group.duration" : "duration"} className="block text-gray-300 mb-2">
                       Workout Duration (minutes)
                     </label>
                     <input
                       type="number"
-                      id="group.duration"
-                      name="group.duration"
-                      value={groupFormData.duration}
+                      id={groupMode ? "group.duration" : "duration"}
+                      name={groupMode ? "group.duration" : "duration"}
+                      value={groupMode ? groupFormData.duration : formData.duration}
                       onChange={handleChange}
                       className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
                       min="0"
@@ -595,13 +647,13 @@ export default function NewWorkoutPage() {
                 </div>
 
                 <div className="mb-6">
-                  <label htmlFor="group.notes" className="block text-gray-300 mb-2">
+                  <label htmlFor={groupMode ? "group.notes" : "notes"} className="block text-gray-300 mb-2">
                     Notes (optional)
                   </label>
                   <textarea
-                    id="group.notes"
-                    name="group.notes"
-                    value={groupFormData.notes}
+                    id={groupMode ? "group.notes" : "notes"}
+                    name={groupMode ? "group.notes" : "notes"}
+                    value={groupMode ? groupFormData.notes : formData.notes}
                     onChange={handleChange}
                     className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white h-32 resize-none"
                     placeholder="Add any notes about your workout here..."
@@ -612,9 +664,9 @@ export default function NewWorkoutPage() {
               <button 
                 type="submit" 
                 className="w-full bg-white text-black font-medium py-3 rounded-lg hover:bg-white/90 transition-colors"
-                disabled={isSubmitting || exercises.length === 0}
+                disabled={isSubmitting || (groupMode && exercises.length === 0)}
               >
-                {isSubmitting ? 'Saving...' : 'Log Workout Group'}
+                {isSubmitting ? 'Saving...' : groupMode ? 'Log Workout Group' : 'Log Workout'}
               </button>
             </form>
           </div>

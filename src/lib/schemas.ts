@@ -38,9 +38,12 @@ export const workoutSchema = z.object({
     .string()
     .max(500, 'Notes must be less than 500 characters')
     .optional(),
+  workoutDate: z
+    .string()
+    .optional(),
 })
 
-export const workoutExerciseSchema = workoutSchema.omit({ duration: true, notes: true })
+export const workoutExerciseSchema = workoutSchema.omit({ duration: true, notes: true, workoutDate: true })
 
 export const workoutGroupSchema = z.object({
   name: z
@@ -58,6 +61,9 @@ export const workoutGroupSchema = z.object({
   notes: z
     .string()
     .max(500, 'Notes must be less than 500 characters')
+    .optional(),
+  workoutDate: z
+    .string()
     .optional(),
 })
 
