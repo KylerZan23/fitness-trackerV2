@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react'
 import { getStravaActivities } from '@/lib/strava'
 import { getTokensFromDatabase } from '@/lib/strava-token-store'
+import { formatDistanceMiles, formatElevation, calculatePace } from '@/lib/units'
 
 interface RunListProps {
   userId: string
@@ -67,12 +68,6 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
     fetchRuns()
   }, [userId, isConnected])
   
-  // Format distance to miles with 2 decimal places
-  const formatDistance = (meters: number): string => {
-    const miles = meters / 1609.344 // Convert meters to miles
-    return `${miles.toFixed(2)} mi`
-  }
-  
   // Format time from seconds to HH:MM:SS
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)
@@ -94,24 +89,6 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
       month: 'short', 
       day: 'numeric' 
     })
-  }
-  
-  // Calculate pace (minutes per mile)
-  const calculatePace = (meters: number, seconds: number): string => {
-    if (meters === 0) return '-'
-    
-    const miles = meters / 1609.344
-    const pacePerMile = (seconds / 60) / miles
-    const paceMinutes = Math.floor(pacePerMile)
-    const paceSeconds = Math.floor((pacePerMile - paceMinutes) * 60)
-    
-    return `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')} /mi`
-  }
-  
-  // Convert meters to feet for elevation
-  const formatElevation = (meters: number): string => {
-    const feet = meters * 3.28084 // Convert meters to feet
-    return `${Math.round(feet)} ft`
   }
   
   if (!isConnected) {
@@ -179,7 +156,7 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
               >
                 <td className="py-3 px-2 text-sm">{formatDate(run.start_date_local)}</td>
                 <td className="py-3 px-2">{run.name}</td>
-                <td className="py-3 px-2 text-right">{formatDistance(run.distance)}</td>
+                <td className="py-3 px-2 text-right">{formatDistanceMiles(run.distance)}</td>
                 <td className="py-3 px-2 text-right">{formatTime(run.moving_time)}</td>
                 <td className="py-3 px-2 text-right">{calculatePace(run.distance, run.moving_time)}</td>
                 <td className="py-3 px-2 text-right">{formatElevation(run.total_elevation_gain)}</td>

@@ -7,6 +7,8 @@ import { getWorkouts, type Workout } from '@/lib/db'
 import { Error } from '@/components/ui/error'
 import Link from 'next/link'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { ProfilePictureUpload } from '@/components/profile/ProfilePictureUpload'
+import { SqlMigrationRunner } from '@/components/admin/SqlMigrationRunner'
 
 interface UserProfile {
   id: string
@@ -15,6 +17,8 @@ interface UserProfile {
   fitness_goals: string
   email: string
   weight_unit?: 'kg' | 'lbs'
+  profile_picture_url?: string
+  role?: string
 }
 
 function getErrorMessage(error: unknown): string {
@@ -235,6 +239,15 @@ export default function ProfilePage() {
     }
   }
 
+  const handleProfilePictureUpdate = (url: string) => {
+    if (profile) {
+      setProfile({
+        ...profile,
+        profile_picture_url: url
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -248,171 +261,188 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="max-w-md w-full p-6">
-          <Error message={error} />
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 w-full px-4 py-2 bg-white text-black rounded-lg hover:bg-white/90 transition-colors"
-          >
-            Try again
-          </button>
-        </div>
+      <div className="min-h-screen bg-black text-white p-6">
+        <Error message={error} />
       </div>
     )
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-center text-red-500">
-          Failed to load profile data
-        </div>
+      <div className="min-h-screen bg-black text-white p-6">
+        <Error message="Could not load profile data" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Navigation */}
-      <nav className="border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-bold">FitnessTracker</Link>
-          <div className="flex items-center space-x-6">
-            <Link
+    <div className="min-h-screen bg-black text-white pb-20">
+      {/* Header */}
+      <header className="bg-black/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <Link href="/dashboard" className="text-2xl font-bold">FitnessTracker</Link>
+          
+          <div className="flex items-center gap-4">
+            <Link 
               href="/dashboard"
-              className="text-sm hover:text-white/80 transition-colors"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
             >
               Dashboard
             </Link>
             <button
               onClick={handleSignOut}
-              className="px-4 py-2 bg-white/10 text-white text-sm font-medium rounded-full hover:bg-white/20 transition-colors"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
             >
               Sign Out
             </button>
-            <UserAvatar name={profile.name} email={profile.email} />
+            <UserAvatar 
+              name={profile.name} 
+              email={profile.email}
+              profilePictureUrl={profile.profile_picture_url}
+            />
           </div>
         </div>
-      </nav>
+      </header>
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {showMigrationNotice && (
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6" role="alert">
-            <p className="font-bold">Database Migration Required</p>
-            <p>The weight unit preference is currently stored locally. To persist it between sessions, please run the database migration script.</p>
-            <p className="mt-2 text-sm">Run the SQL in <code>add_weight_unit_column.sql</code> in your Supabase SQL Editor.</p>
-          </div>
-        )}
-
-        {error && <Error message={error} />}
+      <main className="container mx-auto px-4 py-8">
+        <h1 className="text-4xl font-serif mb-8">Your Profile</h1>
         
-        <div className="grid grid-cols-1 gap-8">
-          {/* Profile Information */}
-          <div className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
-            <div className="px-6 py-5">
-              <h3 className="text-2xl font-serif mb-2">Your Profile</h3>
-              <p className="text-gray-400 text-sm">
-                Your personal information and fitness goals
-              </p>
-            </div>
-            
-            <div className="border-t border-white/10 px-6 py-5">
-              <dl className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-400">Full name</dt>
-                  <dd className="mt-1 text-white">{profile.name}</dd>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Left column - Profile Info */}
+          <div className="md:col-span-2">
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+              
+              {/* Profile Picture Upload Component */}
+              <ProfilePictureUpload 
+                userId={profile.id}
+                existingUrl={profile.profile_picture_url ?? null}
+                onUploadComplete={handleProfilePictureUpdate}
+              />
+              
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-serif mb-4">Profile Information</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-gray-400 text-sm">Name</p>
+                      <p className="text-xl">{profile.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Email</p>
+                      <p>{profile.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Age</p>
+                      <p>{profile.age || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Fitness Goals</p>
+                      <p className="whitespace-pre-wrap">{profile.fitness_goals || 'No goals set yet'}</p>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-400">Email address</dt>
-                  <dd className="mt-1 text-white">{profile.email}</dd>
-                </div>
-                
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-400">Age</dt>
-                  <dd className="mt-1 text-white">{profile.age}</dd>
-                </div>
-                
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-gray-400">Weight Unit</dt>
-                  <dd className="mt-1 flex items-center">
-                    <button
-                      onClick={toggleWeightUnit}
-                      disabled={isUpdating}
-                      className="relative inline-flex items-center h-6 rounded-full w-11 bg-white/10 focus:outline-none"
-                      aria-pressed={weightUnit === 'kg'}
-                    >
-                      <span className="sr-only">Toggle weight unit</span>
-                      <span
-                        className={`${
-                          weightUnit === 'kg' ? 'translate-x-6' : 'translate-x-1'
-                        } inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out`}
-                      />
-                      <span className="absolute left-0 ml-12 text-white">
-                        {isUpdating ? '...' : weightUnit}
-                      </span>
-                    </button>
-                    
-                    {showMigrationNotice && (
-                      <div className="ml-4 text-xs text-yellow-500">
-                        <span className="font-medium">Note:</span> Stored locally only
-                      </div>
-                    )}
-                  </dd>
-                </div>
-                
-                <div className="sm:col-span-2">
-                  <dt className="text-sm font-medium text-gray-400">Fitness goals</dt>
-                  <dd className="mt-1 text-white">{profile.fitness_goals}</dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-        </div>
 
-        {/* Recent Workouts */}
-        <div className="mt-12">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-serif">Recent Workouts</h3>
-            <Link
-              href="/dashboard"
-              className="text-sm text-white/80 hover:text-white"
-            >
-              View All →
-            </Link>
+                <div>
+                  <h2 className="text-2xl font-serif mb-4">Preferences</h2>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-gray-400 text-sm mb-2">Weight Unit</p>
+                      <div className="flex items-center">
+                        <button
+                          onClick={toggleWeightUnit}
+                          disabled={isUpdating}
+                          className={`flex items-center justify-center rounded-full h-6 w-12 p-1 transition-colors ${
+                            weightUnit === 'kg' ? 'bg-white' : 'bg-gray-700'
+                          }`}
+                        >
+                          <div className={`rounded-full h-4 w-4 transform transition-transform ${
+                            weightUnit === 'kg' ? 'translate-x-0 bg-black' : 'translate-x-6 bg-white'
+                          }`}></div>
+                        </button>
+                        <span className="ml-2">
+                          {weightUnit === 'kg' ? 'Kilograms (kg)' : 'Pounds (lbs)'}
+                        </span>
+                      </div>
+                      
+                      {showMigrationNotice && (
+                        <div className="mt-2 bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-3">
+                          <p className="text-yellow-400 text-sm">
+                            Your preference will be saved for this session, but your database needs to be migrated to permanently save this setting.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Admin Tools Section */}
+                {profile.role === 'admin' && (
+                  <div className="mt-8 border-t border-white/10 pt-6">
+                    <h2 className="text-2xl font-serif mb-4">Admin Tools</h2>
+                    <SqlMigrationRunner 
+                      adminOnly={true}
+                      description="Run database migrations to fix issues like profile picture storage."
+                      migrationName="Profile Database Fix"
+                    />
+                  </div>
+                )}
+                
+                <div className="border-t border-white/10 pt-6">
+                  <Link 
+                    href="/profile/edit"
+                    className="px-6 py-3 bg-white text-black rounded-full hover:bg-white/90 transition-colors font-medium"
+                  >
+                    Edit Profile
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
           
-          {workouts.length === 0 ? (
-            <p className="text-gray-400">No workouts logged yet. Start by logging your first workout!</p>
-          ) : (
-            <div className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
-              <ul className="divide-y divide-white/10">
-                {workouts.map((workout) => (
-                  <li key={workout.id} className="px-6 py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h4 className="text-lg font-medium text-white">
-                          {workout.exerciseName}
-                        </h4>
-                        <p className="mt-1 text-sm text-gray-400">
-                          {workout.sets} sets × {workout.reps} reps • {workout.weight} {weightUnit} • {workout.duration} minutes
-                        </p>
-                        {workout.notes && (
-                          <p className="mt-2 text-sm text-gray-400">{workout.notes}</p>
-                        )}
-                      </div>
-                      <div className="ml-4 text-sm text-gray-400">
-                        {new Date(workout.created_at).toLocaleDateString()}
-                      </div>
+          {/* Right column - Recent Activity & Stats */}
+          <div>
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+              <h2 className="text-2xl font-serif mb-4">Recent Activity</h2>
+              
+              {workouts.length > 0 ? (
+                <div className="space-y-4">
+                  {workouts.map((workout, index) => (
+                    <div key={workout.id || index} className="border-b border-white/10 pb-4 last:border-0">
+                      <p className="font-medium">{workout.exerciseName || 'Workout ' + (index + 1)}</p>
+                      <p className="text-sm text-gray-400">
+                        {new Date(workout.created_at).toLocaleDateString()} • {workout.sets} sets × {workout.reps} reps
+                      </p>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                  
+                  <div className="pt-2">
+                    <Link
+                      href="/workouts"
+                      className="text-sm text-white/70 hover:text-white"
+                    >
+                      View all workouts →
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <p className="text-gray-400 mb-4">No workouts logged yet</p>
+                  <Link
+                    href="/workout/log"
+                    className="text-white hover:underline"
+                  >
+                    Log your first workout
+                  </Link>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 } 

@@ -7,7 +7,7 @@
  * the Supabase client-side API for authentication and data fetching.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getWorkoutStats, getTodayWorkoutStats, getWorkoutTrends, type WorkoutStats, type WorkoutTrend } from '@/lib/db'
@@ -18,6 +18,7 @@ import Link from 'next/link'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Session } from '@supabase/supabase-js'
 import { MuscleDistributionChart } from '@/components/workout/MuscleDistributionChart'
+import { RecentRun } from '@/components/dashboard/RecentRun'
 
 interface UserProfile {
   id: string
@@ -26,6 +27,7 @@ interface UserProfile {
   fitness_goals: string
   email: string
   weight_unit?: 'kg' | 'lbs'
+  profile_picture_url?: string
 }
 
 // Mock data for testing - only used when no user is logged in
@@ -68,127 +70,180 @@ export default function DashboardPage() {
   const [showWelcome, setShowWelcome] = useState(true)
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
   const [isMuscleChartCollapsed, setIsMuscleChartCollapsed] = useState(false)
+  // Get user's timezone once on mount
+  const [userTimezone, setUserTimezone] = useState('UTC'); // Default to UTC
 
-  // Check authentication and fetch data
   useEffect(() => {
-    const fetchSessionAndData = async () => {
+      // This effect runs only once on the client after hydration
       try {
-        setIsLoading(true)
-        
-        // Get current session
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
-        
-        if (sessionError) {
-          setError(`Session error: ${sessionError.message}`)
-          return
-        }
-        
-        if (!currentSession) {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        setUserTimezone(tz || 'UTC'); // Set the detected timezone or fallback
+        console.log("User timezone detected:", tz);
+      } catch (e) {
+          console.error("Error detecting timezone:", e);
+          setUserTimezone('UTC'); // Fallback on error
+      }
+  }, []); // Empty dependency array ensures it runs only once client-side
+
+  // Memoized data fetching function - now uses userTimezone state
+  const fetchData = useCallback(async (isInitialLoad = false) => {
+    if (isInitialLoad) {
+      setIsLoading(true)
+    }
+    setError(null)
+
+    try {
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+
+      if (sessionError) {
+        setError(`Session error: ${sessionError.message}`)
+        setSession(null)
+        return
+      }
+
+      if (!currentSession) {
+        if (isInitialLoad) {
           router.push('/login')
-          return
         }
-        
-        setSession(currentSession)
-        
-        // Fetch user profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', currentSession.user.id)
-          .single()
-          
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Profile fetch error:', profileError)
+        setSession(null)
+        return
+      }
+
+      setSession(currentSession)
+
+      // Fetch profile (no change needed here)
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentSession.user.id)
+        .single()
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Profile fetch error:', profileError)
+      }
+
+      if (profileData) {
+        setProfile(profileData)
+        if (profileData.weight_unit) {
+          setWeightUnit(profileData.weight_unit)
         }
-        
-        if (profileData) {
-          setProfile(profileData)
-          // Set weight unit from profile if available
-          if (profileData.weight_unit) {
-            setWeightUnit(profileData.weight_unit)
-          }
-        } else {
-          // Create a basic profile if none exists
-          const newProfile = {
-            id: currentSession.user.id,
-            name: currentSession.user.user_metadata?.name || currentSession.user.email?.split('@')[0] || 'Fitness User',
-            email: currentSession.user.email || '',
-            age: currentSession.user.user_metadata?.age || 0,
-            fitness_goals: currentSession.user.user_metadata?.fitness_goals || 'Get fit',
-            weight_unit: 'kg' as 'kg' | 'lbs'
-          }
-          
-          setProfile(newProfile)
-          
-          // Create profile in the database
-          const { error: createError } = await supabase
-            .from('profiles')
-            .upsert(newProfile)
-            
-          if (createError) {
-            console.error('Error creating profile:', createError)
-          }
+      } else {
+        const newProfile = {
+          id: currentSession.user.id,
+          name: currentSession.user.user_metadata?.name || currentSession.user.email?.split('@')[0] || 'Fitness User',
+          email: currentSession.user.email || '',
+          age: currentSession.user.user_metadata?.age || 0,
+          fitness_goals: currentSession.user.user_metadata?.fitness_goals || 'Get fit',
+          weight_unit: 'kg' as 'kg' | 'lbs'
         }
-        
-        // Fetch workout data
-        try {
-          const userStats = await getWorkoutStats()
-          const todayUserStats = await getTodayWorkoutStats()
-          const userTrends = await getWorkoutTrends('week')
-          
-          setStats(userStats || emptyStats)
-          setTodayStats(todayUserStats || emptyStats)
-          setTrends(userTrends || emptyTrends)
-        } catch (dataError) {
-          console.error('Error fetching workout data:', dataError)
-          // Use empty data rather than failing completely
-          setStats(emptyStats)
-          setTodayStats(emptyStats)
-          setTrends(emptyTrends)
-        }
-        
-      } catch (err) {
-        console.error('Dashboard error:', err)
-        // Safe error handling with type checking
-        const errorMessage = err && typeof err === 'object' && 'message' in err 
-          ? String(err.message) 
-          : 'An error occurred while loading the dashboard'
-        setError(errorMessage)
-      } finally {
+        setProfile(newProfile)
+        const { error: createError } = await supabase.from('profiles').upsert(newProfile)
+        if (createError) console.error('Error creating profile:', createError)
+      }
+
+      // Fetch workout data, passing the detected userTimezone
+      try {
+        console.log(`Fetching workout data with timezone: ${userTimezone}`);
+        const [userStats, todayUserStats, userTrends] = await Promise.all([
+          getWorkoutStats(), // General stats don't need timezone (yet)
+          getTodayWorkoutStats(userTimezone), // Pass timezone
+          getWorkoutTrends('week', userTimezone) // Pass timezone
+        ])
+
+        setStats(userStats ?? emptyStats)
+        setTodayStats(todayUserStats ?? emptyStats)
+        setTrends(userTrends ?? emptyTrends)
+      } catch (dataError) {
+        console.error('Error fetching workout data:', dataError)
+        setError('Failed to load workout data.')
+        setStats(emptyStats)
+        setTodayStats(emptyStats)
+        setTrends(emptyTrends)
+      }
+
+    } catch (err) {
+      console.error('Dashboard fetch data error:', err)
+      const errorMessage = err && typeof err === 'object' && 'message' in err
+        ? String(err.message)
+        : 'An unexpected error occurred'
+      setError(errorMessage)
+      setSession(null)
+      setProfile(null)
+      setStats(emptyStats)
+      setTodayStats(emptyStats)
+      setTrends(emptyTrends)
+    } finally {
+      if (isInitialLoad) {
         setIsLoading(false)
       }
     }
-    
-    fetchSessionAndData()
-    
-    // Set up auth state change listener
+  // IMPORTANT: Add userTimezone to dependency array
+  // This ensures fetchData is recreated if timezone changes (e.g., hydration)
+  // and subsequent effects using fetchData get the updated version.
+  }, [router, userTimezone])
+
+
+  // Effect for initial data load and auth state changes
+  useEffect(() => {
+    // Initial fetch - fetchData will now use the timezone state
+    fetchData(true)
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sessionData) => {
+      console.log('Auth State Change:', event, sessionData ? 'Got Session' : 'No Session');
       if (event === 'SIGNED_OUT') {
+        setSession(null)
+        setProfile(null)
         router.push('/login')
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        if (sessionData) {
+            setSession(sessionData);
+            // Refetch data using the latest timezone
+            fetchData(false);
+        } else {
+             setSession(null)
+             setProfile(null)
+             router.push('/login')
+        }
       } else if (sessionData) {
-        setSession(sessionData)
+         setSession(sessionData);
       }
     })
-    
+
     return () => {
       subscription.unsubscribe()
     }
-  }, [router])
-  
+  // FetchData dependency already includes userTimezone
+  }, [router, fetchData])
+
+
+  // Effect for refetching data on visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("Page became visible, refetching data...");
+        // Refetch data using the latest timezone
+        fetchData(false)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  // FetchData dependency already includes userTimezone
+  }, [fetchData])
+
   const handleLogout = async () => {
     try {
-      setIsLoading(true)
       await supabase.auth.signOut()
-      router.push('/login?bypass=true')
     } catch (error) {
       console.error('Error signing out:', error)
       setError('Failed to sign out. Please try again.')
-    } finally {
-      setIsLoading(false)
     }
   }
 
-  // Loading state
+  // Loading state (only for initial load)
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -197,34 +252,34 @@ export default function DashboardPage() {
     )
   }
 
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center">
-        <div className="max-w-md w-full bg-black/60 backdrop-blur-sm p-8 rounded-xl border border-white/20 shadow-lg">
-          <h1 className="text-2xl font-serif font-bold mb-4">Dashboard Error</h1>
-          <Error message={error} className="mb-6" />
-          <p className="mb-6 text-gray-300">
-            We encountered an error while loading your dashboard. This could be due to a network issue or session expiration.
-          </p>
-          <div className="flex space-x-4">
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-white text-black px-4 py-2 rounded-full font-medium hover:bg-white/90 transition-colors flex-1"
-            >
-              Retry
-            </button>
-            <Link
-              href="/login"
-              className="border border-white text-white px-4 py-2 rounded-full font-medium hover:bg-white/20 transition-colors flex-1 text-center"
-            >
-              Back to Login
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Error state (shows general dashboard errors)
+  if (error && !session) { // Only show full error screen if session is also lost
+     return (
+       <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center">
+         <div className="max-w-md w-full bg-black/60 backdrop-blur-sm p-8 rounded-xl border border-white/20 shadow-lg">
+           <h1 className="text-2xl font-serif font-bold mb-4">Dashboard Error</h1>
+           <Error message={error} className="mb-6" />
+           <p className="mb-6 text-gray-300">
+             We encountered an error while loading your dashboard. Try refreshing the page or logging in again.
+           </p>
+           <div className="flex space-x-4">
+             <button
+               onClick={() => window.location.reload()}
+               className="bg-white text-black px-4 py-2 rounded-full font-medium hover:bg-white/90 transition-colors flex-1"
+             >
+               Refresh Page
+             </button>
+             <Link
+               href="/login"
+               className="border border-white text-white px-4 py-2 rounded-full font-medium hover:bg-white/20 transition-colors flex-1 text-center"
+             >
+               Back to Login
+             </Link>
+           </div>
+         </div>
+       </div>
+     )
+   }
 
   // Main dashboard content
   return (
@@ -239,14 +294,18 @@ export default function DashboardPage() {
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-              disabled={isLoading}
             >
-              {isLoading ? 'Logging out...' : 'Logout'}
+              Logout
             </button>
             
             {profile && (
               <div className="flex items-center">
-                <UserAvatar name={profile.name} email={profile.email} size={40} />
+                <UserAvatar 
+                  name={profile.name} 
+                  email={profile.email} 
+                  profilePictureUrl={profile.profile_picture_url}
+                  size={8}
+                />
                 <div className="ml-3 hidden md:block">
                   <p className="font-medium">{profile.name}</p>
                   <p className="text-sm text-gray-400">{profile.email}</p>
@@ -256,6 +315,13 @@ export default function DashboardPage() {
           </div>
         </div>
       </header>
+      
+      {/* Optional: Display non-blocking error messages */}
+       {error && session && (
+         <div className="container mx-auto px-4 pt-4">
+             <Error message={`Warning: ${error}. Data might be incomplete.`} />
+         </div>
+       )}
       
       {/* Welcome message for new users */}
       {showWelcome && (
@@ -275,44 +341,6 @@ export default function DashboardPage() {
       
       {/* Main content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Profile summary */}
-        <section className="mb-12">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <h1 className="text-4xl font-serif">Your Fitness Dashboard</h1>
-          </div>
-          
-          {profile && (
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
-              <div className="flex items-center">
-                <UserAvatar name={profile.name} email={profile.email} size={60} />
-                <div className="ml-4">
-                  <h2 className="text-2xl font-serif">{profile.name}</h2>
-                  <p className="text-gray-400">{profile.email}</p>
-                </div>
-              </div>
-              
-              <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-gray-400 text-sm">Age</p>
-                  <p className="font-medium text-xl">{profile.age || 'Not specified'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-sm">Fitness Goals</p>
-                  <p className="font-medium text-xl">{profile.fitness_goals || 'No goals set'}</p>
-                </div>
-                <div className="md:col-span-2 mt-2">
-                  <button
-                    onClick={() => router.push('/profile')}
-                    className="text-white/80 hover:text-white transition-colors text-sm font-medium"
-                  >
-                    Update Profile Information →
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-        
         {/* Stats cards */}
         <section className="mb-12">
           <h2 className="text-3xl font-serif mb-6">Today's Workout Statistics</h2>
@@ -334,12 +362,12 @@ export default function DashboardPage() {
             />
             <StatsCard 
               title="Total Weight" 
-              value={`${todayStats.totalWeight} ${weightUnit}`} 
+              value={`${todayStats.totalWeight ?? 0} ${weightUnit}`} 
               iconName="weight" 
             />
             <StatsCard 
               title="Total Duration" 
-              value={`${todayStats.totalDuration} min`} 
+              value={`${todayStats.totalDuration ?? 0} min`} 
               iconName="clock" 
             />
           </div>
@@ -379,6 +407,17 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+        </section>
+        
+        {/* Recent Run Section */}
+        <section className="mb-12">
+          <h2 className="text-3xl font-serif mb-6">Running Activity</h2>
+          {profile && <RecentRun userId={profile.id} />}
+          {!profile && (
+            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10 text-center py-12">
+              <p className="text-gray-400 mb-6 text-lg">Sign in to view your recent runs</p>
+            </div>
+          )}
         </section>
         
         {/* Muscle Heatmap Section */}

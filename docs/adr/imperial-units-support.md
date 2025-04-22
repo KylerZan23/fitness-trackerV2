@@ -41,9 +41,22 @@ We will automatically handle the conversion between the metrics used by Strava's
 
 ### Technical Implementation
 
-1. RunList component: Converted distances from meters to miles, pace from min/km to min/mile, elevation from meters to feet
-2. ManualRunLogger component: Changed input labels to indicate miles, converted user inputs from miles to meters before sending to Strava API
-3. README documentation: Updated to reflect imperial unit support
+1. Central Units Utility:
+   - Created `src/lib/units.ts` with standardized conversion functions
+   - All unit conversions are centralized to ensure consistency and maintainability
+   - Added utility functions for displaying distances, elevation, and pace calculations
+
+2. RunList component: 
+   - Updated to use centralized unit conversion functions
+   - Displays distances in miles, pace in min/mile, elevation in feet
+
+3. ManualRunLogger component: 
+   - Updated to use centralized unit conversion functions
+   - Input labels indicate miles
+   - User inputs are converted to metric before sending to Strava API
+
+4. README documentation: 
+   - Updated to reflect imperial unit support
 
 ### Future Considerations
 

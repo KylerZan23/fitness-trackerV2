@@ -7,22 +7,25 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Session } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { StravaConnect } from '@/components/run/StravaConnect'
 import { RunList } from '@/components/run/RunList'
+import { StravaRunList } from '@/components/run/StravaRunList'
 import { ManualRunLogger } from '@/components/run/ManualRunLogger'
 
 export default function RunLoggerPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [isStravaConnected, setIsStravaConnected] = useState(false)
-  const [activeTab, setActiveTab] = useState<'view' | 'log'>('view')
+  const [activeTab, setActiveTab] = useState<'card-view' | 'table-view' | 'log'>('card-view')
+  const runId = searchParams?.get('runId')
 
   // Check authentication
   useEffect(() => {
@@ -74,9 +77,16 @@ export default function RunLoggerPage() {
     }
   }, [router])
   
+  // If run ID is provided, default to card view
+  useEffect(() => {
+    if (runId) {
+      setActiveTab('card-view')
+    }
+  }, [runId])
+  
   const handleRunLogged = () => {
     // Refresh the run list when a new run is logged
-    setActiveTab('view')
+    setActiveTab('card-view')
   }
 
   // Loading state
@@ -149,15 +159,28 @@ export default function RunLoggerPage() {
         <div className="mb-6 border-b border-white/10">
           <div className="flex space-x-8">
             <button
-              onClick={() => setActiveTab('view')}
+              onClick={() => setActiveTab('card-view')}
               className={`py-3 px-2 relative ${
-                activeTab === 'view' 
+                activeTab === 'card-view' 
                   ? 'text-white font-medium' 
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              View Runs
-              {activeTab === 'view' && (
+              Card View
+              {activeTab === 'card-view' && (
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-white"></span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('table-view')}
+              className={`py-3 px-2 relative ${
+                activeTab === 'table-view' 
+                  ? 'text-white font-medium' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Table View
+              {activeTab === 'table-view' && (
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-white"></span>
               )}
             </button>
@@ -178,7 +201,11 @@ export default function RunLoggerPage() {
         </div>
         
         {/* Tab Content */}
-        {activeTab === 'view' && userId && (
+        {activeTab === 'card-view' && userId && (
+          <StravaRunList userId={userId} isConnected={isStravaConnected} />
+        )}
+        
+        {activeTab === 'table-view' && userId && (
           <RunList userId={userId} isConnected={isStravaConnected} />
         )}
         

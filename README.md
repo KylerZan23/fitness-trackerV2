@@ -4,6 +4,8 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Dashboard Running Activity**: Added a "Your Recent Run" section to the dashboard to display the latest run from Strava
+- **Strava-like Run Cards**: Added Strava-style run cards with map visualization to the run logger page
 - **Fixed Authentication Loop**: Added force_login parameter to bypass authentication checks and allow direct access to login page
 - **Enhanced Authentication Security**: Updated middleware to use `getUser()` instead of `getSession()` for secure token verification
 - **Fixed Workout Logging**: Resolved schema cache issue that prevented workout logging by removing dependency on muscle_group column
@@ -13,9 +15,7 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - **Improved Auth Token Verification**: Enhanced security by using service role for token verification with proper error handling
 - **Enhanced Authentication & Profile Creation**: Fixed RLS policy issues and improved server-side API token verification for robust user registration
 - **Improved Authentication Flow**: Added ability to bypass authentication redirection for accessing the login page and switching accounts
-- **Integrated Muscle Heatmap**: Muscle heatmap visualization now directly integrated into the workout page for a more cohesive experience
 - **Muscle Group Information**: Added muscle group information for exercises when logging workouts
-- **Muscle Heatmap Visualization**: Added visualization to track workout intensity across different muscle groups
 - **Workout Entry Feature**: Added a new page for logging individual workouts with exercise details
 - **SSR Authentication Fix**: Updated Supabase client to use cookie-based authentication for SSR compatibility, fixing login redirection issues
 - **Authentication Flow Improvements**: Fixed issues with session persistence and navigation between dashboard and profile pages
@@ -25,6 +25,7 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - **Added Run Logger Page**: New dedicated page for tracking running activities accessible from the dashboard
 - **Strava API Integration**: Added Strava OAuth authentication and run logging capabilities to the Run Logger page
 - **Imperial Unit Support**: Updated run logging and display to use miles, feet, and miles-per-minute metrics instead of kilometers
+- **Profile Picture Upload**: Added support for uploading and displaying user profile pictures with Supabase Storage integration
 
 ## Features
 
@@ -35,6 +36,34 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - Health app integration
 - Exercise categorization
 - Muscle heatmap visualization for tracking training balance
+- Run tracking with Strava integration and interactive maps
+
+## Profile Management
+
+The application includes comprehensive profile management features:
+
+1. **Profile Information**: View and edit personal information such as name, age, and fitness goals
+2. **Preferences**: Set preferences like weight units (kg/lbs)
+3. **Profile Pictures**: Upload and manage profile pictures with the following capabilities:
+   - Image upload with size and format validation
+   - Storage options including Data URI and Supabase Storage
+   - Self-healing database schema with automatic column creation if needed
+   - "Fix Database" button that automatically resolves schema issues
+   - Secure access control with Row Level Security (RLS)
+   - Fallback to initials-based avatars when no image is available
+   - Profile picture display throughout the application
+
+### Profile Picture Troubleshooting
+
+For issues related to profile picture uploads, the application provides:
+
+1. **Automatic Schema Detection**: The app automatically detects if the database is missing required columns
+2. **One-Click Fix**: Users can click the "Fix Database" button to resolve schema issues without manual SQL
+3. **Data URI Fallback**: If Supabase Storage isn't configured, images are stored directly in the database as Data URIs
+4. **Comprehensive Documentation**: See [Profile Picture Fix Documentation](docs/profile-picture-fix.md) for details
+5. **Admin Tools**: Users with admin privileges can access advanced database tools to run migrations and fix issues
+
+For detailed information on setting up profile pictures for production use, see the documentation at [docs/profile-picture-fix.md](docs/profile-picture-fix.md).
 
 ## Authentication
 
@@ -73,6 +102,24 @@ The application features a modern, minimalist design inspired by high-end fitnes
 - Motivational imagery
 - Smooth transitions and animations
 - Interactive muscle group visualization
+- Strava-inspired run activity cards with route maps
+
+## Run Tracking & Strava Integration
+
+The application features a dedicated Run Logger page with Strava integration:
+
+1. **Strava OAuth Integration**: Connect to Strava to import runs and activities
+2. **Interactive Maps**: View run routes on interactive maps using Leaflet
+3. **Strava-like Activity Cards**: Modern run activity cards displaying:
+   - User information and run metadata
+   - Run statistics (distance, pace, time)
+   - Route visualization on a map
+   - Segment and achievement information
+4. **Manual Run Logging**: Add runs manually with distance, time, and location
+5. **Dual View Options**: Toggle between card view (with maps) and table view
+6. **Imperial Units**: All distances shown in miles, elevations in feet, and pace in minutes per mile
+
+For more information on run tracking features, see [Run Tracking Documentation](docs/run-tracking.md).
 
 ## Image Attribution
 
@@ -122,6 +169,7 @@ All images are sourced from Unsplash and are free to use under the Unsplash Lice
 - Authentication via Supabase SSR
 - Form handling with React Hook Form
 - Validation with Zod
+- Map visualization with Leaflet
 
 ## Code Quality
 
@@ -222,10 +270,23 @@ The application integrates with Strava to provide run tracking capabilities:
 ### Features
 
 1. **OAuth Authentication**: Securely connect to the Strava API using OAuth 2.0
-2. **Run Retrieval**: Fetch run data from Strava and display it in a table
-3. **Manual Run Logging**: Manually log runs to Strava when not tracked with a device
-4. **Token Management**: Automatic handling of token refresh and secure storage
-5. **Imperial Unit Support**: Display all distances in miles, pace in minutes per mile, and elevation in feet
+2. **Run Listing**: View your recent runs from Strava with detailed metrics
+3. **Manual Run Logging**: Log runs manually with custom distances, times, and descriptions
+4. **Imperial Units**: All distances displayed in miles instead of kilometers for better user experience
+   - Miles for distances (instead of kilometers)
+   - Feet for elevation (instead of meters)
+   - Minutes per mile for pace (instead of minutes per kilometer)
+
+### Unit Conversion
+
+The application includes a centralized unit conversion system in `src/lib/units.ts`:
+
+1. **Metric to Imperial Conversion**: Automatically converts all API data from metric (meters) to imperial (miles/feet)
+2. **Imperial to Metric Conversion**: Converts user inputs from imperial units to metric for API submissions
+3. **Formatted Displays**: Provides formatted output strings with appropriate units (e.g., "3.14 mi", "150 ft")
+4. **Pace Calculation**: Calculates and formats running pace in minutes per mile
+
+For more information on the imperial units implementation, see the [Imperial Units Support ADR](docs/adr/imperial-units-support.md).
 
 ### Architecture
 

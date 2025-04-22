@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react'
 import { createStravaActivity } from '@/lib/strava'
 import { getTokensFromDatabase } from '@/lib/strava-token-store'
+import { milesToMeters } from '@/lib/units'
 
 interface ManualRunLoggerProps {
   userId: string
@@ -60,11 +61,6 @@ export const ManualRunLogger = ({ userId, isConnected, onRunLogged }: ManualRunL
     setTodayDate()
     setCurrentTime()
   }, [])
-  
-  // Convert miles to meters for the Strava API
-  const milesToMeters = (miles: number): number => {
-    return miles * 1609.344
-  }
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

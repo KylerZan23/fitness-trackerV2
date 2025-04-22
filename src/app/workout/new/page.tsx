@@ -44,7 +44,10 @@ export default function NewWorkoutPage() {
   // Format today's date as YYYY-MM-DD for input fields
   const getTodayDateString = () => {
     const today = new Date()
-    return today.toISOString().split('T')[0] // Returns YYYY-MM-DD
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}` // Returns YYYY-MM-DD in local timezone
   }
   
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -201,6 +204,10 @@ export default function NewWorkoutPage() {
     setSuccessMessage(null)
 
     try {
+      // Log initial form data for debugging
+      console.log('Form submission started', groupMode ? 'Group mode' : 'Single mode');
+      console.log('Form data:', groupMode ? groupFormData : formData);
+      
       if (groupMode) {
         // Group mode - log multiple exercises
         // First ensure we have at least one exercise
@@ -217,15 +224,19 @@ export default function NewWorkoutPage() {
           workoutDate: groupFormData.workoutDate
         }
         
+        console.log('Workout group payload:', groupPayload);
+        
         const validationResult = workoutGroupSchema.safeParse(groupPayload)
         
         if (!validationResult.success) {
+          console.error('Validation error:', validationResult.error);
           const errorMessage = validationResult.error.errors[0]?.message || 'Invalid workout group data'
           throw new Error(errorMessage)
         }
         
         // Check authentication
         const { data: sessionData } = await supabase.auth.getSession()
+        console.log('Session check result:', sessionData ? 'Session exists' : 'No session');
         
         if (!sessionData.session?.user) {
           throw new Error('You must be logged in to log a workout. Please sign in again.')
@@ -270,15 +281,18 @@ export default function NewWorkoutPage() {
         })
       } else {
         // Single exercise mode - original functionality
+        console.log('Single workout mode - validating data:', formData);
         const validationResult = workoutSchema.safeParse(formData)
         
         if (!validationResult.success) {
+          console.error('Validation error:', validationResult.error);
           const errorMessage = validationResult.error.errors[0]?.message || 'Invalid workout data'
           throw new Error(errorMessage)
         }
         
         // Check authentication before trying to log workout
         const { data: sessionData } = await supabase.auth.getSession()
+        console.log('Session check result:', sessionData ? 'Session exists' : 'No session');
         
         if (!sessionData.session?.user) {
           throw new Error('You must be logged in to log a workout. Please sign in again.')
@@ -344,6 +358,11 @@ export default function NewWorkoutPage() {
       }
       
       setError(errorMessage)
+      // Add a clear toast error message
+      toast.error(errorMessage, {
+        duration: 5000,
+        position: 'top-center',
+      })
     } finally {
       setIsSubmitting(false)
     }

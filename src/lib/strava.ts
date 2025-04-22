@@ -245,6 +245,41 @@ export const getStravaActivity = async (
 };
 
 /**
+ * Fetches a specific activity from Strava by ID with full polyline data
+ * @param tokens User's Strava tokens
+ * @param activityId ID of the activity to fetch
+ */
+export const getStravaActivityWithPolyline = async (
+  tokens: StravaTokens,
+  activityId: number
+): Promise<StravaActivity> => {
+  try {
+    const accessToken = await getValidStravaToken(tokens);
+    
+    const response = await fetch(
+      `${STRAVA_API_BASE_URL}/activities/${activityId}?include_all_efforts=true`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Strava activity fetch failed: ${JSON.stringify(errorData)}`);
+    }
+    
+    const activity = await response.json();
+    return activity;
+  } catch (error) {
+    console.error('Error fetching Strava activity with polyline:', error);
+    throw error;
+  }
+};
+
+/**
  * Creates a new manual activity (run) on Strava
  * @param tokens User's Strava tokens
  * @param activityData Data for the new activity

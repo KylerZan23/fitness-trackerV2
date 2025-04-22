@@ -28,8 +28,8 @@ export function MuscleDistributionChart({ userId, weightUnit = 'kg' }: MuscleDis
   const getDateRange = () => {
     if (period === 'week') {
       return {
-        start: startOfWeek(currentDate),
-        end: endOfWeek(currentDate)
+        start: startOfWeek(currentDate, { weekStartsOn: 1 }),
+        end: endOfWeek(currentDate, { weekStartsOn: 1 })
       }
     } else {
       return {

@@ -2,15 +2,18 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface UserAvatarProps {
   name: string
   email?: string
   size?: number
+  profilePictureUrl?: string | null
 }
 
-export function UserAvatar({ name, email, size = 8 }: UserAvatarProps) {
+export function UserAvatar({ name, email, size = 8, profilePictureUrl }: UserAvatarProps) {
   const [showTooltip, setShowTooltip] = useState(false)
+  const [imageError, setImageError] = useState(false)
   
   // Generate the initials from the user's name
   const initials = name
@@ -34,15 +37,26 @@ export function UserAvatar({ name, email, size = 8 }: UserAvatarProps) {
   }
   
   const avatarColor = getColorFromName(name)
+  const showInitials = !profilePictureUrl || imageError
   
   return (
     <div className="relative flex items-center">
       <div 
-        className={`relative ${avatarColor} h-${size} w-${size} rounded-full flex items-center justify-center text-white font-medium text-sm cursor-pointer`}
+        className={`relative h-${size} w-${size} rounded-full flex items-center justify-center text-white font-medium text-sm cursor-pointer overflow-hidden ${showInitials ? avatarColor : ''}`}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
-        {initials}
+        {showInitials ? (
+          initials
+        ) : (
+          <Image
+            src={profilePictureUrl}
+            alt={name}
+            fill
+            className="object-cover"
+            onError={() => setImageError(true)}
+          />
+        )}
       </div>
       
       {showTooltip && (

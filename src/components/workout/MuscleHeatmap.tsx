@@ -60,8 +60,8 @@ export function MuscleHeatmap({ userId }: MuscleHeatmapProps) {
   const getDateRange = () => {
     if (period === 'week') {
       return {
-        start: startOfWeek(currentDate),
-        end: endOfWeek(currentDate)
+        start: startOfWeek(currentDate, { weekStartsOn: 1 }),
+        end: endOfWeek(currentDate, { weekStartsOn: 1 })
       }
     } else {
       return {
