@@ -1,0 +1,19 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Timezone Handling for Database Queries
+
+To ensure workout data displayed on the dashboard reflects the user's local time perception, specific database query functions in [src/lib/db.ts](mdc:src/lib/db.ts) are timezone-aware:
+
+1.  **Dependency:** Uses the `date-fns-tz` library for timezone calculations.
+2.  **Client Input:** Functions like `getTodayWorkoutStats` and `getWorkoutTrends` accept an IANA timezone string (e.g., `'America/Los_Angeles'`) as an argument, typically passed from the client component ([src/app/dashboard/page.tsx](mdc:src/app/dashboard/page.tsx)) which detects it using `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+3.  **Server-Side Calculation:**
+    *   Inside these functions, the current time (`new Date()`) is converted to the user's timezone using `toZonedTime`.
+    *   The start and end of the relevant period (e.g., start/end of the user's local day for `getTodayWorkoutStats`, start/end of the user's local week/month for `getWorkoutTrends`) are calculated using functions like `startOfDay`, `endOfDay`, `startOfWeek`, `addDays`.
+    *   These calculated user-local start/end times are converted *back* to UTC Date objects using `fromZonedTime`.
+    *   The `.toISOString()` representation of these UTC dates is used in the Supabase query (`.gte()`, `.lt()`, `.lte()`) against the `created_at` column (which stores UTC timestamps).
+4.  **Grouping/Formatting:** When grouping data by date (e.g., in `getWorkoutTrends`), the stored UTC `created_at` timestamp is converted back to the user's local time using `toZonedTime` before being formatted into a `yyyy-MM-dd` string using `formatTz` from `date-fns-tz` (passing the `timeZone` option).
+
+This ensures that queries for "today" or specific weeks/months correctly align with the user's local calendar, even though the underlying data is stored in UTC.

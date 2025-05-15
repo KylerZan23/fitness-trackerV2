@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase'; // Correct: Import the initialized browser client
 import { getStravaActivities } from '@/lib/strava';
 import { getTokensFromDatabase } from '@/lib/strava-token-store';
 import { RunCard } from '@/components/run/RunCard';
@@ -58,8 +59,9 @@ export function RecentRun({ userId }: RecentRunProps) {
         setIsLoading(true);
         setError(null);
         
+        // const supabase = createClient(); // No longer needed, supabase is imported directly
         // Get tokens from database
-        const tokens = await getTokensFromDatabase(userId);
+        const tokens = await getTokensFromDatabase(supabase, userId);
         
         if (!tokens) {
           setError('No Strava tokens found');

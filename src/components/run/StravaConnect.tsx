@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react'
 import { getStravaAuthUrl } from '@/lib/strava'
 import { isStravaConnected, removeTokensFromDatabase, removeTokensFromLocalStorage } from '@/lib/strava-token-store'
+import { supabase } from '@/lib/supabase' // Import the browser client
 
 interface StravaConnectProps {
   userId: string
@@ -23,7 +24,8 @@ export const StravaConnect = ({ userId, onConnectionChange }: StravaConnectProps
     async function checkConnection() {
       try {
         setIsLoading(true)
-        const connected = await isStravaConnected(userId)
+        // Pass the browser client to isStravaConnected
+        const connected = await isStravaConnected(supabase, userId)
         setConnected(connected)
         onConnectionChange(connected)
       } catch (err) {
@@ -64,7 +66,8 @@ export const StravaConnect = ({ userId, onConnectionChange }: StravaConnectProps
   const handleDisconnect = async () => {
     try {
       setIsLoading(true)
-      await removeTokensFromDatabase(userId)
+      // Pass the browser client to removeTokensFromDatabase
+      await removeTokensFromDatabase(supabase, userId)
       removeTokensFromLocalStorage()
       setConnected(false)
       onConnectionChange(false)

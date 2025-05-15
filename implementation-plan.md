@@ -109,3 +109,48 @@ This approach ensures that Leaflet code only runs in the browser environment whe
 2. Implement detailed segment information
 3. Add the ability to compare runs on the same route
 4. Show mile/kilometer split times 
+
+# Implementation Plan: CoPacer-Style Landing Page
+
+## Overview
+Based on the provided CoPacer screenshot for *aesthetic inspiration*, we'll transform the FitnessTracker landing page to feature a gradient background, simplified call-to-action, computer screen mockup, and *content relevant to the FitnessTracker application*.
+
+## Key Changes
+
+1. **Background and Colors**
+   - Replace the current dark background with a vibrant purple-to-red gradient
+   - Update color scheme for a modern, vibrant feel
+
+2. **Logo and Branding**
+   - Update the logo placement and use a placeholder icon (consider adding a proper SVG logo later)
+
+3. **Content Structure (FitnessTracker Relevant)**
+   - Add prominent headlines focused on tracking progress and achieving fitness goals (e.g., "Track Your Progress, Unlock Your Potential.")
+   - Add explanatory paragraph highlighting key FitnessTracker features (workout logging, run tracking, Strava integration, analysis).
+   - Replace the CoPacer-specific form with a simple "Get Started Free" button linking to the signup page for unauthenticated users.
+
+4. **UI Elements**
+   - Implement a laptop/computer screen mockup displaying the FitnessTracker dashboard UI
+   - Include realistic dashboard elements in the mockup: stats cards, recent runs, progress charts, and goals
+   - Maintain a clean navigation area with a "Sign In" button
+
+5. **Mobile Responsiveness**
+   - Ensure the new design works well on mobile devices.
+
+## Implementation Steps
+
+1. Update the background with gradient styling.
+2. Modify the page structure for the new layout.
+3. Replace CoPacer-specific text content (headlines, paragraphs) with FitnessTracker-relevant content.
+4. Replace the two mobile device mockups with a single computer screen mockup showing the FitnessTracker dashboard UI.
+5. Design the mockup dashboard with realistic UI elements (header, stats cards, recent activity, charts, goals).
+6. Add computer stand/base details to complete the mockup.
+7. Update navigation and sign-in UI.
+8. Ensure responsive design for all screen sizes.
+
+## Technical Requirements
+
+- Use Tailwind CSS for styling (already in place).
+- Keep the existing authentication logic intact.
+- Ensure accessibility standards are maintained.
+- Keep performance optimized. 

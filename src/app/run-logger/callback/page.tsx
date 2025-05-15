@@ -65,8 +65,8 @@ export default function StravaCallbackPage() {
         // Save tokens to localStorage for immediate use
         saveTokensToLocalStorage(tokens)
         
-        // Save tokens to database for persistence
-        await saveTokensToDatabase(session.user.id, tokens)
+        // Save tokens to database for persistence, passing the browser client instance
+        await saveTokensToDatabase(supabase, session.user.id, tokens)
         
         setSuccess(true)
         

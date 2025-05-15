@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import { WorkoutFormData, WorkoutGroupData, WorkoutExerciseData } from './schemas'
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, startOfDay, endOfDay } from 'date-fns'
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, startOfDay, endOfDay, subWeeks } from 'date-fns'
 import { toZonedTime, fromZonedTime, format as formatTz } from 'date-fns-tz'
 import { MuscleGroup, findMuscleGroupForExercise } from './types'
 
@@ -40,6 +40,16 @@ export interface WorkoutTrend {
   exerciseNames?: string[]
   notes?: string[]
   workoutNames?: string[]
+}
+
+// Define a simpler type for the historical workout view
+export interface HistoricalWorkout {
+  id: string;
+  created_at: string; // ISO string
+  duration: number; // minutes
+  exerciseName: string;
+  type?: 'lift' | 'run' | 'other'; // Add this
+  distance?: number; // in meters for runs
 }
 
 /**
@@ -309,170 +319,126 @@ export async function getWorkoutStats(muscleGroup?: MuscleGroup): Promise<Workou
 }
 
 /**
- * Gets workout trends over time for the authenticated user, respecting user timezone
- * @param period - 'day' | 'week' | 'month'
- * @param userTimezone - IANA timezone name (e.g., 'America/Los_Angeles')
- * @returns Array of workout trends or empty array if there's an error
+ * Retrieves aggregated workout trends for the last N weeks for the authenticated user.
+ * Data is aggregated per day (YYYY-MM-DD format based on user's timezone).
+ *
+ * @param numberOfWeeks - The number of past weeks (including the current week) to fetch data for.
+ * @param userTimezone - The IANA timezone string of the user (e.g., 'America/New_York'). Defaults to 'UTC'.
+ * @returns Array of daily workout trends or empty array if there's an error.
  */
 export async function getWorkoutTrends(
-  period: 'day' | 'week' | 'month' = 'week',
+  numberOfWeeks = 8, // Default to fetching the last 8 weeks
   userTimezone = 'UTC' // Default to UTC if not provided
 ): Promise<WorkoutTrend[]> {
   try {
-    console.log(`Getting workout trends for period ${period}, timezone ${userTimezone}...`)
     const { data: { session } } = await supabase.auth.getSession()
-
     if (!session?.user) {
       console.log('No active session found when fetching workout trends')
       return []
     }
+    console.log(`Fetching trends for user ${session.user.id.substring(0, 6)}... Timezone: ${userTimezone}, Weeks: ${numberOfWeeks}`) 
 
-    console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
+    // 1. Determine Date Range in User's Timezone
+    const nowInUserTz = toZonedTime(new Date(), userTimezone)
+    // Get the end of the current week (Sunday night) in the user's timezone
+    const endOfCurrentWeek = endOfWeek(nowInUserTz, { weekStartsOn: 1 }) // weekStartsOn: 1 for Monday
+    // Get the start of the period (Monday N weeks ago) in the user's timezone
+    // Subtract (numberOfWeeks - 1) because startOfWeek gives the *current* week's Monday
+    const startOfPeriod = startOfWeek(subWeeks(nowInUserTz, numberOfWeeks - 1), { weekStartsOn: 1 })
 
-    const now = new Date() // Current time in UTC
-    const nowZoned = toZonedTime(now, userTimezone) // Use imported toZonedTime
+    // 2. Convert Range to UTC ISO Strings for Database Query
+    // The database stores created_at in UTC.
+    const startDateUTC = fromZonedTime(startOfPeriod, userTimezone).toISOString()
+    const endDateUTC = fromZonedTime(endOfCurrentWeek, userTimezone).toISOString()
 
-    let startOfPeriodZoned: Date;
-    let endOfPeriodZoned: Date; // Use end of period for fetching data range
+    console.log(`Querying workouts from ${startDateUTC} to ${endDateUTC} (UTC)`) 
 
-    if (period === 'month') {
-        startOfPeriodZoned = startOfMonth(nowZoned);
-        endOfPeriodZoned = endOfMonth(nowZoned);
-    } else if (period === 'week') {
-        // Use Monday as the start of the week
-        startOfPeriodZoned = startOfWeek(nowZoned, { weekStartsOn: 1 });
-        // Ensure the end date captures the full week relative to the start
-        endOfPeriodZoned = addDays(startOfPeriodZoned, 6);
-        // We actually want end of the last day for the query
-        endOfPeriodZoned = endOfDay(endOfPeriodZoned);
-    } else { // 'day' - show last 7 days ending today
-        endOfPeriodZoned = endOfDay(nowZoned); // End of today in user's timezone
-        startOfPeriodZoned = startOfDay(addDays(nowZoned, -6)); // Start of 7 days ago in user's timezone
-    }
-
-    // Convert the period start/end from user's timezone back to UTC for the database query
-    const startDateUTC = fromZonedTime(startOfPeriodZoned, userTimezone)
-    const endDateUTC = fromZonedTime(endOfPeriodZoned, userTimezone)
-
-    console.log(`Querying trends between UTC: ${startDateUTC.toISOString()} and ${endDateUTC.toISOString()}`)
-
-    // Fetch individual workouts within the UTC range
-    const { data, error } = await supabase
+    // 3. Fetch Raw Workout Data within the UTC date range
+    const { data: workouts, error } = await supabase
       .from('workouts')
-      .select('created_at, weight, duration, sets, reps, exercise_name, notes, workout_group_id')
+      .select('created_at, duration, weight, exercise_name, notes, workout_group_id') // Select needed fields
       .eq('user_id', session.user.id)
-      .gte('created_at', startDateUTC.toISOString())
-      .lte('created_at', endDateUTC.toISOString()) // Use lte for end of period
-      .order('created_at')
+      .gte('created_at', startDateUTC)
+      .lte('created_at', endDateUTC)
+      .order('created_at', { ascending: true })
 
     if (error) {
-      console.error('Error fetching workout trends:', error)
+      console.error('Error fetching workout data for trends:', error.message)
       return []
     }
 
-    // Fetch workout groups within the same UTC range
-    const { data: workoutGroups, error: groupsError } = await supabase
-      .from('workout_groups')
-      .select('id, name, created_at, notes') // Include created_at for potential grouping later if needed
-      .eq('user_id', session.user.id)
-      .gte('created_at', startDateUTC.toISOString())
-      .lte('created_at', endDateUTC.toISOString())
-
-    if (groupsError) {
-      console.error('Error fetching workout groups:', groupsError)
-      // Continue without group names if there's an error
+    if (!workouts || workouts.length === 0) {
+      console.log('No workouts found within the date range for trends.')
+      return []
     }
+    console.log(`Fetched ${workouts.length} raw workouts for trend aggregation.`) 
 
-    // Create a map of workout group IDs to names
-    const groupNamesMap = new Map();
-    if (workoutGroups && workoutGroups.length > 0) {
-      workoutGroups.forEach(group => {
-        groupNamesMap.set(group.id, group.name);
-      });
-    }
+    // 4. Aggregate Data by Day (in User's Timezone)
+    const trendsMap = new Map<string, WorkoutTrend>()
 
-    if (data.length === 0 && (!workoutGroups || workoutGroups.length === 0)) {
-      console.log('No workout trend data found for user in the period')
-      // Still return empty array for the requested period if 'week' or 'day'
-    } else {
-       console.log(`Found trend data for ${data.length} workouts and ${workoutGroups ? workoutGroups.length : 0} workout groups`)
-    }
-
-
-    // Group workouts by the *user's local date*
-    const trendsMap = data.reduce((acc, workout) => {
-      // Convert the UTC timestamp from DB to the user's local date string
-      const localDateStr = formatTz(toZonedTime(workout.created_at, userTimezone), 'yyyy-MM-dd', { timeZone: userTimezone })
-
-      if (!acc[localDateStr]) {
-        acc[localDateStr] = {
-          date: localDateStr,
-          count: 0,
-          totalWeight: 0,
-          totalDuration: 0,
-          exerciseNames: [],
-          notes: [],
-          workoutNames: []
+    // Fetch associated workout group names if needed (optimization: fetch once)
+    const groupIds = workouts.map(w => w.workout_group_id).filter((id): id is string => !!id);
+    let groupNamesMap = new Map<string, string>();
+    if (groupIds.length > 0) {
+        const { data: groups, error: groupError } = await supabase
+            .from('workout_groups')
+            .select('id, name')
+            .in('id', Array.from(new Set(groupIds)));
+        if (groupError) {
+            console.error('Error fetching workout group names:', groupError);
+            // Proceed without group names if error occurs
+        } else if (groups) {
+            groups.forEach(group => groupNamesMap.set(group.id, group.name));
+            console.log(`Fetched ${groupNamesMap.size} workout group names.`);
         }
-      }
-      acc[localDateStr].count += workout.sets || 0 // Count sets instead of workouts
-      acc[localDateStr].totalWeight += workout.weight
-      acc[localDateStr].totalDuration += workout.duration
-      // Add exercise name if it exists and is not already in the array
-      if (workout.exercise_name && !acc[localDateStr].exerciseNames!.includes(workout.exercise_name)) {
-        acc[localDateStr].exerciseNames!.push(workout.exercise_name)
-      }
-      // Add notes if they exist and are not empty
-      if (workout.notes) {
-        acc[localDateStr].notes!.push(workout.notes)
-      }
-      // Add workout group name if it exists and is not already in the array
-      if (workout.workout_group_id && groupNamesMap.has(workout.workout_group_id)) {
-        const workoutName = groupNamesMap.get(workout.workout_group_id);
-        if (workoutName && !acc[localDateStr].workoutNames!.includes(workoutName)) {
-          acc[localDateStr].workoutNames!.push(workoutName);
-        }
-      }
-      return acc
-    }, {} as Record<string, WorkoutTrend>)
-
-    // --- Generate result array, ensuring all days in the period are present ---
-
-    const result: WorkoutTrend[] = [];
-    let currentDate = startOfPeriodZoned; // Start iterating from the beginning of the period in user's timezone
-
-    // Iterate day by day until the end of the period (use <= for end date comparison)
-    while (currentDate <= endOfPeriodZoned) {
-        const dateStr = formatTz(currentDate, 'yyyy-MM-dd', { timeZone: userTimezone });
-
-        if (trendsMap[dateStr]) {
-            result.push(trendsMap[dateStr]);
-        } else {
-            // Add empty data point for days with no workouts within the period
-            result.push({
-                date: dateStr,
-                count: 0,
-                totalWeight: 0,
-                totalDuration: 0,
-                exerciseNames: [],
-                notes: [],
-                workoutNames: []
-            });
-        }
-        // Move to the next day
-        currentDate = addDays(currentDate, 1);
     }
 
 
-    // If period is 'week' or 'day', the result array already contains the correct range.
-    // If period is 'month', the result array also contains the full month.
-    // The filtering logic now ensures we only return days within the calculated range.
+    workouts.forEach(workout => {
+      // Convert the UTC timestamp from DB back to user's timezone
+      const createdAtUserTz = toZonedTime(workout.created_at, userTimezone)
+      // Format date as YYYY-MM-DD based on user's timezone
+      const dateString = formatTz(createdAtUserTz, 'yyyy-MM-dd', { timeZone: userTimezone })
 
-    console.log(`Returning ${result.length} trend data points for period ${period}`);
-    return result;
+      const workoutGroupName = workout.workout_group_id ? groupNamesMap.get(workout.workout_group_id) : undefined;
+
+      if (trendsMap.has(dateString)) {
+        const existing = trendsMap.get(dateString)!
+        existing.count += 1
+        existing.totalDuration += workout.duration ?? 0
+        existing.totalWeight += workout.weight ?? 0
+        if (workout.exercise_name) {
+             existing.exerciseNames = [...(existing.exerciseNames ?? []), workout.exercise_name];
+        }
+         if (workout.notes) {
+             existing.notes = [...(existing.notes ?? []), workout.notes];
+         }
+         if (workoutGroupName) {
+             existing.workoutNames = [...(existing.workoutNames ?? []), workoutGroupName];
+         }
+      } else {
+        trendsMap.set(dateString, {
+          date: dateString,
+          count: 1,
+          totalDuration: workout.duration ?? 0,
+          totalWeight: workout.weight ?? 0,
+          exerciseNames: workout.exercise_name ? [workout.exercise_name] : [],
+          notes: workout.notes ? [workout.notes] : [],
+          workoutNames: workoutGroupName ? [workoutGroupName] : [],
+        })
+      }
+    })
+
+    // 5. Convert Map to Array
+    const trendsArray = Array.from(trendsMap.values())
+    // Sort by date just in case (though fetch order should handle it)
+    trendsArray.sort((a, b) => a.date.localeCompare(b.date))
+
+    console.log(`Aggregated trends for ${trendsArray.length} days.`) 
+    return trendsArray
 
   } catch (error) {
-    console.error(`Error fetching workout trends (tz: ${userTimezone}):`, error)
+    console.error('Error in getWorkoutTrends:', error)
     return []
   }
 }
@@ -727,5 +693,194 @@ export async function getTodayWorkoutStats(
     console.error(`Error calculating today's workout stats (tz: ${userTimezone}):`, error)
     // Return consistent empty object on catch
     return { totalWorkouts: 0, totalSets: 0, totalReps: 0, averageWeight: 0, averageDuration: 0, totalWeight: 0, totalDuration: 0 };
+  }
+}
+
+/**
+ * Retrieves all workouts for the authenticated user, ordered by date.
+ * Intended for historical views like the monthly calendar log.
+ * @returns Array of workouts or empty array if there's an error or no user.
+ */
+export async function getAllWorkouts(): Promise<HistoricalWorkout[]> {
+  try {
+    console.log('Getting all workouts, checking for active session...');
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session?.user) {
+      console.log('No active session found when fetching all workouts');
+      return [];
+    }
+
+    console.log(`Found active session for user ${session.user.id.substring(0, 6)}... Fetching all workouts.`);
+
+    // Select only necessary fields and order by date
+    const { data, error } = await supabase
+      .from('workouts')
+      .select('id, created_at, duration, exercise_name')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching all workouts:', error);
+      return [];
+    }
+
+    if (!data) {
+        console.log('No workout data found for user.');
+        return [];
+    }
+
+    console.log(`Found ${data.length} total workouts for user.`);
+
+    // Map database fields to our simpler interface
+    return data.map(workout => ({
+      id: workout.id,
+      created_at: workout.created_at,
+      duration: workout.duration ?? 0, // Handle potential null duration
+      exerciseName: workout.exercise_name ?? 'Unknown Exercise' // Handle potential null name
+    }));
+
+  } catch (error) {
+    console.error('Error in getAllWorkouts:', error);
+    return [];
+  }
+}
+
+/**
+ * Retrieves all workouts for a specific month and year for the authenticated user.
+ * @param year The full year (e.g., 2024)
+ * @param monthIndex The month index (0 for January, 11 for December)
+ * @returns Array of HistoricalWorkout for the specified month or empty array.
+ */
+export async function getWorkoutsForMonth(year: number, monthIndex: number): Promise<HistoricalWorkout[]> {
+  if (monthIndex < 0 || monthIndex > 11) {
+    console.error('Invalid month index provided:', monthIndex);
+    return [];
+  }
+
+  try {
+    console.log(`Getting combined workouts for ${year}-${monthIndex + 1}, checking session...`);
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session?.user) {
+      console.log('No active session found when fetching monthly workouts');
+      return [];
+    }
+    const userId = session.user.id;
+    console.log(`Found active session for user ${userId.substring(0, 6)}... Fetching workouts for ${year}-${monthIndex + 1}.`);
+
+    const startDateUTC = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0));
+    const endDateUTC = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0)); // Exclusive end date (start of next month)
+
+    console.log(`Querying monthly lifting workouts between UTC: ${startDateUTC.toISOString()} and ${endDateUTC.toISOString()}`);
+
+    // 1. Fetch Lifting Workouts
+    const { data: liftingData, error: liftingError } = await supabase
+      .from('workouts')
+      .select('id, created_at, duration, exercise_name')
+      .eq('user_id', userId)
+      .gte('created_at', startDateUTC.toISOString())
+      .lt('created_at', endDateUTC.toISOString());
+      // No sort here, will sort combined array later
+
+    if (liftingError) {
+      console.error(`Error fetching lifting workouts for ${year}-${monthIndex + 1}:`, liftingError);
+      // Continue to try fetching runs even if lifts fail for now, or return []
+    }
+
+    const liftingWorkouts: HistoricalWorkout[] = (liftingData || []).map(workout => ({
+      id: workout.id,
+      created_at: workout.created_at,
+      duration: workout.duration ?? 0,
+      exerciseName: workout.exercise_name ?? 'Unknown Exercise',
+      type: 'lift' as const, // Assign type
+    }));
+    console.log(`Found ${liftingWorkouts.length} lifting workouts for ${year}-${monthIndex + 1}.`);
+
+    // 2. Fetch Strava Runs
+    console.log(`Querying monthly Strava runs between UTC: ${startDateUTC.toISOString()} and ${endDateUTC.toISOString()}`);
+    const { data: runData, error: runError } = await supabase
+      .from('user_strava_activities')
+      .select('id, strava_activity_id, name, start_date, moving_time, distance') // Added distance
+      .eq('user_id', userId)
+      .eq('type', 'Run')
+      .gte('start_date', startDateUTC.toISOString())
+      .lt('start_date', endDateUTC.toISOString());
+      // No sort here, will sort combined array later
+
+    if (runError) {
+      console.error(`Error fetching Strava runs for ${year}-${monthIndex + 1}:`, runError);
+      // Continue if runs fail for now
+    }
+    
+    const stravaRuns: HistoricalWorkout[] = (runData || []).map(activity => ({
+      id: String(activity.strava_activity_id),
+      created_at: activity.start_date,
+      duration: Math.round((activity.moving_time ?? 0) / 60),
+      exerciseName: activity.name ?? 'Strava Run',
+      type: 'run' as const,
+      distance: activity.distance ?? 0, // Added distance, default to 0 if null
+    }));
+    console.log(`Found ${stravaRuns.length} Strava runs for ${year}-${monthIndex + 1}.`);
+
+    // 3. Combine and Sort
+    const combinedWorkouts = [...liftingWorkouts, ...stravaRuns];
+    combinedWorkouts.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    
+    console.log(`Total combined workouts for ${year}-${monthIndex + 1}: ${combinedWorkouts.length}`);
+    return combinedWorkouts;
+
+  } catch (error) {
+    console.error(`Error in getWorkoutsForMonth (${year}-${monthIndex + 1}):`, error);
+    return [];
+  }
+}
+
+/**
+ * Retrieves locally stored Strava run activities for a specific year, formatted for calendar display.
+ * @param userId The ID of the user.
+ * @param year The full year (e.g., 2024).
+ * @returns Array of HistoricalWorkout for the specified year or empty array.
+ */
+export async function getLocalStravaRunsForYear(userId: string, year: number): Promise<HistoricalWorkout[]> {
+  if (!userId) {
+    console.warn('getLocalStravaRunsForYear: No userId provided.');
+    return [];
+  }
+  console.log(`Fetching local Strava runs for user ${userId.substring(0,6)}... for year ${year}`);
+
+  try {
+    const { data, error } = await supabase
+      .from('user_strava_activities')
+      .select('id, strava_activity_id, name, start_date, moving_time') // Select necessary fields
+      .eq('user_id', userId)
+      .eq('type', 'Run') // Ensure we only get runs
+      .gte('start_date', `${year}-01-01T00:00:00.000Z`) // Activities on or after Jan 1st of the year (UTC)
+      .lt('start_date', `${year + 1}-01-01T00:00:00.000Z`) // Activities before Jan 1st of the next year (UTC)
+      .order('start_date', { ascending: true });
+
+    if (error) {
+      console.error(`Error fetching local Strava runs for user ${userId.substring(0,6)} year ${year}:`, error);
+      return [];
+    }
+
+    if (!data) {
+      console.log(`No local Strava run data found for user ${userId.substring(0,6)} year ${year}.`);
+      return [];
+    }
+
+    console.log(`Found ${data.length} local Strava runs for user ${userId.substring(0,6)} year ${year}.`);
+
+    return data.map(activity => ({
+      id: String(activity.strava_activity_id), // Use Strava's activity ID for keying, but could be our own `id` too
+      created_at: activity.start_date, // This is already TIMESTAMPTZ (UTC)
+      duration: Math.round((activity.moving_time ?? 0) / 60), // Convert seconds to minutes, handle null
+      exerciseName: activity.name ?? 'Strava Run', // Use activity name or default
+      type: 'run' as const, // Explicitly type as 'run'
+    }));
+
+  } catch (err) {
+    console.error(`Exception in getLocalStravaRunsForYear for user ${userId.substring(0,6)} year ${year}:`, err);
+    return [];
   }
 } 

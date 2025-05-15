@@ -1,0 +1,17 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Dashboard Data Fetching Pattern
+
+The main dashboard page ([src/app/dashboard/page.tsx](mdc:src/app/dashboard/page.tsx)) is a Client Component (`'use client'`). It handles data fetching and state as follows:
+
+1.  **State:** Uses `useState` hooks to manage loading status, errors, user profile, and workout data (today's stats, trends, general stats).
+2.  **Timezone Detection:** Uses a `useEffect` with an empty dependency array `[]` to run once on the client and detect the user's timezone using `Intl.DateTimeFormat().resolvedOptions().timeZone`, storing it in state.
+3.  **Core Fetch Logic:** Data fetching logic (checking auth, getting profile, getting workout data via functions from [src/lib/db.ts](mdc:src/lib/db.ts)) is encapsulated in a `fetchData` function memoized with `useCallback`. This function accepts the user's timezone.
+4.  **Initial Load:** A `useEffect` hook calls `fetchData(true)` on component mount to perform the initial data load. It depends on `[router, fetchData]`.
+5.  **Auth Changes:** The same `useEffect` hook sets up a `supabase.auth.onAuthStateChange` listener. On events like `SIGNED_IN` or `TOKEN_REFRESHED`, it calls `fetchData(false)` to refresh data.
+6.  **Visibility Refresh:** A separate `useEffect` hook adds a `visibilitychange` event listener. When the page becomes visible (`document.visibilityState === 'visible'`), it calls `fetchData(false)` to refresh the data without showing the main loading spinner. It depends on `[fetchData]`.
+
+This pattern ensures data is loaded initially and refreshed upon auth changes or when the user navigates back to the page/tab.

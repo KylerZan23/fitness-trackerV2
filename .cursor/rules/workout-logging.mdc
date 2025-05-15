@@ -1,0 +1,30 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Workout Logging Process
+
+New workouts (both single exercises and groups) are logged via the form at [src/app/workout/new/page.tsx](mdc:src/app/workout/new/page.tsx).
+
+1.  **Form:** The page is a client component that uses `useState` to manage form data for either a single workout (`WorkoutFormData`) or a workout group (`WorkoutGroupFormData`). It includes fields for exercise details (name, sets, reps, weight), duration, notes, and an optional `workoutDate`.
+2.  **Date Handling:**
+    *   The form provides a `type="date"` input, allowing users to select a specific date for the workout.
+    *   The input defaults to the user's current local date using a `getTodayDateString` utility.
+    *   If a date is selected by the user, the `YYYY-MM-DD` string is sent to the backend.
+3.  **Submission:** The `handleSubmit` function:
+    *   Prevents default form submission.
+    *   Validates the form data against Zod schemas defined in [src/lib/schemas.ts](mdc:src/lib/schemas.ts) (`workoutSchema` or `workoutGroupSchema`).
+    *   Checks for user authentication using `supabase.auth.getSession`.
+    *   Calls the appropriate backend function: `logWorkout` or `logWorkoutGroup` from [src/lib/db.ts](mdc:src/lib/db.ts).
+    *   Uses `sonner` (`toast`) for displaying success/error messages.
+4.  **Backend (`logWorkout`/`logWorkoutGroup` in [src/lib/db.ts](mdc:src/lib/db.ts))**:
+    *   Receives the form data.
+    *   Checks authentication again.
+    *   Determines the `created_at` timestamp:
+        *   If `workoutDate` (YYYY-MM-DD string) is provided, it constructs a `Date` object representing noon on that day (server's local time) and converts it to an ISO string (UTC) for storage.
+        *   If `workoutDate` is *not* provided, it uses `new Date().toISOString()` (current UTC time).
+    *   Inserts the data into the `workouts` table (and potentially `workout_groups` table) using `supabase.from(...).insert(...)`.
+    *   Returns the newly created record(s) or null on error.
+
+This flow allows users to log workouts for the current time or retroactively for a specific past date.

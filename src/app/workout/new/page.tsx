@@ -1,18 +1,49 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { z } from 'zod'
+// import Link from 'next/link' // No longer used? Keep if needed for other links later
+// import { z } from 'zod' // Zod schemas imported but not used directly in component
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { logWorkout, logWorkoutGroup, getUserProfile } from '@/lib/db'
 import { workoutSchema, workoutGroupSchema } from '@/lib/schemas'
-import { MuscleGroup, getAllMuscleGroups, getExercisesByMuscleGroup } from '@/lib/types'
-import { MuscleGroupSelector } from '@/components/workout/MuscleGroupSelector'
-import { ExerciseSelector } from '@/components/workout/ExerciseSelector'
-import { createBrowserClient } from '@supabase/ssr'
+// import { MuscleGroup, getAllMuscleGroups, getExercisesByMuscleGroup } from '@/lib/types' // No longer used
+// import { MuscleGroupSelector } from '@/components/workout/MuscleGroupSelector' // REMOVED
+// import { ExerciseSelector } from '@/components/workout/ExerciseSelector' // REMOVED
+// import { createBrowserClient } from '@supabase/ssr' // Already using supabase client from @/lib/supabase
 
+// Import new UI Components
+import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea' // Correctly import the new component
+
+// TODO: Create Textarea component in src/components/ui/textarea.tsx if it doesn't exist
+// Example:
+// import * as React from "react"
+// import { cn } from "@/lib/utils"
+// const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<"textarea">>(
+//   ({ className, ...props }, ref) => {
+//     return (
+//       <textarea
+//         className={cn(
+//           "flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+//           className
+//         )}
+//         ref={ref}
+//         {...props}
+//       />
+//     )
+//   }
+// )
+// Textarea.displayName = "Textarea"
+// export { Textarea }
+
+
+// Interfaces remain largely the same, but exerciseName is now direct input
 interface WorkoutFormData {
   exerciseName: string
   sets: number
@@ -40,30 +71,27 @@ interface WorkoutGroupFormData {
 
 export default function NewWorkoutPage() {
   const router = useRouter()
-  
-  // Format today's date as YYYY-MM-DD for input fields
+
   const getTodayDateString = () => {
     const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const day = String(today.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}` // Returns YYYY-MM-DD in local timezone
+    return today.toISOString().split('T')[0] // Use ISO string for consistency
   }
-  
+
+  // State variables
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [detailedError, setDetailedError] = useState<any>(null)
-  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<MuscleGroup | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
+  const [detailedError, setDetailedError] = useState<any>(null) // Keep for detailed debugging if needed
+  const [profile, setProfile] = useState<Awaited<ReturnType<typeof getUserProfile>> | null>(null)
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
-  const [groupMode, setGroupMode] = useState(true)
+  const [groupMode, setGroupMode] = useState(true) // Default to group mode
   const [exercises, setExercises] = useState<WorkoutExercise[]>([])
   const [currentExercise, setCurrentExercise] = useState<WorkoutExercise>({
-    exerciseName: '',
+    exerciseName: '', // Now direct input
     sets: 3,
     reps: 10,
     weight: 0
   })
+  // Single workout form data (less used if default is group)
   const [formData, setFormData] = useState<WorkoutFormData>({
     exerciseName: '',
     sets: 3,
@@ -73,6 +101,7 @@ export default function NewWorkoutPage() {
     notes: '',
     workoutDate: getTodayDateString()
   })
+  // Group workout form data
   const [groupFormData, setGroupFormData] = useState<WorkoutGroupFormData>({
     name: '',
     exercises: [],
@@ -80,617 +109,578 @@ export default function NewWorkoutPage() {
     notes: '',
     workoutDate: getTodayDateString()
   })
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null) // Keep for potential success indicators
 
-  // Check authentication and get userId for the chart
+  // Updated useEffect to fetch full profile for Sidebar
   useEffect(() => {
-    async function checkAuth() {
+    async function fetchProfileAndAuth() {
+      setIsSubmitting(true); // Use isSubmitting to indicate loading state
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          setUserId(session.user.id)
-          
-          // Get user profile to get weight unit preference
-          const profile = await getUserProfile()
-          if (profile && profile.weight_unit) {
-            setWeightUnit(profile.weight_unit)
-          }
+        // Use getUserProfile which handles session checking internally now
+        const userProfile = await getUserProfile();
+        if (userProfile) {
+          setProfile(userProfile);
+          setWeightUnit(userProfile.weight_unit ?? 'kg');
+          console.log("User profile fetched:", userProfile);
         } else {
-          // If no session, try to refresh it
-          const { data: refreshData } = await supabase.auth.refreshSession()
-          if (refreshData.session?.user) {
-            setUserId(refreshData.session.user.id)
-            
-            // Get user profile to get weight unit preference
-            const profile = await getUserProfile()
-            if (profile && profile.weight_unit) {
-              setWeightUnit(profile.weight_unit)
-            }
-          } else {
-            console.warn('No active session found. User may need to log in again.')
-            // Don't redirect here, let the middleware handle it if needed
-          }
+          console.warn('No active session or profile found. Redirecting to login.');
+          setProfile(null); // Explicitly set to null if no profile found
         }
       } catch (err) {
-        console.error('Error checking authentication:', err)
+        console.error('Error fetching user profile:', err);
+        setError('Failed to load user data.');
+        setProfile(null); // Ensure profile is null on error
+      } finally {
+        setIsSubmitting(false);
       }
     }
-    
-    checkAuth()
-  }, [])
+    fetchProfileAndAuth();
+  }, [router]); // Add router dependency
 
+  // Combined handleChange for both modes and Input/Textarea
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    
+    const { name, value, type } = e.target;
+    const parsedValue = (type === 'number' || name === 'sets' || name === 'reps' || name === 'weight' || name === 'duration' || name === 'group.duration')
+      ? parseInt(value) || 0
+      : value;
+
     if (groupMode) {
       if (name.startsWith('group.')) {
-        const groupField = name.split('.')[1]
-        setGroupFormData(prev => ({
-          ...prev,
-          [groupField]: groupField === 'name' || groupField === 'notes' || groupField === 'workoutDate'
-            ? value 
-            : parseInt(value) || 0
-        }))
+        const groupField = name.split('.')[1];
+        setGroupFormData(prev => ({ ...prev, [groupField]: parsedValue }));
       } else {
-        setCurrentExercise(prev => ({
-          ...prev,
-          [name]: name === 'exerciseName' 
-            ? value 
-            : parseInt(value) || 0
-        }))
+        // Handle fields for the current exercise being added
+        setCurrentExercise(prev => ({ ...prev, [name]: parsedValue }));
       }
     } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: name === 'sets' || name === 'reps' || name === 'weight' || name === 'duration'
-          ? parseInt(value) || 0
-          : value
-      }))
+      // Handle fields for single workout mode
+      setFormData(prev => ({ ...prev, [name]: parsedValue }));
     }
-  }
+  };
 
-  const handleSelectExercise = (exerciseName: string) => {
-    if (groupMode) {
-      setCurrentExercise(prev => ({
-        ...prev,
-        exerciseName
-      }))
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        exerciseName
-      }))
-    }
-  }
+  // handleSelectExercise is REMOVED as ExerciseSelector is removed. Name is typed directly.
 
   const handleAddExercise = () => {
-    // Validate current exercise
-    if (!currentExercise.exerciseName) {
-      toast.error('Please select an exercise name')
-      return
+    // Validate current exercise (ensure name is not empty)
+    if (!currentExercise.exerciseName.trim()) {
+      toast.error('Please enter an exercise name');
+      return;
     }
-    
-    // Add to exercises list
-    setExercises(prev => [...prev, {...currentExercise}])
-    setGroupFormData(prev => ({
-      ...prev,
-      exercises: [...prev.exercises, {...currentExercise}]
-    }))
-    
+    if (currentExercise.sets <= 0 || currentExercise.reps <= 0) {
+       toast.error('Sets and Reps must be greater than zero.');
+       return;
+    }
+
+    const newExercise = { ...currentExercise };
+    setExercises(prev => [...prev, newExercise]);
+    // Update groupFormData immediately (was missing before)
+     setGroupFormData(prev => ({
+       ...prev,
+       exercises: [...prev.exercises, newExercise]
+     }));
+
     // Reset for next exercise
     setCurrentExercise({
       exerciseName: '',
       sets: 3,
       reps: 10,
       weight: 0
-    })
-    
-    toast.success(`Added ${currentExercise.exerciseName} to workout`)
-  }
+    });
+
+    toast.success(`Added ${newExercise.exerciseName} to workout`);
+  };
 
   const handleRemoveExercise = (index: number) => {
-    setExercises(prev => prev.filter((_, i) => i !== index))
+    const removedExerciseName = exercises[index]?.exerciseName ?? 'Exercise';
+    const updatedExercises = exercises.filter((_, i) => i !== index);
+    setExercises(updatedExercises);
     setGroupFormData(prev => ({
       ...prev,
-      exercises: prev.exercises.filter((_, i) => i !== index)
-    }))
-  }
+      exercises: updatedExercises
+    }));
+    toast.info(`Removed ${removedExerciseName}`);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setError(null)
-    setDetailedError(null)
-    setSuccessMessage(null)
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+    setDetailedError(null);
+    setSuccessMessage(null);
+
+    // Ensure user is logged in (profile check)
+     if (!profile) {
+       setError("User profile not loaded. Cannot log workout.");
+       setIsSubmitting(false);
+       toast.error("User profile not loaded. Please try again.");
+       return;
+     }
 
     try {
-      // Log initial form data for debugging
       console.log('Form submission started', groupMode ? 'Group mode' : 'Single mode');
-      console.log('Form data:', groupMode ? groupFormData : formData);
-      
+
       if (groupMode) {
-        // Group mode - log multiple exercises
-        // First ensure we have at least one exercise
-        if (exercises.length === 0) {
-          throw new Error('Please add at least one exercise to your workout')
+        console.log('Group Form data:', groupFormData);
+        if (groupFormData.exercises.length === 0) {
+          throw new Error('Please add at least one exercise to your workout group');
         }
-        
-        // Validate the workout group data
+        // Ensure group name is present
+         if (!groupFormData.name.trim()) {
+           throw new Error('Please enter a name for your workout group');
+         }
+
         const groupPayload = {
           name: groupFormData.name,
-          exercises: exercises,
+          exercises: groupFormData.exercises, // Use groupFormData.exercises directly
           duration: groupFormData.duration,
           notes: groupFormData.notes,
           workoutDate: groupFormData.workoutDate
-        }
-        
+        };
         console.log('Workout group payload:', groupPayload);
-        
-        const validationResult = workoutGroupSchema.safeParse(groupPayload)
-        
+
+        const validationResult = workoutGroupSchema.safeParse(groupPayload);
         if (!validationResult.success) {
           console.error('Validation error:', validationResult.error);
-          const errorMessage = validationResult.error.errors[0]?.message || 'Invalid workout group data'
-          throw new Error(errorMessage)
+          const errorMessage = validationResult.error.errors[0]?.message || 'Invalid workout group data';
+          throw new Error(errorMessage);
         }
-        
-        // Check authentication
-        const { data: sessionData } = await supabase.auth.getSession()
-        console.log('Session check result:', sessionData ? 'Session exists' : 'No session');
-        
-        if (!sessionData.session?.user) {
-          throw new Error('You must be logged in to log a workout. Please sign in again.')
-        }
-        
-        console.log('Submitting workout group data:', groupPayload)
-        
-        // Submit the workout group to the database
-        const result = await logWorkoutGroup(groupPayload)
-        console.log('Workout group logging result:', result)
-        
-        if (!result) {
-          const err = new Error('Failed to log workout group. Please try again.')
-          // @ts-ignore
-          err.details = 'Check browser console and server logs for details'
-          throw err
-        }
-        
-        // Show success message
-        toast.success('Workout group logged successfully!', {
-          duration: 5000,
-          position: 'top-center',
-        })
-        
-        // Set success banner message
-        setSuccessMessage(`You have successfully added a new workout: "${groupPayload.name}" with ${exercises.length} exercises`)
-        
-        // Reset form data
-        setExercises([])
-        setCurrentExercise({
-          exerciseName: '',
-          sets: 3,
-          reps: 10,
-          weight: 0
-        })
-        setGroupFormData({
-          name: '',
-          exercises: [],
-          duration: 30,
-          notes: '',
-          workoutDate: getTodayDateString()
-        })
+
+        await logWorkoutGroup(validationResult.data); // Use validated data
+        toast.success('Workout group logged successfully!');
+        // Reset form after successful submission
+         setGroupFormData({
+           name: '',
+           exercises: [],
+           duration: 30,
+           notes: '',
+           workoutDate: getTodayDateString()
+         });
+         setExercises([]); // Clear exercise list too
+
+
       } else {
-        // Single exercise mode - original functionality
-        console.log('Single workout mode - validating data:', formData);
-        const validationResult = workoutSchema.safeParse(formData)
-        
-        if (!validationResult.success) {
-          console.error('Validation error:', validationResult.error);
-          const errorMessage = validationResult.error.errors[0]?.message || 'Invalid workout data'
-          throw new Error(errorMessage)
-        }
-        
-        // Check authentication before trying to log workout
-        const { data: sessionData } = await supabase.auth.getSession()
-        console.log('Session check result:', sessionData ? 'Session exists' : 'No session');
-        
-        if (!sessionData.session?.user) {
-          throw new Error('You must be logged in to log a workout. Please sign in again.')
-        }
-        
-        // Add validation for VARCHAR(50) constraint
-        if (formData.exerciseName.length > 50) {
-          throw new Error('Exercise name must be less than 50 characters')
-        }
-        
-        console.log('Submitting workout data:', formData)
-        
-        // Submit the workout to the database
-        const result = await logWorkout(formData)
-        console.log('Workout logging result:', result)
-        
-        if (!result) {
-          const err = new Error('Failed to log workout. Please try again.')
-          // @ts-ignore
-          err.details = 'Check browser console and server logs for details'
-          throw err
-        }
-        
-        // Show success message
-        toast.success('Workout logged successfully!', {
-          duration: 5000,
-          position: 'top-center',
-        })
-        
-        // Set success banner message
-        setSuccessMessage(`You have successfully added a new workout: ${formData.sets} sets of ${formData.exerciseName}`)
-        
-        // Reset form data for a new workout
-        setFormData({
-          exerciseName: '',
-          sets: 3,
-          reps: 10,
-          weight: 0,
-          duration: 30,
-          notes: '',
-          workoutDate: getTodayDateString()
-        })
+        // Single Exercise Mode
+        console.log('Single Form data:', formData);
+         // Ensure exercise name is present
+         if (!formData.exerciseName.trim()) {
+           throw new Error('Please enter an exercise name');
+         }
+
+        const singlePayload = {
+          exerciseName: formData.exerciseName,
+          sets: formData.sets,
+          reps: formData.reps,
+          weight: formData.weight,
+          duration: formData.duration,
+          notes: formData.notes,
+          workoutDate: formData.workoutDate,
+          weight_unit: weightUnit // Add weight unit
+        };
+        console.log('Single workout payload:', singlePayload);
+
+        // Validate single workout data (assuming workoutSchema includes weight_unit now)
+        // If workoutSchema doesn't include weight_unit, adjust schema or payload
+        const validationResult = workoutSchema.safeParse(singlePayload);
+         if (!validationResult.success) {
+           console.error('Validation error:', validationResult.error);
+           const errorMessage = validationResult.error.errors[0]?.message || 'Invalid workout data';
+           throw new Error(errorMessage);
+         }
+
+        await logWorkout(validationResult.data); // Use validated data
+        toast.success('Workout logged successfully!');
+        // Reset form
+         setFormData({
+            exerciseName: '',
+            sets: 3,
+            reps: 10,
+            weight: 0,
+            duration: 30,
+            notes: '',
+            workoutDate: getTodayDateString()
+          });
       }
-      
-      // Stay on the same page to allow logging another workout
-      // Only redirect if explicitly requested
-      const shouldRedirect = new URLSearchParams(window.location.search).get('redirect') === 'true'
-      if (shouldRedirect) {
-        router.push('/dashboard')
-      }
-    } catch (err) {
-      console.error('Error creating workout:', err)
-      setDetailedError(err)
-      
-      let errorMessage = 'Failed to create workout. Please try again.'
-      if (err instanceof Error) {
-        errorMessage = err.message
-        // @ts-ignore - This is for our custom error prop
-        if (err.details) {
-          // @ts-ignore
-          errorMessage += ` (${err.details})`
-        }
-      }
-      
-      setError(errorMessage)
-      // Add a clear toast error message
-      toast.error(errorMessage, {
-        duration: 5000,
-        position: 'top-center',
-      })
+
+      // Optionally navigate away after success
+      // router.push('/workouts'); // Example: navigate to workouts list
+
+    } catch (err: any) {
+      console.error('Error submitting workout:', err);
+      const message = err.message || 'Failed to log workout. Please try again.';
+      setError(message);
+      setDetailedError(err); // Store detailed error object
+      toast.error(message);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
+  };
+
+  // Logout handler to pass to Sidebar
+  const handleLogout = async () => {
+    setIsSubmitting(true); // Show loading state
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setProfile(null); // Clear profile state
+      router.push('/login'); // Redirect to login after sign out
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('Failed to sign out. Please try again.');
+      setError('Failed to sign out.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Prepare sidebar props conditionally based on profile loading state
+  const sidebarProps = profile
+   ? {
+       userName: profile.name ?? profile.email?.split('@')[0] ?? 'User',
+       userEmail: profile.email,
+       profilePictureUrl: profile.profile_picture_url,
+       onLogout: handleLogout,
+     }
+   : { // Provide default/empty props if profile is null
+       userName: 'Loading...',
+       userEmail: '',
+       profilePictureUrl: null,
+       onLogout: handleLogout, // Logout should still work
+     };
+
+
+  // Loading state before profile is loaded
+  if (profile === null && !error && isSubmitting) {
+    return (
+       <DashboardLayout sidebarProps={sidebarProps}>
+        <div className="flex justify-center items-center h-screen">
+          <p className="text-gray-500">Loading user data...</p>
+          {/* Consider adding a spinner component */}
+        </div>
+      </DashboardLayout>
+    );
+  }
+  
+   // Error state if profile loading failed
+  if (profile === null && error) {
+     return (
+       <DashboardLayout sidebarProps={sidebarProps}>
+         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+            <h1 className="text-2xl font-semibold mb-4 text-destructive">Error Loading Page</h1>
+            <p className="text-destructive mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+            <Button variant="outline" className="ml-2" onClick={() => router.push('/dashboard')}>Go to Dashboard</Button>
+         </div>
+      </DashboardLayout>
+     )
   }
 
+
+  // Main component render
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="bg-black/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/dashboard" className="text-2xl font-bold">FitnessTracker</Link>
-        </div>
-      </header>
+    <DashboardLayout sidebarProps={sidebarProps}>
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Log New Workout</h1>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex flex-col items-center mb-8 relative">
-            <Link 
-              href="/dashboard" 
-              className="text-white/70 hover:text-white absolute left-0 top-1/2 -translate-y-1/2"
-            >
-              ← Back to Dashboard
-            </Link>
-            <h1 className="text-3xl font-serif text-center">Workout Log</h1>
-          </div>
+        {/* Mode Toggle */}
+        <div className="mb-6 flex justify-center gap-2 p-1 bg-gray-200 rounded-lg">
+           <Button
+             variant={groupMode ? "default" : "ghost"}
+             onClick={() => setGroupMode(true)}
+             className="flex-1"
+             size="sm"
+           >
+             Log Workout Group
+           </Button>
+           <Button
+             variant={!groupMode ? "default" : "ghost"}
+             onClick={() => setGroupMode(false)}
+             className="flex-1"
+             size="sm"
+           >
+             Log Single Exercise
+           </Button>
+         </div>
 
-          {/* Success Banner */}
-          {successMessage && (
-            <div className="mb-6 bg-green-900/60 border border-green-500 text-white rounded-lg p-4 flex items-center shadow-lg animate-fadeIn">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-400 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <div>
-                <p className="font-medium">{successMessage}</p>
-                <p className="text-sm text-green-300 mt-1">You can continue adding more workouts or return to dashboard.</p>
-              </div>
-              <button 
-                onClick={() => setSuccessMessage(null)} 
-                className="ml-auto text-green-400 hover:text-white"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          )}
 
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-medium">Log a New Workout</h2>
-            </div>
-            
-            {error && (
-              <div className="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-6">
-                <p className="text-red-200 font-medium mb-1">{error}</p>
-                {detailedError && (
-                  <div className="mt-2 text-sm text-red-300 overflow-auto max-h-32">
-                    <p className="mb-1">Debug information (for developers):</p>
-                    <pre className="whitespace-pre-wrap break-all bg-red-950/50 p-2 rounded">
-                      {JSON.stringify(detailedError, null, 2)}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit}>
+          {/* --- Shared or Conditional Fields --- */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              {groupMode ? 'Workout Group Details' : 'Exercise Details'}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Group Name (Group Mode Only) */}
               {groupMode && (
-                <div className="mb-6">
-                  <h3 className="text-xl font-medium mb-4">Workout Name</h3>
-                  <input
-                    type="text"
+                <div className="md:col-span-2">
+                  <Label htmlFor="group.name">Workout Name</Label>
+                  <Input
                     id="group.name"
                     name="group.name"
+                    type="text"
                     value={groupFormData.name}
                     onChange={handleChange}
-                    placeholder="e.g., Push Day, Leg Day, Upper Body"
-                    className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                    required
+                    placeholder="e.g., Morning Push Day"
+                    required={groupMode}
+                    disabled={isSubmitting}
+                    className="mt-1"
                   />
                 </div>
               )}
 
-              <div className="mb-6">
-                <h3 className="text-xl font-medium mb-4">1. Select Muscle Group</h3>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMuscleGroup(null)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      selectedMuscleGroup === null
-                        ? 'bg-white text-black'
-                        : 'bg-white/10 text-white hover:bg-white/20'
-                    }`}
-                  >
-                    All Exercises
-                  </button>
-                  
-                  {getAllMuscleGroups().map((muscleGroup) => (
-                    <button
-                      type="button"
-                      key={muscleGroup}
-                      onClick={() => setSelectedMuscleGroup(muscleGroup)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                        selectedMuscleGroup === muscleGroup
-                          ? 'bg-white text-black'
-                          : 'bg-white/10 text-white hover:bg-white/20'
-                      }`}
-                    >
-                      {muscleGroup}
-                    </button>
-                  ))}
-                </div>
+              {/* Exercise Name (Single Mode Only) */}
+              {!groupMode && (
+                 <div>
+                   <Label htmlFor="exerciseName">Exercise Name</Label>
+                   <Input
+                     id="exerciseName"
+                     name="exerciseName"
+                     type="text"
+                     value={formData.exerciseName}
+                     onChange={handleChange}
+                     placeholder="e.g., Bench Press"
+                     required={!groupMode}
+                     disabled={isSubmitting}
+                     className="mt-1"
+                   />
+                 </div>
+              )}
+
+               {/* Sets, Reps, Weight (Single Mode Only) */}
+               {!groupMode && (
+                 <>
+                   <div>
+                     <Label htmlFor="sets">Sets</Label>
+                     <Input
+                       id="sets"
+                       name="sets"
+                       type="number"
+                       value={formData.sets}
+                       onChange={handleChange}
+                       min="1"
+                       required={!groupMode}
+                       disabled={isSubmitting}
+                       className="mt-1"
+                     />
+                   </div>
+                   <div>
+                     <Label htmlFor="reps">Reps</Label>
+                     <Input
+                       id="reps"
+                       name="reps"
+                       type="number"
+                       value={formData.reps}
+                       onChange={handleChange}
+                       min="1"
+                       required={!groupMode}
+                       disabled={isSubmitting}
+                       className="mt-1"
+                     />
+                   </div>
+                   <div>
+                     <Label htmlFor="weight">Weight ({weightUnit})</Label>
+                     <Input
+                       id="weight"
+                       name="weight"
+                       type="number"
+                       value={formData.weight}
+                       onChange={handleChange}
+                       min="0"
+                       step="any" // Allow decimals
+                       required={!groupMode}
+                       disabled={isSubmitting}
+                       className="mt-1"
+                     />
+                   </div>
+                 </>
+               )}
+
+
+              {/* Duration */}
+               <div>
+                <Label htmlFor={groupMode ? "group.duration" : "duration"}>Duration (minutes)</Label>
+                <Input
+                  id={groupMode ? "group.duration" : "duration"}
+                  name={groupMode ? "group.duration" : "duration"}
+                  type="number"
+                  value={groupMode ? groupFormData.duration : formData.duration}
+                  onChange={handleChange}
+                  min="1"
+                  required
+                  disabled={isSubmitting}
+                  className="mt-1"
+                />
               </div>
 
-              <div className="mb-6">
-                <h3 className="text-xl font-medium mb-4">2. Select Exercise</h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label htmlFor="exerciseName" className="block text-gray-300 mb-2">
-                      Exercise Name
-                    </label>
-                    <input
-                      type="text"
-                      id="exerciseName"
-                      name="exerciseName"
-                      value={groupMode ? currentExercise.exerciseName : formData.exerciseName}
-                      onChange={handleChange}
-                      placeholder="e.g., Bench Press, Squats, Running"
-                      className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                      required={!groupMode}
-                    />
-                  </div>
-                  
-                  <div className="mt-2">
-                    <p className="text-gray-300 mb-2">Suggested Exercises:</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 max-h-[200px] overflow-y-auto pr-2">
-                      {(selectedMuscleGroup ? getExercisesByMuscleGroup(selectedMuscleGroup) : getExercisesByMuscleGroup(MuscleGroup.CHEST)).slice(0, 9).map((exercise) => (
-                        <button
-                          type="button"
-                          key={exercise.name}
-                          onClick={() => handleSelectExercise(exercise.name)}
-                          className="text-left p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors group"
-                        >
-                          <div className="font-medium text-white group-hover:text-white text-sm">{exercise.name}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+              {/* Workout Date */}
+              <div>
+                <Label htmlFor={groupMode ? "group.workoutDate" : "workoutDate"}>Workout Date</Label>
+                <Input
+                  id={groupMode ? "group.workoutDate" : "workoutDate"}
+                  name={groupMode ? "group.workoutDate" : "workoutDate"}
+                  type="date"
+                  value={groupMode ? groupFormData.workoutDate : formData.workoutDate}
+                  onChange={handleChange}
+                  required
+                  disabled={isSubmitting}
+                  className="mt-1"
+                />
               </div>
 
-              <div className="mb-6">
-                <h3 className="text-xl font-medium mb-4">3. Enter Exercise Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div>
-                    <label htmlFor="sets" className="block text-gray-300 mb-2">
-                      Sets
-                    </label>
-                    <input
-                      type="number"
-                      id="sets"
-                      name="sets"
-                      value={groupMode ? currentExercise.sets : formData.sets}
-                      onChange={handleChange}
-                      min="1"
-                      max="20"
-                      className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                      required={!groupMode}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="reps" className="block text-gray-300 mb-2">
-                      Reps
-                    </label>
-                    <input
-                      type="number"
-                      id="reps"
-                      name="reps"
-                      value={groupMode ? currentExercise.reps : formData.reps}
-                      onChange={handleChange}
-                      min="1"
-                      max="100"
-                      className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                      required={!groupMode}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="weight" className="block text-gray-300 mb-2">
-                      Weight ({weightUnit})
-                    </label>
-                    <input
-                      type="number"
-                      id="weight"
-                      name="weight"
-                      value={groupMode ? currentExercise.weight : formData.weight}
-                      onChange={handleChange}
-                      min="0"
-                      max="1000"
-                      step="0.5"
-                      className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                      required={!groupMode}
-                    />
-                  </div>
-                </div>
-
-                {groupMode && (
-                  <div className="mb-4">
-                    <button
-                      type="button"
-                      onClick={handleAddExercise}
-                      className="w-full px-4 py-3 bg-white/20 text-white font-medium rounded-lg hover:bg-white/30 transition-colors"
-                    >
-                      Add Exercise to Workout
-                    </button>
-                  </div>
-                )}
-
-                {/* Selected exercises list */}
-                {groupMode && exercises.length > 0 && (
-                  <div className="mb-6">
-                    <h4 className="text-lg font-medium mb-2">Selected Exercises</h4>
-                    <div className="bg-black/30 rounded-lg p-3 max-h-[200px] overflow-y-auto">
-                      {exercises.map((exercise, index) => (
-                        <div key={index} className="flex justify-between items-center p-2 border-b border-white/10 last:border-b-0">
-                          <div className="flex-1">
-                            <p className="font-medium">{exercise.exerciseName}</p>
-                            <p className="text-sm text-gray-400">{exercise.sets} sets × {exercise.reps} reps • {exercise.weight} {weightUnit}</p>
-                          </div>
-                          <button 
-                            type="button" 
-                            onClick={() => handleRemoveExercise(index)}
-                            className="text-red-400 hover:text-red-300"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {groupMode ? (
-                  <div className={`grid grid-cols-1 gap-4 mb-6`}>
-                    <div>
-                      <label htmlFor="group.workoutDate" className="block text-gray-300 mb-2">
-                        Workout Date <span className="text-gray-500">(select a past date to log retroactively)</span>
-                      </label>
-                      <input
-                        type="date"
-                        id="group.workoutDate"
-                        name="group.workoutDate"
-                        value={groupFormData.workoutDate}
-                        onChange={handleChange}
-                        className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                        max={getTodayDateString()} // Don't allow future dates
-                        required
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className={`grid grid-cols-1 gap-4 mb-6`}>
-                    <div>
-                      <label htmlFor="workoutDate" className="block text-gray-300 mb-2">
-                        Workout Date <span className="text-gray-500">(select a past date to log retroactively)</span>
-                      </label>
-                      <input
-                        type="date"
-                        id="workoutDate"
-                        name="workoutDate"
-                        value={formData.workoutDate}
-                        onChange={handleChange}
-                        className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                        max={getTodayDateString()} // Don't allow future dates
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className={`grid grid-cols-1 gap-4 mb-6`}>
-                  <div>
-                    <label htmlFor={groupMode ? "group.duration" : "duration"} className="block text-gray-300 mb-2">
-                      Workout Duration (minutes)
-                    </label>
-                    <input
-                      type="number"
-                      id={groupMode ? "group.duration" : "duration"}
-                      name={groupMode ? "group.duration" : "duration"}
-                      value={groupMode ? groupFormData.duration : formData.duration}
-                      onChange={handleChange}
-                      className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white"
-                      min="0"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <label htmlFor={groupMode ? "group.notes" : "notes"} className="block text-gray-300 mb-2">
-                    Notes (optional)
-                  </label>
-                  <textarea
-                    id={groupMode ? "group.notes" : "notes"}
-                    name={groupMode ? "group.notes" : "notes"}
-                    value={groupMode ? groupFormData.notes : formData.notes}
-                    onChange={handleChange}
-                    className="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-white h-32 resize-none"
-                    placeholder="Add any notes about your workout here..."
-                  ></textarea>
-                </div>
+              {/* Notes */}
+              <div className="md:col-span-2">
+                <Label htmlFor={groupMode ? "group.notes" : "notes"}>Notes (Optional)</Label>
+                 {/* Assuming Textarea component exists or style similarly */}
+                 <Textarea
+                   id={groupMode ? "group.notes" : "notes"}
+                   name={groupMode ? "group.notes" : "notes"}
+                   value={groupMode ? groupFormData.notes : formData.notes}
+                   onChange={handleChange}
+                   placeholder="e.g., Felt strong today, focus on form..."
+                   rows={3}
+                   disabled={isSubmitting}
+                   className="mt-1"
+                 />
               </div>
-
-              <button 
-                type="submit" 
-                className="w-full bg-white text-black font-medium py-3 rounded-lg hover:bg-white/90 transition-colors"
-                disabled={isSubmitting || (groupMode && exercises.length === 0)}
-              >
-                {isSubmitting ? 'Saving...' : groupMode ? 'Log Workout Group' : 'Log Workout'}
-              </button>
-            </form>
+            </div>
           </div>
-        </div>
-      </main>
-    </div>
-  )
+
+
+          {/* --- Group Mode: Add Exercise Section --- */}
+          {groupMode && (
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Exercise to Group</h2>
+               {/* Removed MuscleGroupSelector */}
+               {/* Removed ExerciseSelector */}
+
+               {/* Direct Input Fields for Exercise */}
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 items-end">
+                 <div className="lg:col-span-2">
+                   <Label htmlFor="exerciseName">Exercise Name</Label>
+                   <Input
+                     id="exerciseName"
+                     name="exerciseName" // Matches state key
+                     type="text"
+                     value={currentExercise.exerciseName}
+                     onChange={handleChange}
+                     placeholder="e.g., Bench Press, Squat"
+                     disabled={isSubmitting}
+                     className="mt-1"
+                   />
+                 </div>
+                 <div>
+                   <Label htmlFor="sets">Sets</Label>
+                   <Input
+                     id="sets"
+                     name="sets" // Matches state key
+                     type="number"
+                     value={currentExercise.sets}
+                     onChange={handleChange}
+                     min="1"
+                     disabled={isSubmitting}
+                     className="mt-1"
+                   />
+                 </div>
+                 <div>
+                   <Label htmlFor="reps">Reps</Label>
+                   <Input
+                     id="reps"
+                     name="reps" // Matches state key
+                     type="number"
+                     value={currentExercise.reps}
+                     onChange={handleChange}
+                     min="1"
+                     disabled={isSubmitting}
+                     className="mt-1"
+                   />
+                 </div>
+                 <div>
+                   <Label htmlFor="weight">Weight ({weightUnit})</Label>
+                   <Input
+                     id="weight"
+                     name="weight" // Matches state key
+                     type="number"
+                     value={currentExercise.weight}
+                     onChange={handleChange}
+                     min="0"
+                     step="any"
+                     disabled={isSubmitting}
+                     className="mt-1"
+                   />
+                 </div>
+               </div>
+               <Button
+                 type="button" // Important: Prevent form submission
+                 onClick={handleAddExercise}
+                 disabled={isSubmitting || !currentExercise.exerciseName.trim()}
+                 size="sm"
+               >
+                 Add Exercise
+               </Button>
+            </div>
+          )}
+
+
+           {/* --- Group Mode: Exercise List --- */}
+           {groupMode && exercises.length > 0 && (
+             <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+               <h2 className="text-xl font-semibold text-gray-800 mb-4">Exercises in this Group</h2>
+               <ul className="space-y-3">
+                 {exercises.map((exercise, index) => (
+                   <li key={index} className="flex justify-between items-center border-b border-gray-200 pb-2 last:border-b-0">
+                     <div>
+                       <p className="font-medium text-gray-900">{exercise.exerciseName}</p>
+                       <p className="text-sm text-gray-600">
+                         {exercise.sets} sets x {exercise.reps} reps @ {exercise.weight} {weightUnit}
+                       </p>
+                     </div>
+                     <Button
+                       type="button"
+                       variant="destructive"
+                       size="sm"
+                       onClick={() => handleRemoveExercise(index)}
+                       disabled={isSubmitting}
+                     >
+                       Remove
+                     </Button>
+                   </li>
+                 ))}
+               </ul>
+             </div>
+           )}
+
+
+          {/* --- Submission Area --- */}
+          <div className="mt-6">
+            {error && (
+              <p className="text-red-600 mb-4">Error: {error}</p>
+            )}
+             {/* Display detailed error for debugging if needed */}
+             {/* {detailedError && process.env.NODE_ENV === 'development' && (
+               <pre className="text-xs text-red-700 bg-red-50 p-2 rounded mb-4 overflow-auto">
+                 {JSON.stringify(detailedError, null, 2)}
+               </pre>
+             )} */}
+
+            <Button
+              type="submit"
+              disabled={isSubmitting || (groupMode && exercises.length === 0)}
+              className="w-full md:w-auto"
+            >
+              {isSubmitting ? 'Logging...' : (groupMode ? 'Log Workout Group' : 'Log Single Exercise')}
+            </Button>
+             {/* Optionally add a cancel button */}
+             <Button
+               type="button"
+               variant="outline"
+               onClick={() => router.back()} // Go back to previous page
+               className="ml-2 w-full md:w-auto mt-2 md:mt-0"
+               disabled={isSubmitting}
+             >
+               Cancel
+             </Button>
+          </div>
+        </form>
+      </div>
+    </DashboardLayout>
+  );
 } 

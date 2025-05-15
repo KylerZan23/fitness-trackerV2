@@ -102,4 +102,21 @@ export function findMuscleGroupForExercise(exerciseName: string): MuscleGroup {
     ex => ex.name.toLowerCase() === exerciseName.toLowerCase()
   );
   return exercise?.muscleGroup || MuscleGroup.OTHER;
+}
+
+// Represents a goal returned from the DB with calculated progress
+export interface GoalWithProgress {
+  id: string; // uuid
+  user_id: string; // uuid
+  metric_type: string;
+  target_value: number; // numeric
+  target_unit: string | null;
+  time_period: string;
+  start_date: string; // timestamp with time zone (ISO string)
+  end_date: string; // timestamp with time zone (ISO string)
+  label: string | null;
+  is_active: boolean;
+  created_at: string; // timestamp with time zone (ISO string)
+  updated_at: string; // timestamp with time zone (ISO string)
+  current_value: number; // numeric (calculated)
 } 

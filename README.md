@@ -4,13 +4,16 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Workout Calendar Enhancement**: The yearly workout history calendar on the `/workouts` page now displays both Strava run activities and traditional lifting workouts, providing a unified view of all training.
+- **Workout Logging UI Overhaul**: Redesigned the workout logging page (`/workout/new`) to match the dashboard's light theme and layout for a consistent user experience.
+- **CoPacer-Inspired Landing Page**: Updated the landing page with a modern gradient background, simplified form inputs, and device mockup visuals
 - **Dashboard Running Activity**: Added a "Your Recent Run" section to the dashboard to display the latest run from Strava
 - **Strava-like Run Cards**: Added Strava-style run cards with map visualization to the run logger page
 - **Fixed Authentication Loop**: Added force_login parameter to bypass authentication checks and allow direct access to login page
 - **Enhanced Authentication Security**: Updated middleware to use `getUser()` instead of `getSession()` for secure token verification
 - **Fixed Workout Logging**: Resolved schema cache issue that prevented workout logging by removing dependency on muscle_group column
-- **Simplified Workout Entry**: Removed the exercise selector component for a more direct workout logging experience
-- **Simplified Exercise Selection**: Removed muscle group filtering for a more streamlined workout logging experience
+- **Simplified Workout Entry**: Removed the exercise selector component for a more direct workout logging experience -> Updated to reflect UI overhaul.
+- **Simplified Exercise Selection**: Removed muscle group filtering during workout entry for a more streamlined workout logging experience -> Updated to reflect UI overhaul.
 - **Enhanced Auth Session Debugging**: Added comprehensive client and server-side logging for authentication troubleshooting and a standalone token verification testing tool
 - **Improved Auth Token Verification**: Enhanced security by using service role for token verification with proper error handling
 - **Enhanced Authentication & Profile Creation**: Fixed RLS policy issues and improved server-side API token verification for robust user registration
@@ -19,24 +22,32 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - **Workout Entry Feature**: Added a new page for logging individual workouts with exercise details
 - **SSR Authentication Fix**: Updated Supabase client to use cookie-based authentication for SSR compatibility, fixing login redirection issues
 - **Authentication Flow Improvements**: Fixed issues with session persistence and navigation between dashboard and profile pages
-- **Dark Theme UI**: Updated entire application with a consistent dark theme for better visual appeal
+- **Dark Theme UI**: ~~Updated entire application with a consistent dark theme for better visual appeal~~ -> Clarified: Dark theme elements exist, but dashboard/core app uses a light theme.
 - **User Avatar Component**: Added personalized user avatars with initials and tooltips for better UX
 - **Error Handling**: Improved error handling for database operations to ensure a smoother user experience
 - **Added Run Logger Page**: New dedicated page for tracking running activities accessible from the dashboard
 - **Strava API Integration**: Added Strava OAuth authentication and run logging capabilities to the Run Logger page
 - **Imperial Unit Support**: Updated run logging and display to use miles, feet, and miles-per-minute metrics instead of kilometers
 - **Profile Picture Upload**: Added support for uploading and displaying user profile pictures with Supabase Storage integration
+- **Unified Workout Calendar**: The yearly workout calendar on the `/workouts` page now includes Strava run data alongside lifting workouts, offering a comprehensive training overview.
 
 ## Features
 
 - User authentication with email/password (SSR-compatible)
 - Profile management
-- Workout tracking with detailed exercise logging
+- Workout tracking with detailed exercise logging (integrated into the light-themed dashboard layout)
 - Progress analytics
 - Health app integration
 - Exercise categorization
 - Muscle heatmap visualization for tracking training balance
 - Run tracking with Strava integration and interactive maps
+- **Dashboard UI:** A modern, sidebar-based dashboard with a **light theme**, displaying:
+    *   Today's workout snapshot (stats cards).
+    *   Workout trends chart (last 7 days).
+    *   Muscle group distribution chart.
+    *   Goals tracking section (e.g., weekly distance, workout days).
+    *   Overall workout statistics.
+    *   Recent activity section (e.g., runs).
 
 ## Profile Management
 
@@ -96,7 +107,10 @@ For specific help with "Auth session missing" errors, see [Auth Session Troubles
 
 The application features a modern, minimalist design inspired by high-end fitness applications:
 
-- Dark theme with high contrast
+- Modern landing page with gradient background and device mockups
+- Intuitive form elements for collecting user preferences
+- **Core Application Theme:** Uses a clean, light theme (`bg-gray-100`) consistent across the dashboard and main features like workout logging, utilizing reusable UI components.
+- **Contrast Elements:** Some specific pages or elements (like the original landing page concept or auth pages) may use darker backgrounds or high-contrast imagery for visual distinction.
 - Full-screen hero sections
 - Clean typography with serif headings
 - Motivational imagery
@@ -236,12 +250,13 @@ MIT License - see LICENSE for details
 
 ## Workout Tracking
 
-The application includes comprehensive workout tracking capabilities:
+The application provides robust workout tracking features, allowing users to log, view, and analyze their training progress. The yearly workout calendar on the `/workouts` page now offers a consolidated view, displaying both manually logged lifting sessions and synchronized Strava run activities.
 
-1. **Exercise Logging**: Record individual exercises with sets, reps, weight, and duration
-2. **Workout History**: View past workouts and track progress over time
-3. **Performance Metrics**: Analyze workout trends and statistics
-4. **Notes and Tags**: Add custom notes to each workout session
+1.  **Exercise Logging**: Record individual exercises or create workout groups with multiple exercises. The form includes fields for exercise name, sets, reps, weight, duration, date, and notes.
+2.  **Unified Interface**: The workout logging page (`/workout/new`) features a clean UI consistent with the dashboard's light theme, using shared components for a seamless experience.
+3.  **Workout History**: View past workouts and track progress over time (Functionality TBD/Located Elsewhere).
+4.  **Performance Metrics**: Analyze workout trends and statistics via dashboard widgets.
+5.  **Notes and Tags**: Add custom notes to each workout session or group.
 
 ### Workout Data Schema
 

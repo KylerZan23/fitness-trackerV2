@@ -5,13 +5,13 @@
  * including OAuth authentication, token management, and activity (run) logging.
  */
 
-interface StravaTokens {
+export interface StravaTokens {
   access_token: string;
   refresh_token: string;
   expires_at: number;
 }
 
-interface StravaActivity {
+export interface StravaActivity {
   id: number;
   name: string;
   type: string;
@@ -172,11 +172,15 @@ export const getValidStravaToken = async (tokens: StravaTokens): Promise<string>
  * @param tokens User's Strava tokens
  * @param page Page number for pagination
  * @param perPage Number of activities per page
+ * @param after Unix timestamp for activities after this time
+ * @param before Unix timestamp for activities before this time
  */
 export const getStravaActivities = async (
   tokens: StravaTokens,
   page = 1,
-  perPage = 30
+  perPage = 30,
+  after?: number,
+  before?: number
 ): Promise<StravaActivity[]> => {
   try {
     const accessToken = await getValidStravaToken(tokens);
@@ -185,6 +189,13 @@ export const getStravaActivities = async (
       page: page.toString(),
       per_page: perPage.toString()
     });
+
+    if (after) {
+      params.append('after', after.toString());
+    }
+    if (before) {
+      params.append('before', before.toString());
+    }
     
     const response = await fetch(
       `${STRAVA_API_BASE_URL}/athlete/activities?${params.toString()}`,

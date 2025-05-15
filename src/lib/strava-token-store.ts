@@ -5,8 +5,7 @@
  * both client-side (localStorage) and server-side (Supabase).
  */
 
-import { supabase } from '@/lib/supabase';
-import { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface StravaTokens {
   access_token: string;
@@ -58,12 +57,13 @@ export const removeTokensFromLocalStorage = (): void => {
  * This is more secure for long-term storage
  */
 export const saveTokensToDatabase = async (
+  supabaseClient: SupabaseClient,
   userId: string,
   tokens: StravaTokens
 ): Promise<void> => {
   try {
     // Update the user's profile with Strava tokens
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from('profiles')
       .update({
         strava_access_token: tokens.access_token,
@@ -87,10 +87,11 @@ export const saveTokensToDatabase = async (
  * Retrieves Strava tokens from the user's profile in Supabase
  */
 export const getTokensFromDatabase = async (
+  supabaseClient: SupabaseClient,
   userId: string
 ): Promise<StravaTokens | null> => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('profiles')
       .select('strava_access_token, strava_refresh_token, strava_token_expires_at')
       .eq('id', userId)
@@ -108,6 +109,7 @@ export const getTokensFromDatabase = async (
       !data.strava_refresh_token ||
       !data.strava_token_expires_at
     ) {
+      console.warn(`Tokens fields incomplete in DB for user ${userId.substring(0,6)}.`);
       return null;
     }
 
@@ -125,9 +127,12 @@ export const getTokensFromDatabase = async (
 /**
  * Removes Strava tokens from the user's profile in Supabase
  */
-export const removeTokensFromDatabase = async (userId: string): Promise<void> => {
+export const removeTokensFromDatabase = async (
+  supabaseClient: SupabaseClient,
+  userId: string
+): Promise<void> => {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from('profiles')
       .update({
         strava_access_token: null,
@@ -150,9 +155,12 @@ export const removeTokensFromDatabase = async (userId: string): Promise<void> =>
 /**
  * Checks if a user has connected their Strava account
  */
-export const isStravaConnected = async (userId: string): Promise<boolean> => {
+export const isStravaConnected = async (
+  supabaseClient: SupabaseClient,
+  userId: string
+): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('profiles')
       .select('strava_connected')
       .eq('id', userId)

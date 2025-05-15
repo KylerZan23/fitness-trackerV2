@@ -1,0 +1,22 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Core Component Locations
+
+Here are the locations for some of the frequently used custom components:
+
+*   **Dashboard Components:**
+    *   `StatsCard`: [src/components/dashboard/StatsCard.tsx](mdc:src/components/dashboard/StatsCard.tsx)
+    *   `WorkoutChart`: [src/components/dashboard/WorkoutChart.tsx](mdc:src/components/dashboard/WorkoutChart.tsx)
+    *   `RecentRun`: [src/components/dashboard/RecentRun.tsx](mdc:src/components/dashboard/RecentRun.tsx)
+*   **Workout Components:**
+    *   `MuscleDistributionChart`: [src/components/workout/MuscleDistributionChart.tsx](mdc:src/components/workout/MuscleDistributionChart.tsx)
+    *   `MuscleGroupSelector`: [src/components/workout/MuscleGroupSelector.tsx](mdc:src/components/workout/MuscleGroupSelector.tsx)
+    *   `ExerciseSelector`: [src/components/workout/ExerciseSelector.tsx](mdc:src/components/workout/ExerciseSelector.tsx)
+*   **UI Primitives:**
+    *   `UserAvatar`: [src/components/ui/UserAvatar.tsx](mdc:src/components/ui/UserAvatar.tsx)
+    *   `Error`: [src/components/ui/error.tsx](mdc:src/components/ui/error.tsx)
+
+Check the `src/components/` directory for other reusable components.

@@ -1,0 +1,12 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Styling Convention
+
+This project primarily uses **Tailwind CSS** for styling. Utility classes are applied directly within the JSX of React components.
+
+Refer to the [tailwind.config.ts](mdc:tailwind.config.ts) file for any custom theme configurations, plugins, or base layer modifications.
+
+The global CSS file, likely [src/app/globals.css](mdc:src/app/globals.css), contains base Tailwind directives (`@tailwind base;`, `@tailwind components;`, `@tailwind utilities;`) and potentially some minimal global styles or custom base styles.

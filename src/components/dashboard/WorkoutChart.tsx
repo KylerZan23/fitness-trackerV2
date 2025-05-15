@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,7 +13,9 @@ import {
 } from 'chart.js'
 import { Bar } from 'react-chartjs-2'
 import { WorkoutTrend } from '@/lib/db'
-import { format, parseISO, startOfWeek, addDays } from 'date-fns'
+import { format, parseISO, startOfWeek, addDays, addWeeks, formatISO } from 'date-fns'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 // Register ChartJS components
 ChartJS.register(
@@ -26,54 +29,74 @@ ChartJS.register(
 
 interface WorkoutChartProps {
   data: WorkoutTrend[]
-  period?: 'day' | 'week' | 'month'
 }
 
-export function WorkoutChart({ data, period = 'week' }: WorkoutChartProps) {
-  // Define today variable for use throughout the component
-  const today = new Date();
-  
-  // Create a Monday to Sunday week array of dates
-  const createWeekLabels = () => {
-    const mondayOfThisWeek = startOfWeek(today, { weekStartsOn: 1 }); // 1 represents Monday
-    
-    // Create a today date with time set to midnight for proper day comparison
+export function WorkoutChart({ data }: WorkoutChartProps) {
+  // State for week offset (0 = current week, -1 = last week, etc.)
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // --- Helper Functions ---
+
+  // Get the start date (Monday) of the target week based on the offset
+  const getTargetWeekStart = (offset: number): Date => {
+    const today = new Date();
+    const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+    return addWeeks(currentWeekStart, offset);
+  };
+
+  // Generate labels and date info for the target week
+  const createWeekLabels = (offset: number) => {
+    const mondayOfTargetWeek = getTargetWeekStart(offset);
+    const today = new Date();
     const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
+
     const weekDays = [];
     for (let i = 0; i < 7; i++) {
-      const day = addDays(mondayOfThisWeek, i);
+      const day = addDays(mondayOfTargetWeek, i);
       weekDays.push({
-        date: format(day, 'yyyy-MM-dd'),
-        label: format(day, 'EEE, MMM d'), // e.g., "Mon, Jan 1"
-        isPast: day < todayDateOnly // Compare with today at midnight for true day comparison
+        date: format(day, 'yyyy-MM-dd'), // Keep YYYY-MM-DD for data matching
+        label: format(day, 'EEE, MMM d'), // Format for display
+        isPast: day < todayDateOnly,
       });
     }
     return weekDays;
   };
-  
-  const weekLabels = createWeekLabels();
-  
-  // Map our data to the week days
-  const mappedData = weekLabels.map(day => {
-    const matchingData = data.find(item => item.date === day.date);
-    
-    // Create Date objects with time set to midnight for accurate day comparison
-    const dayDate = new Date(day.date + "T00:00:00");
+
+  // Format the date range string for the title
+  const formatWeekTitle = (offset: number): string => {
+    const weekStart = getTargetWeekStart(offset);
+    const weekEnd = addDays(weekStart, 6);
+    if (offset === 0) {
+      return "Weekly Workout Trends (This Week)";
+    }
+    return `Weekly Workout Trends (Week of ${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')})`;
+  };
+
+  // --- Data Processing ---
+
+  // Generate labels for the currently selected week offset
+  const weekLabels = createWeekLabels(weekOffset);
+
+  // Map incoming data to the generated week labels
+  const mappedData = weekLabels.map(dayInfo => {
+    const matchingData = data.find(item => item.date === dayInfo.date);
+    const dayDate = new Date(dayInfo.date + "T00:00:00"); // For comparison
+    const today = new Date();
     const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
+
     return {
-      date: day.date,
-      label: day.label,
-      isPast: dayDate < todayDateOnly, // Compare Date objects at midnight
-      // Use the matching data if found, otherwise use zeros
-      count: matchingData ? matchingData.count : 0,
-      duration: matchingData ? matchingData.totalDuration : 0,
-      exerciseNames: matchingData && matchingData.exerciseNames ? matchingData.exerciseNames : [],
-      notes: matchingData && matchingData.notes ? matchingData.notes : [],
-      workoutNames: matchingData && matchingData.workoutNames ? matchingData.workoutNames : []
+      date: dayInfo.date,
+      label: dayInfo.label,
+      isPast: dayDate < todayDateOnly,
+      count: matchingData?.count ?? 0,
+      duration: matchingData?.totalDuration ?? 0,
+      exerciseNames: matchingData?.exerciseNames ?? [],
+      notes: matchingData?.notes ?? [],
+      workoutNames: matchingData?.workoutNames ?? []
     };
   });
+
+  // --- Chart Configuration ---
 
   const chartData: ChartData<'bar'> = {
     labels: mappedData.map(item => item.label),
@@ -89,6 +112,13 @@ export function WorkoutChart({ data, period = 'week' }: WorkoutChartProps) {
     ],
   }
 
+  // Use a flag for light/dark mode detection if available, otherwise assume light
+  // const isDarkMode = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const axisColor = 'rgba(55, 65, 81, 0.7)'; // Dark gray for light theme
+  const gridColor = 'rgba(209, 213, 219, 0.5)'; // Lighter gray for light theme grid
+  const titleColor = 'rgba(17, 24, 39, 0.9)'; // Very dark gray for titles
+  const legendColor = 'rgba(55, 65, 81, 0.7)'; // Dark gray for legend
+
   const options = {
     responsive: true,
     maintainAspectRatio: false,
@@ -101,38 +131,40 @@ export function WorkoutChart({ data, period = 'week' }: WorkoutChartProps) {
       legend: {
         position: 'top' as const,
         labels: {
-          color: 'rgba(255, 255, 255, 0.7)',
+          color: legendColor,
           font: {
             family: 'system-ui',
+            size: 14
           }
         }
       },
       title: {
         display: true,
-        text: 'Weekly Workout Trends (Monday-Sunday)',
-        color: 'rgba(255, 255, 255, 0.9)',
+        text: formatWeekTitle(weekOffset),
+        color: titleColor,
         font: {
           family: 'serif',
-          size: 16
+          size: 18
         }
       },
       tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: 'rgba(255, 255, 255, 0.9)',
-        bodyColor: 'rgba(255, 255, 255, 0.7)',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        titleColor: 'rgba(17, 24, 39, 0.9)',
+        bodyColor: 'rgba(55, 65, 81, 0.8)',
+        borderColor: 'rgba(209, 213, 219, 0.5)',
         borderWidth: 1,
         padding: 12,
         displayColors: false,
         callbacks: {
           title: function(tooltipItems: any[]) {
             const dataIndex = tooltipItems[0].dataIndex;
+            if (!mappedData || dataIndex >= mappedData.length || dataIndex < 0) return ''; 
             const dataPoint = mappedData[dataIndex];
             const dateLabel = tooltipItems[0].label;
             
-            // If we have a workout name, include it in the title
             if (dataPoint.workoutNames && dataPoint.workoutNames.length > 0) {
-              return [`${dateLabel}`, `${dataPoint.workoutNames[0]}`];
+              const workoutName = dataPoint.workoutNames[0] ?? 'Workout'; 
+              return [`${dateLabel}`, `${workoutName}`];
             }
             
             return dateLabel;
@@ -141,48 +173,42 @@ export function WorkoutChart({ data, period = 'week' }: WorkoutChartProps) {
             const label = context.dataset.label || '';
             const value = context.parsed.y;
             const dataIndex = context.dataIndex;
+            if (!mappedData || dataIndex >= mappedData.length || dataIndex < 0) return ''; 
             const dataPoint = mappedData[dataIndex];
             
-            // Create an array to store our lines
             const lines = [`${label}: ${value}`];
             
-            // Add notes if available (prioritize notes by showing them first)
             if (dataPoint.notes && dataPoint.notes.length > 0) {
               lines.push('');
               lines.push('📝 Notes:');
               
               dataPoint.notes.forEach((note, index) => {
-                // Show more characters from notes since they're the focus
-                const truncatedNote = note.length > 80 ? note.substring(0, 80) + '...' : note;
+                const truncatedNote = note && note.length > 80 ? note.substring(0, 80) + '...' : (note ?? '');
                 
-                // Add emoji to distinguish between workout notes
                 const notePrefix = (dataPoint.workoutNames && dataPoint.workoutNames.length > 0 && index === 0) 
-                  ? '📌 ' // Mark likely workout group notes with a different emoji
+                  ? '📌 '
                   : '• ';
                 
                 lines.push(`${notePrefix}${truncatedNote}`);
               });
             } else if (dataPoint.exerciseNames && dataPoint.exerciseNames.length > 0) {
-              // If no notes but we have exercises, add a message
               lines.push('');
               lines.push('📝 No notes for this workout');
             }
             
-            // Add workout name if available (shown after notes)
             if (dataPoint.workoutNames && dataPoint.workoutNames.length > 0) {
               lines.push('');
               lines.push('Workout:');
               dataPoint.workoutNames.forEach(name => {
-                lines.push(`- ${name}`);
+                lines.push(`- ${name ?? 'N/A'}`);
               });
             }
             
-            // Add exercise names if available (shown last)
             if (dataPoint.exerciseNames && dataPoint.exerciseNames.length > 0) {
               lines.push('');
               lines.push('Exercises:');
               dataPoint.exerciseNames.forEach(name => {
-                lines.push(`- ${name}`);
+                lines.push(`- ${name ?? 'N/A'}`);
               });
             }
             
@@ -195,38 +221,46 @@ export function WorkoutChart({ data, period = 'week' }: WorkoutChartProps) {
       y: {
         beginAtZero: true,
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          color: gridColor,
           drawBorder: false,
         },
         ticks: {
-          color: 'rgba(255, 255, 255, 0.7)',
+          color: axisColor,
+          font: {
+            size: 12
+          }
+        },
+        title: {
+          display: true,
+          text: 'Duration (min)',
+          color: axisColor,
+          font: {
+            family: 'system-ui',
+            size: 14
+          }
         }
       },
       x: {
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          color: gridColor,
           drawBorder: false,
         },
         ticks: {
-          color: 'rgba(255, 255, 255, 0.7)',
+          color: axisColor,
           callback: function(value: any, index: number) {
+            if (!mappedData || index >= mappedData.length || index < 0) return '';
             const dataPoint = mappedData[index];
-            // Get date label
             const dateLabel = dataPoint.label;
             
-            // Show workout name if available, otherwise fall back to exercise name
             let workoutLabel = '';
             if (dataPoint.workoutNames && dataPoint.workoutNames.length > 0) {
-              // Use the workout name directly
-              workoutLabel = dataPoint.workoutNames[0];
+              workoutLabel = dataPoint.workoutNames[0] ?? 'Workout'; 
               
-              // If there are multiple workout names, indicate with a plus
               if (dataPoint.workoutNames.length > 1) {
                 workoutLabel += ` +${dataPoint.workoutNames.length - 1}`;
               }
             } else if (dataPoint.exerciseNames && dataPoint.exerciseNames.length > 0) {
-              // Fall back to exercise name if no workout name is available
-              const exerciseName = dataPoint.exerciseNames[0];
+              const exerciseName = dataPoint.exerciseNames[0] ?? 'Exercise'; 
               const formattedName = exerciseName.charAt(0).toUpperCase() + exerciseName.slice(1);
               
               if (dataPoint.exerciseNames.length > 1) {
@@ -236,18 +270,14 @@ export function WorkoutChart({ data, period = 'week' }: WorkoutChartProps) {
               }
             }
             
-            // Truncate if too long
             if (workoutLabel.length > 15) {
               workoutLabel = workoutLabel.substring(0, 15) + '...';
             }
             
-            // Only show "Rest Day" if the date is in the past and has no workout
             if (!workoutLabel) {
-              // Check if this day is in the past
               if (dataPoint.isPast) {
                 return [dateLabel, 'Rest Day'];
               } else {
-                // For future days or today with no activity, show an empty space or dashes
                 return [dateLabel, '—'];
               }
             }
@@ -255,17 +285,51 @@ export function WorkoutChart({ data, period = 'week' }: WorkoutChartProps) {
             return [dateLabel, workoutLabel];
           },
           font: {
-            size: 10
+            size: 12
           },
           padding: 10
+        },
+        title: {
+          display: true,
+          text: 'Date',
+          color: axisColor,
+          font: {
+            family: 'system-ui',
+            size: 14
+          }
         }
       }
     },
   }
 
+  // --- Render ---
+
   return (
-    <div className="bg-white/[0.02] backdrop-blur-sm border border-white/10 rounded-lg p-6">
-      <div className="h-[420px]">
+    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div className="flex justify-between items-center mb-4 px-2">
+         <Button 
+           variant="ghost" 
+           size="icon" 
+           onClick={() => setWeekOffset(prev => prev - 1)}
+           aria-label="Previous Week"
+         >
+           <ChevronLeft className="h-5 w-5" />
+         </Button>
+         
+         <div className="flex-1"></div>
+
+         <Button 
+           variant="ghost" 
+           size="icon" 
+           onClick={() => setWeekOffset(prev => prev + 1)}
+           disabled={weekOffset === 0}
+           aria-label="Next Week"
+         >
+           <ChevronRight className="h-5 w-5" />
+         </Button>
+      </div>
+
+      <div className="h-[400px] relative">
         <Bar data={chartData} options={options} />
       </div>
     </div>
