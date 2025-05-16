@@ -6,52 +6,39 @@ console.log("MIDDLEWARE ENV URL:", process.env.NEXT_PUBLIC_SUPABASE_URL?.substri
 console.log("MIDDLEWARE ENV KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 10) + '...'); // Log prefix only
 
 // Validate environment variables
-const supabaseUrlFromEnv = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKeyFromEnv = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-if (!supabaseUrlFromEnv) {
-  console.error('Missing environment variable: NEXT_PUBLIC_SUPABASE_URL');
+if (!supabaseUrl) {
+  throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_URL')
 }
 
-if (!supabaseAnonKeyFromEnv) {
-  console.error('Missing environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY');
+if (!supabaseAnonKey) {
+  throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY')
 }
 
-if (supabaseUrlFromEnv) {
-  try {
-    new URL(supabaseUrlFromEnv);
-  } catch (error) {
-    console.error('Invalid NEXT_PUBLIC_SUPABASE_URL format');
-  }
+// Validate URL format
+try {
+  new URL(supabaseUrl)
+} catch (error) {
+  throw new Error('Invalid NEXT_PUBLIC_SUPABASE_URL format')
 }
 
 // After validation, we can safely assert these are strings
-const supabaseUrl = supabaseUrlFromEnv
-const supabaseAnonKey = supabaseAnonKeyFromEnv
+const validatedSupabaseUrl: string = supabaseUrl
+const validatedSupabaseAnonKey: string = supabaseAnonKey
 
 // Cookie name for Supabase auth - this might change based on your project ID
 const SUPABASE_AUTH_COOKIE = 'sb-oimcnjdkcqwdltdpkmnu-auth-token'
 
 export async function middleware(request: NextRequest) {
-  // ---- START DEBUGGING SECTION FOR ROOT PATH ----
-  if (request.nextUrl.pathname === '/') {
-    console.log('MIDDLEWARE: Root path (/) detected, explicitly passing through for debugging.');
-    return NextResponse.next(); // Pass through without any Supabase interaction for root
-  }
-  // ---- END DEBUGGING SECTION FOR ROOT PATH ----
-
   let supabaseResponse = NextResponse.next({
     request,
   })
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Supabase URL or Anon Key is missing. Middleware cannot operate correctly.");
-    return supabaseResponse; 
-  }
-
   const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
+    validatedSupabaseUrl,
+    validatedSupabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -59,81 +46,101 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          // supabaseResponse = NextResponse.next({ // This line from example might be redundant if supabaseResponse is already mutable or if we reconstruct later
+          //   request,
+          // })
+          // Re-assign to ensure the response object used by Supabase has the new cookies set
+          // Create a new response object if cookies are being set, to ensure it reflects the changes for Supabase
+          const responseWithCookies = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            responseWithCookies.cookies.set(name, value, options)
           )
+          supabaseResponse = responseWithCookies; // Ensure this response is what Supabase uses and what we return/modify
         },
       },
     }
   )
 
+  // IMPORTANT: DO NOT REMOVE auth.getUser() or move code between createServerClient and it.
   const {
     data: { user },
     error: userError
   } = await supabase.auth.getUser()
 
+  // Define path types
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') || 
                            request.nextUrl.pathname.startsWith('/profile') ||
                            request.nextUrl.pathname.startsWith('/workout');
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || 
                      request.nextUrl.pathname.startsWith('/signup');
 
+  // --- Authentication Logic --- 
+
   if (userError) {
-      console.error("Error fetching user in middleware:", userError.message);
-      if (isProtectedRoute) {
-          console.log("Redirecting to login due to user fetch error on protected route.");
-          return redirectToLogin(request);
-      }
-      return supabaseResponse; 
+    console.error("Middleware: Error fetching user:", userError.message);
+    // Treat errors as unauthenticated for protected routes
+    if (isProtectedRoute) {
+      console.log("Middleware: Redirecting to login due to user fetch error on protected route.");
+      return redirectToLogin(request); // Use your helper
+    }
+    // For non-protected routes, allow if there's a user fetch error, but log it.
+    // Ensure to return supabaseResponse to keep cookie context
+    return supabaseResponse; 
   }
 
+  // User IS NOT logged in
   if (!user) {
     console.log('Middleware: User is NOT authenticated.');
     if (isProtectedRoute) {
-      console.log(`Redirecting unauthenticated user from ${request.nextUrl.pathname} to login.`);
-      return redirectToLogin(request);
+      console.log(`Middleware: Redirecting unauthenticated user from ${request.nextUrl.pathname} to login.`);
+      return redirectToLogin(request); // Use your helper
     }
-    console.log(`Allowing unauthenticated access to ${request.nextUrl.pathname}.`);
+    // Allow access to auth routes or public routes if not logged in.
+    // Return supabaseResponse to keep cookie context
+    console.log(`Middleware: Allowing unauthenticated access to ${request.nextUrl.pathname}.`);
     return supabaseResponse;
   }
 
+  // User IS logged in
   if (user) {
     console.log(`Middleware: User ${user.id} IS authenticated.`);
     const bypassAuth = request.nextUrl.searchParams.get('bypass') === 'true';
     if (isAuthRoute && !bypassAuth) {
-      console.log('Redirecting authenticated user from auth route to dashboard.');
-      const dashboardUrl = new URL('/dashboard', request.url)
-      const redirectResponse = NextResponse.redirect(dashboardUrl);
+      console.log('Middleware: Redirecting authenticated user from auth route to dashboard.');
+      // Construct a new response for redirection, but copy cookies from supabaseResponse
+      const redirectResponse = NextResponse.redirect(new URL('/dashboard', request.url));
       supabaseResponse.cookies.getAll().forEach(cookie => {
         redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
       });
       return redirectResponse;
     }
     
-    console.log(`Allowing authenticated access to ${request.nextUrl.pathname}.`);
+    // Allow access to protected routes or other public routes if logged in
+    console.log(`Middleware: Allowing authenticated access to ${request.nextUrl.pathname}.`);
+    // Add user info to headers for downstream use, onto supabaseResponse
     supabaseResponse.headers.set('x-user-id', user.id);
     supabaseResponse.headers.set('x-user-email', user.email ?? '');
     return supabaseResponse;
   }
-
-  console.warn("Middleware fallback reached, allowing request through.")
+  
+  // Fallback (should ideally not be reached if logic is exhaustive)
+  console.warn("Middleware: Fallback reached, allowing request through but returning supabaseResponse for session safety.");
   return supabaseResponse;
 }
 
-function redirectToLogin(request: NextRequest): NextResponse {
+// Helper function to handle login redirections (keep force_login)
+function redirectToLogin(request: NextRequest) {
   const redirectUrl = new URL('/login', request.url);
   if (!request.nextUrl.pathname.startsWith('/login')) {
     redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
   }
-  console.log("Redirecting to URL:", redirectUrl.toString());
+  redirectUrl.searchParams.set('force_login', 'true');
+  console.log("Middleware: Redirecting to URL:", redirectUrl.toString());
+  // When redirecting, we create a new response. It doesn't need to carry over prior request cookies
+  // unless specifically needed for the redirect target, which is usually not the case for login.
   return NextResponse.redirect(redirectUrl);
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/|auth/).*)',
-  ],
+  matcher: ['/dashboard/:path*', '/profile/:path*', '/workout/:path*', '/login', '/signup']
 } 
