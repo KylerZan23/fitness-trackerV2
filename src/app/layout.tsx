@@ -1,11 +1,15 @@
-import './globals.css'
-import { Inter } from 'next/font/google'
-import { ClientProvider } from '@/components/providers/ClientProvider'
-import { metadata } from './metadata'
+import type React from "react"
+import "./globals.css"
+import { Inter } from "next/font/google"
+import { ThemeProvider } from "@/components/theme-provider"
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ["latin"] })
 
-export { metadata }
+export const metadata = {
+  title: "FitnessTracker - Track Your Progress, Unlock Your Potential",
+  description:
+    "Log workouts, track runs with Strava, analyze your performance, and achieve your fitness goals with FitnessTracker.",
+}
 
 export default function RootLayout({
   children,
@@ -14,13 +18,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        <ClientProvider>
-          <main className="min-h-screen bg-background">
-            {children}
-          </main>
-        </ClientProvider>
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )
-} 
+}
