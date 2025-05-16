@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getWorkoutsForMonth, getUserProfile, HistoricalWorkout } from '@/lib/db' // Add getWorkoutsForMonth
+import { getWorkoutsForMonth, getUserProfile, HistoricalWorkout } from '@/lib/db'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { Sidebar } from '@/components/layout/Sidebar'
 
 // Helper functions for calendar generation (can be moved to utils)
 const daysOfWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -69,9 +70,10 @@ interface MonthlyWorkoutsPageParams {
   month: string;
 }
 
-export default function MonthlyWorkoutsPage({ params }: { params: MonthlyWorkoutsPageParams }) {
+export default function MonthlyWorkoutsPage({ params }: { params: Promise<MonthlyWorkoutsPageParams> }) {
+  const resolvedParams = use(params); // params is the promise, use() unwraps it.
   // Keep the original string params by destructuring from the unwrapped object
-  const { year: yearString, month: monthString } = params; // Use params directly
+  const { year: yearString, month: monthString } = resolvedParams; // Use resolvedParams
 
   const router = useRouter();
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof getUserProfile>> | null>(null);
