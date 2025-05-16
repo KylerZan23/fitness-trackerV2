@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, use } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getWorkoutsForMonth, getUserProfile, HistoricalWorkout } from '@/lib/db' // Add getWorkoutsForMonth
@@ -70,10 +70,8 @@ interface MonthlyWorkoutsPageParams {
 }
 
 export default function MonthlyWorkoutsPage({ params }: { params: MonthlyWorkoutsPageParams }) {
-  // Unwrap params using React.use()
-  const unwrappedParams = use(params as any) as MonthlyWorkoutsPageParams; // Use 'as any' to bypass initial type check, then assert final type
   // Keep the original string params by destructuring from the unwrapped object
-  const { year: yearString, month: monthString } = unwrappedParams;
+  const { year: yearString, month: monthString } = params; // Use params directly
 
   const router = useRouter();
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof getUserProfile>> | null>(null);
