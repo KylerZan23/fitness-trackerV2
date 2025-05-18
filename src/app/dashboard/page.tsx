@@ -20,6 +20,7 @@ import { MuscleDistributionChart } from '@/components/workout/MuscleDistribution
 import { RecentRun } from '@/components/dashboard/RecentRun'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { GoalsCard } from '@/components/dashboard/GoalsCard'
+import { AICoachCard } from '@/components/dashboard/AICoachCard'
 
 interface UserProfile {
   id: string
@@ -281,103 +282,112 @@ export default function DashboardPage() {
 
   // Render dashboard content within the layout
   return (
-    <DashboardLayout sidebarProps={sidebarProps}>
-      {/* Display persistent error as a banner - Adjust colors for light theme */}
-      {error && session && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-300 text-red-800 rounded-md">
-          <Error message={`Warning: ${error}`} />
-        </div>
-      )}
-
-      {/* Welcome Message - Apply gradient and adjust text/button colors */}
-      {showWelcome && profile && (
-        // Apply gradient, adjust padding/shadow, text colors
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-4 rounded-lg mb-6 shadow-md relative text-white">
-          <button
-            onClick={() => setShowWelcome(false)}
-            // Adjust button color for gradient background
-            className="absolute top-2 right-2 text-white/70 hover:text-white"
-            aria-label="Dismiss welcome message"
-          >
-            &times;
-          </button>
-          {/* Ensure text is white */}
-          <h1 className="text-2xl font-semibold text-white">
-            Welcome back, {profile.name}!
-          </h1>
-          {/* Adjust paragraph text color (slightly less prominent) */}
-          <p className="text-blue-100 mt-1">Let's check your progress.</p>
-        </div>
-      )}
-
-      {/* Section for Today's Stats - Adjust title color */}
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Today's Snapshot</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-        {/* StatsCards updated */}
-        {/* Changed title from "Workouts" to "Exercises" */}
-        <StatsCard title="Exercises" value={todayStats.totalWorkouts ?? 0} iconName="dumbbell" />
-        <StatsCard title="Sets" value={todayStats.totalSets ?? 0} iconName="layers" />
-        <StatsCard title="Reps" value={todayStats.totalReps ?? 0} iconName="repeat" />
-        {/* Changed title from "Avg Duration" to "Duration" */}
-        {/* Changed value from averageDuration to totalDuration */}
-        <StatsCard title="Duration" value={`${todayStats.totalDuration ?? 0} min`} iconName="clock" />
-        <StatsCard title="Avg Weight" value={`${todayStats.averageWeight ?? 0} ${weightUnit}`} iconName="weight" />
-      </div>
-
-      {/* Section for Charts - Adjust container and text colors */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Workout Trends Chart Container - Span 2 columns */}
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 lg:col-span-2">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Workout Trends</h2>
-          {trends.length > 0 ? (
-            <WorkoutChart data={trends} />
-          ) : (
-            <p className="text-gray-500">No workout data available for this period.</p>
+    <DashboardLayout
+      sidebarProps={sidebarProps}
+    >
+      {session && profile && (
+        <>
+          {/* Welcome Message and Quick Links */}
+          {showWelcome && (
+            <div className="bg-gradient-to-r from-primary to-blue-600 text-white p-6 rounded-lg shadow-lg mb-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h1 className="text-2xl font-bold">Welcome back, {profile.name}!</h1>
+                  <p className="text-sm opacity-90">Ready to track your progress?</p>
+                </div>
+                <button 
+                  onClick={() => setShowWelcome(false)} 
+                  className="text-sm font-medium p-1 hover:bg-white/20 rounded-full"
+                  aria-label="Dismiss welcome message"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <Link href="/log-workout" className="bg-white/20 hover:bg-white/30 text-center py-3 px-2 rounded-md text-sm font-medium transition-colors">
+                  Log Workout
+                </Link>
+                <Link href="/log-run" className="bg-white/20 hover:bg-white/30 text-center py-3 px-2 rounded-md text-sm font-medium transition-colors">
+                  Log Run
+                </Link>
+                <Link href="/goals" className="bg-white/20 hover:bg-white/30 text-center py-3 px-2 rounded-md text-sm font-medium transition-colors col-span-2 sm:col-span-1">
+                  Set Goals
+                </Link>
+              </div>
+            </div>
           )}
-        </div>
 
-        {/* Muscle Distribution Chart Container (Takes first column implicitly) */}
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Muscle Group Focus</h2>
-            <button
-              onClick={() => setIsMuscleChartCollapsed(!isMuscleChartCollapsed)}
-              className="text-xs text-gray-500 hover:text-gray-700"
-            >
-              {isMuscleChartCollapsed ? 'Expand' : 'Collapse'}
-            </button>
+          {/* Error Display */}
+          {error && <Error message={error} className="mb-6" />}
+
+          {/* Today's Stats Summary */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-700 mb-3">Today so far ({new Date().toLocaleDateString(undefined, { weekday: 'long' })})</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatsCard title="Workouts Today" value={todayStats.totalWorkouts.toString()} />
+              <StatsCard title="Total Sets Today" value={todayStats.totalSets.toString()} />
+              <StatsCard title="Avg. Duration Today" value={`${Math.round(todayStats.averageDuration)} min`} />
+              <StatsCard title="Total Weight Today" value={`${Math.round(todayStats.totalWeight || 0)} ${weightUnit}`} />
+            </div>
           </div>
-          {!isMuscleChartCollapsed && (
-            <MuscleDistributionChart userId={session?.user?.id} weightUnit={weightUnit} />
-          )}
-          {isMuscleChartCollapsed && (
-            <p className="text-gray-500 text-sm">Chart collapsed.</p>
-          )}
-        </div>
+          
+          {/* AI Coach Section - New */}
+          <div className="lg:col-span-2 mb-6">
+            <AICoachCard />
+          </div>
 
-        {/* Goals Card Container (Takes second column implicitly) */}
-        <GoalsCard />
+          {/* Section for Charts (Muscle Distribution & Goals) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Muscle Distribution Chart Container */}
+            <div className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all duration-300 ease-in-out ${isMuscleChartCollapsed ? 'max-h-16 overflow-hidden' : 'max-h-none'}`}>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-lg font-semibold text-gray-700">Muscle Focus (Last 30 Days)</h3>
+                <button 
+                  onClick={() => setIsMuscleChartCollapsed(!isMuscleChartCollapsed)}
+                  className="text-sm text-primary hover:text-primary/80"
+                >
+                  {isMuscleChartCollapsed ? 'Expand' : 'Collapse'}
+                </button>
+              </div>
+              {!isMuscleChartCollapsed && (
+                trends.length > 0 
+                  ? <MuscleDistributionChart userId={session?.user?.id} weightUnit={weightUnit} />
+                  : <p className="text-sm text-gray-500">No workout data yet to show muscle distribution.</p>
+              )}
+            </div>
 
-      </div>
+            {/* Goals Card Container */}
+            <GoalsCard /> 
+          </div>
+          
+          {/* Recent Run Card */}
+          <RecentRun userId={session!.user!.id} />
+          
+          {/* Workout Trends Chart */}
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+            <h2 className="text-xl font-semibold text-gray-700 mb-3">Workout Trends (Last 8 Weeks)</h2>
+            {trends.length > 0 
+              ? <WorkoutChart data={trends} />
+              : <p className="text-sm text-gray-500">No workout data available for trends.</p>}
+          </div>
 
-      {/* Recent Activity Section - Adjust container and text colors */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Recent Activity</h2>
-        {session?.user?.id && <RecentRun userId={session.user.id} />}
-        {!session?.user?.id && <p className="text-gray-500 text-sm">Loading activity...</p>}
-      </div>
+          {/* Overall Stats Summary */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-700 mb-3">Overall Stats</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatsCard title="Total Workouts" value={stats.totalWorkouts.toString()} />
+              <StatsCard title="Total Sets" value={stats.totalSets.toString()} />
+              <StatsCard title="Avg. Duration" value={`${Math.round(stats.averageDuration)} min`} />
+              <StatsCard title="Avg. Weight Lifted" value={`${Math.round(stats.averageWeight)} ${weightUnit}`} />
+            </div>
+          </div>
 
-      {/* Call to Action / Quick Links - Button style might be okay, check contrast */}
-      <div className="mt-8 text-center">
-          <Link
-            href="/workout/new"
-            // Keep indigo button for primary action, check contrast on gray-100 bg
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Log New Workout
-          </Link>
-      </div>
-
+          {/* Placeholder for future components */}
+          {/* <div className="p-4 bg-gray-100 rounded-lg shadow">
+            <p>More features coming soon!</p>
+          </div> */}
+        </>
+      )}
     </DashboardLayout>
   )
 } 
