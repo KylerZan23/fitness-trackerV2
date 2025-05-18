@@ -196,14 +196,6 @@ export function WorkoutChart({ data }: WorkoutChartProps) {
               lines.push('📝 No notes for this workout');
             }
             
-            if (dataPoint.workoutNames && dataPoint.workoutNames.length > 0) {
-              lines.push('');
-              lines.push('Workout:');
-              dataPoint.workoutNames.forEach(name => {
-                lines.push(`- ${name ?? 'N/A'}`);
-              });
-            }
-            
             if (dataPoint.exerciseNames && dataPoint.exerciseNames.length > 0) {
               lines.push('');
               lines.push('Exercises:');
@@ -215,6 +207,9 @@ export function WorkoutChart({ data }: WorkoutChartProps) {
             return lines;
           }
         }
+      },
+      datalabels: {
+        display: false
       }
     },
     scales: {
@@ -254,11 +249,7 @@ export function WorkoutChart({ data }: WorkoutChartProps) {
             
             let workoutLabel = '';
             if (dataPoint.workoutNames && dataPoint.workoutNames.length > 0) {
-              workoutLabel = dataPoint.workoutNames[0] ?? 'Workout'; 
-              
-              if (dataPoint.workoutNames.length > 1) {
-                workoutLabel += ` +${dataPoint.workoutNames.length - 1}`;
-              }
+              workoutLabel = dataPoint.workoutNames[0] ?? 'Workout';
             } else if (dataPoint.exerciseNames && dataPoint.exerciseNames.length > 0) {
               const exerciseName = dataPoint.exerciseNames[0] ?? 'Exercise'; 
               const formattedName = exerciseName.charAt(0).toUpperCase() + exerciseName.slice(1);

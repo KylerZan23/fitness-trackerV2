@@ -111,7 +111,7 @@ const V0AboutSection = () => {
           </div>
 
           <div className="relative">
-            <div ref={storyCardRef} className="bg-white p-7 rounded-2xl hover-lift">
+            <div ref={storyCardRef} className="bg-white p-7 rounded-2xl transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-xl">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center animate-pulse-subtle">
                   <span className="text-white font-bold text-xl">FT</span>
@@ -167,7 +167,7 @@ const V0AboutSection = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/signup"
-              className="bg-blue-600 text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-blue-700 hover:scale-105 hover:shadow-lg active:scale-95 button-pulse transition-colors transition-transform transition-shadow duration-200 ease-in-out"
+              className="radiate-effect relative z-10 bg-blue-600 text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-blue-700 hover:scale-105 hover:shadow-lg active:scale-95 transition-colors transition-transform transition-shadow duration-200 ease-in-out"
             >
               <span>Join Us</span>
             </Link>
@@ -483,29 +483,256 @@ export default function HomePage() {
                 </div>
                 
                     {/* Dashboard Content (mockup) */}
-                <div className="bg-gray-100 h-[calc(100%-32px)] p-4 overflow-y-auto">
-                  <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center">
-                      <div className="bg-blue-600 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold mr-3">
-                        FT
+                <div className="bg-gray-100 h-[calc(100%-32px)] flex overflow-hidden">
+                  {/* === SIDEBAR START === */}
+                  <div className="w-36 bg-white p-3 flex flex-col border-r border-gray-200">
+                      {/* User Profile Area */}
+                      <div className="flex flex-col items-center text-center mb-1">
+                          <div className="w-16 h-16 rounded-full bg-gray-300 mb-2 flex items-center justify-center text-gray-500 text-2xl">
+                              <span>🧑‍💻</span> {/* Placeholder Avatar */}
+                          </div>
+                          <p className="font-semibold text-gray-800 text-xs">Kyler</p>
+                          <p className="text-xxs text-gray-500">kzanuck@gmail.com</p>
                       </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-800">Dashboard</h2>
-                        <p className="text-sm text-gray-500">Welcome back, Alex</p>
-                      </div>
-                    </div>
-                        {/* ... other mockup elements ... */}
-                      </div>
-                       {/* Simplified mockup content for brevity */}
-                      <div className="text-gray-700">Dashboard mockup content...</div>
+                      {/* Divider */}
+                      <hr className="border-gray-200 my-2" />
+                      {/* Navigation Links */}
+                      <nav className="flex flex-col space-y-0.5 text-xs">
+                          {/* Home */}
+                          <div className="flex items-center space-x-2.5 py-1.5 px-2 rounded-md hover:bg-slate-100 text-slate-700 cursor-pointer">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500">
+                                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>
+                              </svg>
+                              <span className="text-slate-700">Home</span>
+                          </div>
+                          {/* Dashboard (Active) */}
+                          <div className="flex items-center space-x-2.5 py-1.5 px-2 rounded-md bg-slate-100 text-blue-700 cursor-pointer">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                                <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                                <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                                <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+                                <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+                              </svg>
+                              <span className="font-medium text-blue-700">Dashboard</span>
+                          </div>
+                          {/* Workouts */}
+                          <div className="flex items-center space-x-2.5 py-1.5 px-2 rounded-md hover:bg-slate-100 text-slate-700 cursor-pointer">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500">
+                                  <path d="M15.9 5H8.1C7.5 5 7 5.5 7 6.1V7c0 .6.5 1.1 1.1 1.1h7.7c.6 0 1.1-.5 1.1-1.1V6.1C17 5.5 16.5 5 15.9 5zM15.9 17H8.1c-.6 0-1.1.5-1.1 1.1v.9c0 .6.5 1.1 1.1 1.1h7.7c.6 0 1.1-.5 1.1-1.1v-.9c0-.6-.5-1.1-1.1-1.1z"></path>
+                                  <line x1="12" y1="8" x2="12" y2="16"></line>
+                              </svg>
+                              <span className="text-slate-700">Workouts</span>
+                          </div>
+                          {/* Profile */}
+                          <div className="flex items-center space-x-2.5 py-1.5 px-2 rounded-md hover:bg-slate-100 text-slate-700 cursor-pointer">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
+                              </svg>
+                              <span className="text-slate-700">Profile</span>
+                          </div>
+                          {/* Settings */}
+                          <div className="flex items-center space-x-2.5 py-1.5 px-2 rounded-md hover:bg-slate-100 text-slate-700 cursor-pointer">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500">
+                                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l-.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle>
+                              </svg>
+                              <span className="text-slate-700">Settings</span>
+                          </div>
+                      </nav>
+                  </div>
+                  {/* === SIDEBAR END === */}
+
+                  {/* === MAIN CONTENT AREA (Snapshot & Trends) START === */}
+                  <div className="flex-1 p-3 flex flex-col space-y-3 overflow-y-auto text-xs">
+                    {/* Define workout data once */}
+                    {(() => {
+                      const workoutData = [30, 45, 0, 50, 35, 75, 0];
+                      const targetWorkoutDays = 5;
+                      const actualWorkoutDays = workoutData.filter(d => d > 0).length;
+                      const workoutDaysProgress = (actualWorkoutDays / targetWorkoutDays) * 100;
+                      
+                      const targetDuration = 180;
+                      const actualDuration = workoutData.reduce((sum, d) => sum + d, 0);
+                      const durationProgress = Math.min(100, (actualDuration / targetDuration) * 100);
+
+                      const muscleFocusData = [
+                        { name: 'Arms', sets: '8 sets', reps: '76 total reps', weight: '120 lbs total', barColor: 'bg-green-500', barWidthPercent: 100 },
+                        { name: 'Chest', sets: '4 sets', reps: '36 total reps', weight: '100 lbs total', barColor: 'bg-yellow-400', barWidthPercent: 70 },
+                        { name: 'Shoulders', sets: '4 sets', reps: '40 total reps', weight: '50 lbs total', barColor: 'bg-yellow-400', barWidthPercent: 70 },
+                        { name: 'Back', sets: '3 sets', reps: '24 total reps', weight: '0 lbs total', barColor: 'bg-orange-400', barWidthPercent: 50 },
+                      ];
+
+                      return <>
+                        {/* Today's Snapshot */}
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-1">Today's Snapshot</h4>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {/* Card 1: Exercises */}
+                            <div className="bg-white p-1.5 rounded-md shadow-sm flex flex-col items-center justify-center text-center">
+                              <p className="text-xxs font-medium text-gray-500 uppercase tracking-wider">EXERCISES</p>
+                              <p className="text-lg font-bold text-gray-800">5</p>
+                            </div>
+                            {/* Card 2: Sets */}
+                            <div className="bg-white p-1.5 rounded-md shadow-sm flex flex-col items-center justify-center text-center">
+                              <p className="text-xxs font-medium text-gray-500 uppercase tracking-wider">SETS</p>
+                              <p className="text-lg font-bold text-gray-800">15</p>
+                            </div>
+                            {/* Card 3: Reps */}
+                            <div className="bg-white p-1.5 rounded-md shadow-sm flex flex-col items-center justify-center text-center">
+                              <p className="text-xxs font-medium text-gray-500 uppercase tracking-wider">REPS</p>
+                              <p className="text-lg font-bold text-gray-800">75</p>
+                            </div>
+                            {/* Card 4: Duration */}
+                            <div className="bg-white p-1.5 rounded-md shadow-sm flex flex-col items-center justify-center text-center">
+                              <p className="text-xxs font-medium text-gray-500 uppercase tracking-wider">DURATION</p>
+                              <p className="text-lg font-bold text-gray-800">60</p>
+                              <p className="text-xxs text-gray-400">min</p>
+                            </div>
+                            {/* Card 5: Avg Weight */}
+                            <div className="bg-white p-1.5 rounded-md shadow-sm flex flex-col items-center justify-center text-center">
+                              <p className="text-xxs font-medium text-gray-500 uppercase tracking-wider">AVG WEIGHT</p>
+                              <p className="text-lg font-bold text-gray-800">135</p>
+                              <p className="text-xxs text-gray-400">lbs</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Workout Trends */}
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 mt-1 mb-1">Workout Trends</h4>
+                          <div className="bg-white p-2 rounded-md shadow-sm flex flex-col text-xs">
+                            {/* Card Header */}
+                            <div className="flex justify-between items-center mb-1">
+                              <button className="text-gray-400 hover:text-gray-600 text-sm">&lt;</button>
+                              <p className="text-xxs font-medium text-gray-600">Weekly Workout Trends (This Week)</p>
+                              <button className="text-gray-400 hover:text-gray-600 text-sm">&gt;</button>
+                            </div>
+                            {/* Legend */}
+                            <div className="flex items-center space-x-1 mb-1 self-end">
+                              <div className="w-2 h-2 bg-orange-400 rounded-sm"></div>
+                              <p className="text-xxs text-gray-500">Duration (min)</p>
+                            </div>
+                            {/* Chart Area */}
+                            <div className="relative h-28 border border-gray-200 rounded bg-gray-50 p-1">
+                              {/* Y-Axis Labels */}
+                              <div className="absolute left-[-20px] top-0 text-xxs text-gray-400 h-full flex flex-col justify-between py-0.5" style={{ lineHeight: '1' }}>
+                                <span>75</span> {/* Max Value */}
+                                <span>37</span> {/* Mid Value (approx) */}
+                                <span>0</span>
+                              </div>
+                              {/* Horizontal Grid Lines */}
+                              <div className="absolute top-0 left-0 right-0 h-px bg-gray-200" style={{ bottom: '100%' }}></div>
+                              <div className="absolute left-0 right-0 h-px bg-gray-200" style={{ bottom: '50%' }}></div>
+                              <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-300"></div> {/* X-axis base line */}
+                              
+                               {/* Vertical Grid Lines (behind bars) */}
+                               <div className="absolute top-0 bottom-0 left-0 right-0 grid grid-cols-7">
+                                {[...Array(6)].map((_, i) => (
+                                    <div key={`vline-${i}`} className="border-r border-gray-200"></div>
+                                ))}
+                                <div></div> {/* Last column doesn't need a right border */}
+                              </div>
+
+                              {/* Bars Container */}
+                              <div className="absolute bottom-0 left-0 right-0 grid grid-cols-7 h-full items-end gap-px px-0.5">
+                                {workoutData.map((value, index) => {
+                                  const maxHeight = 75; // Max minutes for scaling
+                                  const barHeightPercentage = maxHeight > 0 ? (value / maxHeight) * 100 : 0;
+                                  return (
+                                    <div key={index} className="relative flex justify-center items-end h-full">
+                                      <div 
+                                        className="bg-orange-400 w-[70%] rounded-t-sm hover:bg-orange-500 transition-colors"
+                                        style={{ height: `${barHeightPercentage}%` }}
+                                      ></div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* X-Axis labels (overlap with bars but positioned below them effectively) */}
+                              <div className="absolute bottom-[-14px] left-0 right-0 grid grid-cols-7">
+                                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                                  <div key={day} className="text-center">
+                                    <span className="text-xxs text-gray-400">{day}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Container for Muscle Group Focus and Goals (side-by-side) */}
+                        <div className="flex flex-row gap-3">
+                          {/* Muscle Group Focus Section (flex child) */}
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center mb-1">
+                              <h4 className="text-sm font-semibold text-gray-700">Muscle Group Focus</h4>
+                              <button className="text-xxs text-blue-600 hover:underline">Collapse</button>
+                            </div>
+                            <div className="flex justify-between items-center text-xxs text-gray-500 mb-2">
+                              <span>Week</span>
+                              <div className="flex items-center space-x-1">
+                                <button className="text-gray-400 hover:text-gray-600 text-sm">&lt;</button>
+                                <span className="font-medium">May 12 – May 18, 2025</span>
+                                <button className="text-gray-400 hover:text-gray-600 text-sm">&gt;</button>
+                              </div>
+                            </div>
+                            <div className="bg-white p-2 rounded-md shadow-sm text-xxs space-y-4">
+                              {muscleFocusData.map((muscle, index) => (
+                                <div key={index}>
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="font-medium text-gray-700">{muscle.name}</span>
+                                    <span className="text-gray-500">{muscle.sets}</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5 mb-0.5">
+                                    <div 
+                                      className={`${muscle.barColor} h-1.5 rounded-full`}
+                                      style={{ width: `${muscle.barWidthPercent}%` }}
+                                    ></div>
+                                  </div>
+                                  <div className="flex justify-between text-gray-500">
+                                    <span>{muscle.reps}</span>
+                                    <span>{muscle.weight}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Goals (This Week) Section (flex child) */}
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center mb-1">
+                              <h4 className="text-sm font-semibold text-gray-700">Goals (This Week)</h4>
+                              <button className="text-xxs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-300">Add Goal</button>
+                            </div>
+                            <div className="bg-white p-2 rounded-md shadow-sm space-y-2 text-xxs">
+                              <div>
+                                <div className="flex justify-between items-center mb-0.5">
+                                  <span className="text-gray-700">Weekly Workout Days</span>
+                                  <span className="text-gray-500">{actualWorkoutDays}/{targetWorkoutDays} days</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                  <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${workoutDaysProgress}%` }}></div>
+                                </div>
+                              </div>
+                              <div>
+                                <div className="flex justify-between items-center mb-0.5">
+                                  <span className="text-gray-700">Duration</span>
+                                  <span className="text-gray-500">{actualDuration}/{targetDuration} min</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                  <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${durationProgress}%` }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>;
+                    })()}
+                  </div> {/* This now correctly encloses all 4 sections */}
+                  {/* === MAIN CONTENT AREA END === */}
                 </div>
               </div>
             </div>
-            
-            {/* Computer Base/Stand */}
-            <div className="w-[70%] h-[4%] bg-gray-800 rounded-b-lg"></div>
-            <div className="w-[20%] h-[3%] bg-gray-700 rounded-b"></div>
-            <div className="w-[25%] h-[1%] bg-gray-300 mt-1 rounded"></div>
           </div>
         </div>
       </div>

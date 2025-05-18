@@ -22,6 +22,37 @@ html {
   animation: fadeIn 0.5s ease-out forwards;
 }
 
+@keyframes radiate-rect-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.4; /* Start slightly visible */
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.5); /* Further reduced scale */
+    opacity: 0;
+  }
+}
+
+.radiate-effect {
+  position: relative; /* Needed for absolute positioning of pseudo-element */
+}
+
+.radiate-effect::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%; /* Match button width */
+  height: 100%; /* Match button height */
+  background-color: rgba(59, 130, 246, 0.4); /* Tailwind blue-500 at 40% opacity */
+  border-radius: var(--radius); /* Match button's rounded-lg */
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 0; /* Initial state for animation start */
+  animation: radiate-rect-pulse 1.5s ease-out infinite; /* Even faster duration */
+  pointer-events: none;
+  z-index: 0; /* Behind the button text */
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

@@ -20,6 +20,9 @@ const config = {
       },
     },
     extend: {
+      fontSize: {
+        'xxs': '0.625rem', // 10px
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
