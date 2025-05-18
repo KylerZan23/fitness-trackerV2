@@ -17,6 +17,7 @@ DECLARE
     v_recent_run_pace_trend TEXT;
     v_workout_days_this_week INT := 0;
     v_workout_days_last_week INT := 0;
+    v_user_weight_unit TEXT := 'kg'; -- Default to kg
 
     TOP_N_EXERCISES CONSTANT INT := 3;
     SESSIONS_FOR_PROGRESSION CONSTANT INT := 3;
@@ -31,11 +32,16 @@ BEGIN
     period_start_date := NOW() - (period_days_param || ' days')::INTERVAL;
     mid_period_date := period_start_date + (period_days_param / 2.0 || ' days')::INTERVAL;
 
-    -- Get the start of the current week (assuming Monday is the first day)
-    current_week_start := date_trunc('week', NOW())::DATE;
-    last_week_start := (current_week_start - INTERVAL '1 week')::DATE;
+    current_week_start := (NOW()::DATE - (EXTRACT(ISODOW FROM NOW()) - 1 || ' days')::INTERVAL)::DATE;
+    last_week_start := current_week_start - INTERVAL '7 days';
 
-    -- Start: Calculate enhanced muscle group summary (Chunk 1.2)
+    SELECT COALESCE(p.weight_unit, 'kg')
+    INTO v_user_weight_unit
+    FROM profiles p
+    WHERE p.id = user_id_param
+    LIMIT 1;
+
+    -- Start: Calculate enhanced muscle group summary (Chunk 1.2 logic)
     WITH filtered_workouts_mg AS (
         SELECT
             w.muscle_group,
@@ -118,7 +124,7 @@ BEGIN
     FROM final_muscle_data_for_agg fmda;
     -- End: Calculate enhanced muscle group summary
 
-    -- Start: Calculate Dynamic Exercise Progression (Chunk 1.3)
+    -- Start: Calculate Dynamic Exercise Progression (Chunk 1.3 logic)
     WITH user_strength_workout_entries AS (
         SELECT
             w.exercise_name,
@@ -145,7 +151,7 @@ BEGIN
         GROUP BY exercise_name
         HAVING COUNT(DISTINCT created_at::date) > 0
     ),
-    top_n_exercises AS (
+    top_n_exercises_cte AS ( 
         SELECT exercise_name, frequency_rank
         FROM exercise_frequency
         WHERE frequency_rank <= TOP_N_EXERCISES
@@ -157,17 +163,17 @@ BEGIN
             swe.sets, swe.reps, swe.weight, swe.notes, swe.entry_volume,
             ROW_NUMBER() OVER (PARTITION BY swe.exercise_name, swe.created_at::date ORDER BY swe.entry_volume DESC, swe.created_at DESC) as rn_in_day
         FROM user_strength_workout_entries swe
-        WHERE swe.exercise_name IN (SELECT exercise_name FROM top_n_exercises)
+        WHERE swe.exercise_name IN (SELECT exercise_name FROM top_n_exercises_cte)
     ),
     daily_exercise_sessions AS (
         SELECT
             dei.exercise_name,
             dei.session_date,
             SUM(dei.entry_volume) AS total_daily_volume,
-            (SELECT di.sets || 'x' || di.reps || '@' || di.weight || 'kg' FROM daily_exercise_sessions_intermediate di
-             WHERE di.exercise_name = dei.exercise_name AND di.session_date = dei.session_date AND di.rn_in_day = 1) as performance_string,
+            (SELECT di.sets || 'x' || di.reps || '@' || di.weight || v_user_weight_unit FROM daily_exercise_sessions_intermediate di
+             WHERE di.exercise_name = dei.exercise_name AND di.session_date = dei.session_date AND di.rn_in_day = 1 LIMIT 1) as performance_string,
             (SELECT di.notes FROM daily_exercise_sessions_intermediate di
-             WHERE di.exercise_name = dei.exercise_name AND di.session_date = dei.session_date AND di.rn_in_day = 1) as notes_string
+             WHERE di.exercise_name = dei.exercise_name AND di.session_date = dei.session_date AND di.rn_in_day = 1 LIMIT 1) as notes_string
         FROM daily_exercise_sessions_intermediate dei
         GROUP BY dei.exercise_name, dei.session_date
     ),
@@ -196,15 +202,15 @@ BEGIN
         SELECT
             rs.exercise_name,
             CASE
-                WHEN rs.total_daily_volume IS NULL THEN 'N/A'
-                WHEN rs.prev_session_daily_volume IS NULL THEN 'N/A'
+                WHEN rs.total_daily_volume IS NULL THEN 'N/A' 
+                WHEN rs.prev_session_daily_volume IS NULL THEN 'First Session' 
                 WHEN rs.total_daily_volume > rs.prev_session_daily_volume THEN 'Increasing'
                 WHEN rs.total_daily_volume < rs.prev_session_daily_volume THEN 'Decreasing'
                 ELSE 'Stagnant'
             END AS trend
         FROM ranked_daily_sessions rs
-        WHERE rs.session_rank_desc = 1
-          AND rs.exercise_name IN (SELECT exercise_name FROM top_n_exercises)
+        WHERE rs.session_rank_desc = 1 
+          AND rs.exercise_name IN (SELECT exercise_name FROM top_n_exercises_cte)
     )
     SELECT COALESCE(jsonb_agg(
         jsonb_build_object(
@@ -215,71 +221,89 @@ BEGIN
         ) ORDER BY tne.frequency_rank ASC
     ), '[]'::jsonb)
     INTO v_dynamic_exercise_progression
-    FROM top_n_exercises tne
+    FROM top_n_exercises_cte tne
     LEFT JOIN last_sessions_for_exercises_json lsfej ON tne.exercise_name = lsfej.exercise_name
     LEFT JOIN exercise_trends et ON tne.exercise_name = et.exercise_name;
     -- End: Calculate Dynamic Exercise Progression
 
-    -- Start: Calculate Run Data and Workout Consistency (Chunk 1.4)
+    -- Start: Calculate Run Data and Workout Consistency (Chunk 1.4 logic - REFACTORED)
     WITH all_user_runs_in_period AS (
         SELECT
             usa.start_date,
+            usa.name as run_name,
             usa.distance, -- in meters
             usa.moving_time, -- in seconds
             usa.total_elevation_gain,
             COALESCE(usa.type, 'Run') as type,
-            (CASE WHEN usa.distance > 0 THEN (usa.moving_time / 60.0) / (usa.distance / 1000.0) ELSE NULL END) as pace_min_per_km
+            (CASE WHEN usa.distance > 0 AND usa.moving_time > 0 THEN (usa.moving_time / 60.0) / (usa.distance / 1000.0) ELSE NULL END) as pace_min_per_km
         FROM user_strava_activities usa
         WHERE usa.user_id = user_id_param
           AND usa.start_date >= period_start_date
-          AND COALESCE(usa.type, 'Run') = 'Run' -- Assuming we only care about 'Run' type activities
+          AND COALESCE(usa.type, 'Run') = 'Run'
+    ),
+    overall_run_stats AS (
+        SELECT
+            COUNT(*) as calculated_total_run_sessions,
+            AVG(distance) as calculated_avg_run_distance_meters,
+            AVG(moving_time) as calculated_avg_run_duration_seconds
+        FROM all_user_runs_in_period
+    ),
+    recent_runs_details_json AS (
+        SELECT COALESCE(
+            jsonb_agg(
+                jsonb_build_object(
+                    'run_date', TO_CHAR(ar.start_date::date, 'YYYY-MM-DD'),
+                    'name', ar.run_name,
+                    'distance_km', ROUND((COALESCE(ar.distance,0) / 1000.0)::numeric, 2),
+                    'duration_min', ROUND((COALESCE(ar.moving_time,0) / 60.0)::numeric, 1),
+                    'avg_pace_min_km',
+                        CASE
+                            WHEN ar.pace_min_per_km IS NOT NULL THEN
+                               TRIM(TO_CHAR(FLOOR(ar.pace_min_per_km), '00')) || ':' || TRIM(TO_CHAR(FLOOR(MOD((ar.pace_min_per_km * 60)::numeric, 60)), '00'))
+                            ELSE 'N/A'
+                        END,
+                    'elevation_gain_m', ROUND(COALESCE(ar.total_elevation_gain,0)::numeric, 0),
+                    'run_type', ar.type
+                ) ORDER BY ar.start_date DESC
+            ),
+            '[]'::jsonb
+        ) as calculated_last_3_runs
+        FROM (
+            SELECT * FROM all_user_runs_in_period ORDER BY start_date DESC LIMIT NUM_RECENT_RUNS_FOR_LIST
+        ) ar
+    ),
+    run_pace_trend_parts AS (
+        SELECT
+            AVG(CASE WHEN aurip.start_date >= mid_period_date THEN aurip.pace_min_per_km ELSE NULL END) as avg_pace_recent_half,
+            AVG(CASE WHEN aurip.start_date < mid_period_date THEN aurip.pace_min_per_km ELSE NULL END) as avg_pace_older_half
+        FROM all_user_runs_in_period aurip
+        WHERE aurip.pace_min_per_km IS NOT NULL
     )
     SELECT
-        COUNT(*),
-        AVG(ar.distance),
-        AVG(ar.moving_time)
-    INTO v_total_run_sessions, v_avg_run_distance_meters, v_avg_run_duration_seconds
-    FROM all_user_runs_in_period ar;
-
-    SELECT COALESCE(
-        jsonb_agg(
-            jsonb_build_object(
-                'run_date', TO_CHAR(ar.start_date::date, 'YYYY-MM-DD'),
-                'distance_km', ROUND((ar.distance / 1000.0)::numeric, 2),
-                'duration_min', ROUND((ar.moving_time / 60.0)::numeric, 1),
-                'avg_pace_min_km', 
-                    CASE 
-                        WHEN ar.pace_min_per_km IS NOT NULL THEN 
-                            LPAD(FLOOR(ar.pace_min_per_km)::text, 2, '0') || ':' || LPAD(FLOOR((ar.pace_min_per_km - FLOOR(ar.pace_min_per_km)) * 60)::text, 2, '0')
-                        ELSE 'N/A' 
-                    END,
-                'elevation_gain_m', ROUND(ar.total_elevation_gain::numeric, 0),
-                'run_type', ar.type
-            ) ORDER BY ar.start_date DESC
-        ), '[]'::jsonb
-    )
-    INTO v_last_3_runs
-    FROM (
-        SELECT * FROM all_user_runs_in_period ORDER BY start_date DESC LIMIT NUM_RECENT_RUNS_FOR_LIST
-    ) ar;
-
-    WITH run_pace_comparison AS (
-        SELECT 
-            AVG(CASE WHEN ar.start_date >= mid_period_date THEN ar.pace_min_per_km ELSE NULL END) as avg_pace_recent_half,
-            AVG(CASE WHEN ar.start_date < mid_period_date THEN ar.pace_min_per_km ELSE NULL END) as avg_pace_older_half
-        FROM all_user_runs_in_period ar
-        WHERE ar.pace_min_per_km IS NOT NULL
-    )
-    SELECT
+        COALESCE(ors.calculated_total_run_sessions, 0),
+        ors.calculated_avg_run_distance_meters,
+        ors.calculated_avg_run_duration_seconds,
+        rrdj.calculated_last_3_runs,
         CASE
-            WHEN rpc.avg_pace_recent_half IS NULL OR rpc.avg_pace_older_half IS NULL THEN 'N/A' -- Not enough data in one or both halves
-            WHEN rpc.avg_pace_recent_half < rpc.avg_pace_older_half THEN 'Faster' -- Lower pace value means faster
-            WHEN rpc.avg_pace_recent_half > rpc.avg_pace_older_half THEN 'Slower'
-            ELSE 'Stagnant'
-        END
-    INTO v_recent_run_pace_trend
-    FROM run_pace_comparison rpc;
+            WHEN rptp.avg_pace_recent_half IS NULL AND rptp.avg_pace_older_half IS NULL THEN 'No Pace Data'
+            WHEN rptp.avg_pace_recent_half IS NULL THEN 'No Recent Pace Data'
+            WHEN rptp.avg_pace_older_half IS NULL THEN 'No Older Pace Data for Comparison'
+            WHEN rptp.avg_pace_recent_half < rptp.avg_pace_older_half THEN 'Faster'
+            WHEN rptp.avg_pace_recent_half > rptp.avg_pace_older_half THEN 'Slower'
+            ELSE 'Consistent'
+        END as calculated_recent_run_pace_trend
+    INTO
+        v_total_run_sessions,
+        v_avg_run_distance_meters,
+        v_avg_run_duration_seconds,
+        v_last_3_runs,
+        v_recent_run_pace_trend
+    FROM
+        overall_run_stats ors,
+        recent_runs_details_json rrdj,
+        run_pace_trend_parts rptp;
 
+    -- Workout consistency logic (remains unchanged from user's version)
     SELECT COUNT(DISTINCT w.created_at::date)
     INTO v_workout_days_this_week
     FROM workouts w
@@ -295,17 +319,26 @@ BEGIN
       AND w.created_at < current_week_start;
     -- End: Calculate Run Data and Workout Consistency
 
-    -- Calculate total_workout_sessions (already present from user, adjusted to use period_start_date)
     SELECT COUNT(DISTINCT DATE(w.created_at))
     INTO v_total_workout_sessions
     FROM workouts w
     WHERE w.user_id = user_id_param
       AND w.created_at >= period_start_date;
 
+    SELECT ROUND(AVG(daily_duration.total_duration_per_day)::numeric, 1)
+    INTO v_avg_workout_duration_minutes
+    FROM (
+        SELECT SUM(w.duration) as total_duration_per_day
+        FROM workouts w
+        WHERE w.user_id = user_id_param
+          AND w.created_at >= period_start_date
+        GROUP BY DATE(w.created_at)
+    ) daily_duration;
+
     result_summary := jsonb_build_object(
         'total_workout_sessions', v_total_workout_sessions,
         'total_run_sessions', COALESCE(v_total_run_sessions, 0),
-        'avg_workout_duration_minutes', v_avg_workout_duration_minutes, -- Placeholder: To be implemented if needed
+        'avg_workout_duration_minutes', v_avg_workout_duration_minutes,
         'avg_run_distance_meters', ROUND(COALESCE(v_avg_run_distance_meters, 0)::numeric, 0),
         'avg_run_duration_seconds', ROUND(COALESCE(v_avg_run_duration_seconds, 0)::numeric, 0),
         'muscle_group_summary', v_muscle_summary_data,
