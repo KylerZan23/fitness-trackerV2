@@ -123,7 +123,7 @@ export function RunCard({
           </div>
           <div className="ml-3">
             <div className="font-medium">{user.name}</div>
-            <div className="text-sm text-white/60">
+            <div className="text-sm text-gray-500">
               {formatDate(start_date_local)} at {formatTimeOfDay(start_date_local)}
               {getLocation() && ` • ${getLocation()}`}
             </div>
@@ -139,15 +139,15 @@ export function RunCard({
       {/* Run Stats */}
       <div className="px-4 pb-3 grid grid-cols-3 gap-4">
         <div>
-          <div className="text-white/60 text-sm">Distance</div>
+          <div className="text-sm text-gray-500">Distance</div>
           <div className="text-xl font-medium">{formatDistanceMiles(distance)}</div>
         </div>
         <div>
-          <div className="text-white/60 text-sm">Pace</div>
+          <div className="text-sm text-gray-500">Pace</div>
           <div className="text-xl font-medium">{calculatePace(distance, moving_time)}</div>
         </div>
         <div>
-          <div className="text-white/60 text-sm">Time</div>
+          <div className="text-sm text-gray-500">Time</div>
           <div className="text-xl font-medium">{formatTime(moving_time)}</div>
         </div>
       </div>
@@ -173,7 +173,7 @@ export function RunCard({
               </div>
               <div>
                 <div className="font-medium">{effort.name}</div>
-                <div className="text-sm text-white/60">{formatTime(effort.elapsed_time)} {effort.pr_rank === 1 && '• PR'}</div>
+                <div className="text-sm text-gray-500">{formatTime(effort.elapsed_time)} {effort.pr_rank === 1 && '• PR'}</div>
               </div>
             </div>
           ))}
@@ -188,7 +188,7 @@ export function RunCard({
               </div>
               <div>
                 <div className="font-medium">{effort.name}</div>
-                <div className="text-sm text-white/60">{formatTime(effort.elapsed_time)}</div>
+                <div className="text-sm text-gray-500">{formatTime(effort.elapsed_time)}</div>
               </div>
               {effort.pr_rank === 1 && (
                 <div className="ml-auto bg-yellow-500 text-black px-2 py-1 rounded text-xs font-bold">
@@ -202,7 +202,7 @@ export function RunCard({
           {segment_efforts.length > 1 && (
             <button 
               onClick={toggleExpanded}
-              className="text-sm text-white/60 hover:text-white mt-2"
+              className="text-sm text-gray-500 hover:text-gray-700 mt-2"
             >
               {isExpanded ? 'Collapse' : `Show all segments (${segment_efforts.length})`}
             </button>
@@ -228,13 +228,13 @@ export function RunCard({
       <div className="p-4 border-t border-white/10 flex justify-between">
         <Link 
           href={`/run-logger?runId=${id}`}
-          className="text-sm text-white/60 hover:text-white"
+          className="text-sm text-gray-500 hover:text-gray-700"
         >
           View Details
         </Link>
         <button
           onClick={toggleExpanded}
-          className="text-sm text-white/60 hover:text-white"
+          className="text-sm text-gray-500 hover:text-gray-700"
         >
           {isExpanded ? 'Collapse' : 'Expand'}
         </button>

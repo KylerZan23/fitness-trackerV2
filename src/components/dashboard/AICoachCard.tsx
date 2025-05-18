@@ -14,7 +14,7 @@ interface AICoachRecommendation extends AICoachRecommendationType {}
 
 export function AICoachCard() {
   const [recommendations, setRecommendations] = useState<AICoachRecommendation | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Start loading true to fetch on mount
   const [error, setError] = useState<string | null>(null);
 
   const fetchRecommendations = useCallback(async () => {
@@ -50,6 +50,7 @@ export function AICoachCard() {
     if (!details) return null;
 
     return (
+      // Removed outer card styling from this block, keeping internal padding/styling for individual recs
       <div className="mb-4 p-3 bg-slate-50 rounded-md border border-slate-200">
         <h3 className="text-md font-semibold text-slate-700 mb-1">
           {icon} {title}
@@ -69,15 +70,10 @@ export function AICoachCard() {
     );
   };
 
+  // Main component return - remove outer div with card styling
   return (
-    <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">AI Personal Coach</h2>
-        <Button onClick={fetchRecommendations} disabled={isLoading} variant="outline" size="sm">
-          {/* If Icon component available: <Icon name="refresh-cw" className="mr-2 h-4 w-4" /> */}
-          {isLoading ? 'Refreshing...' : 'Get New Advice'}
-        </Button>
-      </div>
+    <>
+      {/* Removed title and original button placement */}
 
       {isLoading && (
         <div className="flex items-center justify-center py-8">
@@ -87,11 +83,12 @@ export function AICoachCard() {
       )}
 
       {error && !isLoading && (
+        // Ensure ErrorComponent itself doesn't have conflicting card styling
         <ErrorComponent message={error} />
       )}
 
       {!isLoading && !error && recommendations && (
-        <div>
+        <div className="space-y-3"> {/* Added space-y-3 for consistency if multiple blocks */}
           {renderRecommendationBlock(
             recommendations.workoutRecommendation.title,
             recommendations.workoutRecommendation.details,
@@ -120,8 +117,13 @@ export function AICoachCard() {
       )}
       
       {!isLoading && !error && !recommendations && (
-        <p className="text-sm text-gray-500">No recommendations available at the moment. Try refreshing.</p>
+        <p className="text-sm text-gray-500 py-4 text-center">No recommendations available at the moment. Try refreshing.</p>
       )}
-    </div>
+
+      {/* "Get New Advice" button moved here, styled as primary action within content area */}
+      <Button onClick={fetchRecommendations} disabled={isLoading} className="w-full mt-4">
+        {isLoading ? 'Refreshing...' : 'Get New Advice'}
+      </Button>
+    </>
   );
 } 

@@ -42,12 +42,13 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - Muscle heatmap visualization for tracking training balance
 - Run tracking with Strava integration and interactive maps
 - **Dashboard UI:** A modern, sidebar-based dashboard with a **light theme**, displaying:
-    *   Today's workout snapshot (stats cards).
+    *   Welcome banner (e.g., "Welcome back, {user}").
+    *   Today's Snapshot: Displays "Exercises", "Sets", "Total Duration (min)", and "Total Weight".
     *   Workout trends chart (last 7 days).
     *   Muscle group distribution chart.
     *   Goals tracking section (e.g., weekly distance, workout days).
-    *   Overall workout statistics.
     *   Recent activity section (e.g., runs).
+    *   AI Personal Coach section.
 
 ## Profile Management
 

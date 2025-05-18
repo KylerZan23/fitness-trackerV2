@@ -55,7 +55,9 @@ const emptyStats: WorkoutStats = {
   totalSets: 0,
   totalReps: 0,
   averageWeight: 0,
-  averageDuration: 0
+  averageDuration: 0,
+  totalWeight: 0,
+  totalDuration: 0
 }
 
 const emptyTrends: WorkoutTrend[] = []
@@ -69,11 +71,14 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<WorkoutStats>(emptyStats)
   const [todayStats, setTodayStats] = useState<WorkoutStats>(emptyStats)
   const [trends, setTrends] = useState<WorkoutTrend[]>(emptyTrends)
-  const [showWelcome, setShowWelcome] = useState(true)
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
   const [isMuscleChartCollapsed, setIsMuscleChartCollapsed] = useState(false)
   // Get user's timezone once on mount
   const [userTimezone, setUserTimezone] = useState('UTC'); // Default to UTC
+  const [isCoachPopupOpen, setIsCoachPopupOpen] = useState(false); // New state for AI Coach popup
+
+  // Toggle function for AI Coach popup
+  const toggleCoachPopup = () => setIsCoachPopupOpen(prev => !prev);
 
   useEffect(() => {
       // This effect runs only once on the client after hydration
@@ -287,54 +292,40 @@ export default function DashboardPage() {
     >
       {session && profile && (
         <>
-          {/* Welcome Message and Quick Links */}
-          {showWelcome && (
-            <div className="bg-gradient-to-r from-primary to-blue-600 text-white p-6 rounded-lg shadow-lg mb-6">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h1 className="text-2xl font-bold">Welcome back, {profile.name}!</h1>
-                  <p className="text-sm opacity-90">Ready to track your progress?</p>
-                </div>
-                <button 
-                  onClick={() => setShowWelcome(false)} 
-                  className="text-sm font-medium p-1 hover:bg-white/20 rounded-full"
-                  aria-label="Dismiss welcome message"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <Link href="/log-workout" className="bg-white/20 hover:bg-white/30 text-center py-3 px-2 rounded-md text-sm font-medium transition-colors">
-                  Log Workout
-                </Link>
-                <Link href="/log-run" className="bg-white/20 hover:bg-white/30 text-center py-3 px-2 rounded-md text-sm font-medium transition-colors">
-                  Log Run
-                </Link>
-                <Link href="/goals" className="bg-white/20 hover:bg-white/30 text-center py-3 px-2 rounded-md text-sm font-medium transition-colors col-span-2 sm:col-span-1">
-                  Set Goals
-                </Link>
-              </div>
-            </div>
-          )}
+          {/* Welcome Message - Modified gradient */}
+          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-500 text-white p-6 rounded-lg shadow-lg mb-6">
+            <h1 className="text-2xl font-bold">Welcome back, {profile.name}!</h1>
+            {/* Removed sub-text, dismiss button, and quick links */}
+          </div>
 
           {/* Error Display */}
           {error && <Error message={error} className="mb-6" />}
 
-          {/* Today's Stats Summary */}
+          {/* Today's Stats Summary - Modified Title and Card Titles */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-700 mb-3">Today so far ({new Date().toLocaleDateString(undefined, { weekday: 'long' })})</h2>
+            <h2 className="text-xl font-semibold text-gray-700 mb-3">Today's Snapshot</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatsCard title="Workouts Today" value={todayStats.totalWorkouts.toString()} />
-              <StatsCard title="Total Sets Today" value={todayStats.totalSets.toString()} />
-              <StatsCard title="Avg. Duration Today" value={`${Math.round(todayStats.averageDuration)} min`} />
-              <StatsCard title="Total Weight Today" value={`${Math.round(todayStats.totalWeight || 0)} ${weightUnit}`} />
+              <StatsCard title="Exercises" value={todayStats.totalWorkouts.toString()} />
+              <StatsCard title="Sets" value={todayStats.totalSets.toString()} />
+              <StatsCard title="Duration" value={`${Math.round(todayStats.totalDuration || 0)} min`} />
+              <StatsCard title="Total Weight" value={`${Math.round(todayStats.totalWeight || 0)} ${weightUnit}`} />
             </div>
           </div>
+
+          {/* Workout Trends Chart - MOVED HERE */}
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+            <h2 className="text-xl font-semibold text-gray-700 mb-3">Workout Trends (Last 8 Weeks)</h2>
+            {trends.length > 0 
+              ? <WorkoutChart data={trends} />
+              : <p className="text-sm text-gray-500">No workout data available for trends.</p>}
+          </div>
           
-          {/* AI Coach Section - New */}
+          {/* AI Coach Section - REMOVED STATIC PLACEMENT */}
+          {/* 
           <div className="lg:col-span-2 mb-6">
             <AICoachCard />
           </div>
+          */}
 
           {/* Section for Charts (Muscle Distribution & Goals) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -363,29 +354,35 @@ export default function DashboardPage() {
           {/* Recent Run Card */}
           <RecentRun userId={session!.user!.id} />
           
-          {/* Workout Trends Chart */}
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
-            <h2 className="text-xl font-semibold text-gray-700 mb-3">Workout Trends (Last 8 Weeks)</h2>
-            {trends.length > 0 
-              ? <WorkoutChart data={trends} />
-              : <p className="text-sm text-gray-500">No workout data available for trends.</p>}
-          </div>
+          {/* Floating AI Coach Toggle Button */}
+          <button
+            onClick={toggleCoachPopup}
+            className="fixed bottom-8 right-8 z-50 bg-primary text-primary-foreground p-3 rounded-full shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-transform hover:scale-110"
+            aria-label="Toggle AI Personal Coach"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 8v4"/><path d="M12 16v4"/><path d="M16 12h4M8 12H4M17 9l2-2M7 9l-2-2m12 8 2 2M7 17l-2 2m7-5a1 1 0 0 0-2 0v1a1 1 0 0 0 2 0Z"/><path d="M12 12a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg>
+          </button>
 
-          {/* Overall Stats Summary */}
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-700 mb-3">Overall Stats</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatsCard title="Total Workouts" value={stats.totalWorkouts.toString()} />
-              <StatsCard title="Total Sets" value={stats.totalSets.toString()} />
-              <StatsCard title="Avg. Duration" value={`${Math.round(stats.averageDuration)} min`} />
-              <StatsCard title="Avg. Weight Lifted" value={`${Math.round(stats.averageWeight)} ${weightUnit}`} />
+          {/* Popup Container for AI Coach Card */}
+          {isCoachPopupOpen && (
+            <div className="fixed bottom-24 right-8 z-40 bg-card p-1 rounded-lg shadow-xl border border-border w-full max-w-md animate-fadeInUp">
+              {/* Card Header with Title and Close Button */}
+              <div className="flex justify-between items-center p-3 border-b border-border">
+                <h3 className="font-semibold text-foreground">AI Personal Coach</h3>
+                <button
+                  onClick={() => setIsCoachPopupOpen(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Close AI Coach"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+              {/* AICoachCard Content Area */}
+              <div className="p-3 max-h-[70vh] overflow-y-auto">
+                   <AICoachCard />
+              </div>
             </div>
-          </div>
-
-          {/* Placeholder for future components */}
-          {/* <div className="p-4 bg-gray-100 rounded-lg shadow">
-            <p>More features coming soon!</p>
-          </div> */}
+          )}
         </>
       )}
     </DashboardLayout>

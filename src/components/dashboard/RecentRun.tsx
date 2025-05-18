@@ -64,7 +64,10 @@ export function RecentRun({ userId }: RecentRunProps) {
         const tokens = await getTokensFromDatabase(supabase, userId);
         
         if (!tokens) {
-          setError('No Strava tokens found');
+          // setError('No Strava tokens found. Please connect Strava in the Run Logger.'); // More specific error
+          // For now, let's make it a bit more generic for the dashboard view
+          setError('Connect Strava to see recent runs.');
+          setRecentRun(null); // Ensure no old run is shown
           return;
         }
         
@@ -74,6 +77,8 @@ export function RecentRun({ userId }: RecentRunProps) {
         
         if (runActivities.length > 0) {
           setRecentRun(runActivities[0]);
+        } else {
+          setRecentRun(null); // Explicitly set to null if no runs found
         }
       } catch (err) {
         console.error('Error fetching recent run:', err);
@@ -91,10 +96,10 @@ export function RecentRun({ userId }: RecentRunProps) {
   
   if (isLoading) {
     return (
-      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
         <div className="flex items-center justify-center py-6">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-          <span className="ml-3 text-white/70">Loading your recent run...</span>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-3 text-gray-500">Loading your recent run...</span>
         </div>
       </div>
     );
@@ -102,49 +107,43 @@ export function RecentRun({ userId }: RecentRunProps) {
   
   if (error) {
     return (
-      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-        <h3 className="text-xl font-serif mb-4">Your Recent Run</h3>
-        <p className="text-gray-400 text-center py-2">
-          Connect your Strava account to see your recent runs here.
-        </p>
-        <div className="mt-4 text-center">
-          <Link 
-            href="/run-logger"
-            className="inline-block px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-          >
-            Go to Run Logger
-          </Link>
-        </div>
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 text-center">
+        <h3 className="text-lg font-semibold text-gray-700 mb-2">Your Recent Run</h3>
+        <p className="text-sm text-gray-500 mb-3">{error}</p>
+        <Link 
+          href="/run-logger"
+          className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        >
+          Go to Run Logger
+        </Link>
       </div>
     );
   }
   
   if (!recentRun) {
     return (
-      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-        <h3 className="text-xl font-serif mb-4">Your Recent Run</h3>
-        <p className="text-gray-400 text-center py-2">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 text-center">
+        <h3 className="text-lg font-semibold text-gray-700 mb-2">Your Recent Run</h3>
+        <p className="text-sm text-gray-500 mb-3">
           No recent runs found. Track your first run to see it here!
         </p>
-        <div className="mt-4 text-center">
-          <Link 
-            href="/run-logger"
-            className="inline-block px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-          >
-            Log a Run
-          </Link>
-        </div>
+        <Link 
+          href="/log-run" // Changed from /run-logger to /log-run as it seems more direct for logging
+          className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        >
+          Log a Run
+        </Link>
       </div>
     );
   }
   
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-xl font-serif">Your Recent Run</h3>
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-lg font-semibold text-gray-700">Your Recent Run</h3>
         <Link 
           href="/run-logger"
-          className="text-sm text-white/60 hover:text-white"
+          className="text-sm text-primary hover:text-primary/80 font-medium"
         >
           View All Runs
         </Link>
