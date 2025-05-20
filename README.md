@@ -4,6 +4,7 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Dashboard "Log New Workout" Button**: Re-implemented a prominent "Log a New Workout" button on the dashboard page for easy access to workout logging.
 - **Workout Calendar Enhancement**: The yearly workout history calendar on the `/workouts` page now displays both Strava run activities and traditional lifting workouts, providing a unified view of all training.
 - **Workout Logging UI Overhaul**: Redesigned the workout logging page (`/workout/new`) to match the dashboard's light theme and layout for a consistent user experience.
 - **CoPacer-Inspired Landing Page**: Updated the landing page with a modern gradient background, simplified form inputs, and device mockup visuals
@@ -49,6 +50,7 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
     *   Goals tracking section (e.g., weekly distance, workout days).
     *   Recent activity section (e.g., runs).
     *   AI Personal Coach section.
+    *   Prominent "Log a New Workout" button for quick access to logging.
 
 ## Profile Management
 

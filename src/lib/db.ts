@@ -1,8 +1,9 @@
-import { supabase } from './supabase'
+import { supabase as browserSupabaseClient } from './supabase'
 import { WorkoutFormData, WorkoutGroupData, WorkoutExerciseData } from './schemas'
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, startOfDay, endOfDay, subWeeks } from 'date-fns'
 import { toZonedTime, fromZonedTime, format as formatTz } from 'date-fns-tz'
 import { MuscleGroup, findMuscleGroupForExercise } from './types'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 export interface Workout extends WorkoutFormData {
   id: string
@@ -60,7 +61,7 @@ export interface HistoricalWorkout {
 export async function logWorkout(workout: WorkoutFormData): Promise<Workout | null> {
   try {
     console.log('Logging workout, checking for active session...')
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await browserSupabaseClient.auth.getSession()
     
     if (!session?.user) {
       console.log('No active session found when logging workout')
@@ -117,7 +118,7 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
     console.log('Attempting to insert workout with data:', workoutData)
     
     try {
-      const { data, error } = await supabase
+      const { data, error } = await browserSupabaseClient
         .from('workouts')
         .insert(workoutData)
         .select()
@@ -185,7 +186,7 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
 export async function getWorkouts(limit = 10, muscleGroup?: MuscleGroup): Promise<Workout[]> {
   try {
     console.log('Getting workouts, checking for active session...')
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await browserSupabaseClient.auth.getSession()
     if (!session?.user) {
       console.log('No active session found when fetching workouts')
       return []
@@ -194,7 +195,7 @@ export async function getWorkouts(limit = 10, muscleGroup?: MuscleGroup): Promis
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
     
     // Build query
-    let query = supabase
+    let query = browserSupabaseClient
       .from('workouts')
       .select('*')
       .eq('user_id', session.user.id)
@@ -241,7 +242,7 @@ export async function getWorkouts(limit = 10, muscleGroup?: MuscleGroup): Promis
 export async function getWorkoutStats(muscleGroup?: MuscleGroup): Promise<WorkoutStats | null> {
   try {
     console.log('Getting workout stats, checking for active session...')
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await browserSupabaseClient.auth.getSession()
     
     if (!session?.user) {
       console.log('No active session found when fetching workout stats')
@@ -257,7 +258,7 @@ export async function getWorkoutStats(muscleGroup?: MuscleGroup): Promise<Workou
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
     
     // Build query
-    let query = supabase
+    let query = browserSupabaseClient
       .from('workouts')
       .select('sets, reps, weight, duration')
       .eq('user_id', session.user.id)
@@ -331,7 +332,7 @@ export async function getWorkoutTrends(
   userTimezone = 'UTC' // Default to UTC if not provided
 ): Promise<WorkoutTrend[]> {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await browserSupabaseClient.auth.getSession()
     if (!session?.user) {
       console.log('No active session found when fetching workout trends')
       return []
@@ -354,7 +355,7 @@ export async function getWorkoutTrends(
     console.log(`Querying workouts from ${startDateUTC} to ${endDateUTC} (UTC)`) 
 
     // 3. Fetch Raw Workout Data within the UTC date range
-    const { data: workouts, error } = await supabase
+    const { data: workouts, error } = await browserSupabaseClient
       .from('workouts')
       .select('created_at, duration, weight, exercise_name, notes, workout_group_id') // Select needed fields
       .eq('user_id', session.user.id)
@@ -380,7 +381,7 @@ export async function getWorkoutTrends(
     const groupIds = workouts.map(w => w.workout_group_id).filter((id): id is string => !!id);
     let groupNamesMap = new Map<string, string>();
     if (groupIds.length > 0) {
-        const { data: groups, error: groupError } = await supabase
+        const { data: groups, error: groupError } = await browserSupabaseClient
             .from('workout_groups')
             .select('id, name')
             .in('id', Array.from(new Set(groupIds)));
@@ -444,39 +445,63 @@ export async function getWorkoutTrends(
 }
 
 /**
- * Gets the user profile for the authenticated user
- * @returns User profile or null if there's an error
+ * Retrieves the profile for the authenticated user.
+ * Can use a passed Supabase client (server-side) or defaults to the browser client.
+ * @param client Optional SupabaseClient instance
+ * @returns The user profile or null if not found or error.
  */
-export async function getUserProfile() {
+export async function getUserProfile(client?: SupabaseClient) {
+  const supabaseInstance = client || browserSupabaseClient;
+
   try {
-    console.log('Getting user profile, checking for active session...')
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session?.user) {
-      console.log('No active session found when fetching user profile')
-      return null
+    console.log('Getting user profile, checking for active session via supabaseInstance...');
+    // Use supabaseInstance for auth check
+    const { data: { session }, error: sessionError } = await supabaseInstance.auth.getSession();
+
+    if (sessionError) {
+      console.error('Error getting session for profile:', sessionError.message);
+      return null;
     }
 
-    console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
-    
-    const { data, error } = await supabase
+    if (!session?.user) {
+      console.log('No active session found when fetching user profile.');
+      return null;
+    }
+
+    console.log(`Found active session for user ${session.user.id.substring(0, 6)}..., fetching profile...`);
+
+    // Use supabaseInstance for data fetching
+    const { data: profileData, error: profileError } = await supabaseInstance
       .from('profiles')
       .select('*')
       .eq('id', session.user.id)
-      .single()
+      .single();
 
-    if (error) {
-      // It's okay if profile doesn't exist yet (code PGRST116)
-      if (error.code !== 'PGRST116') {
-        console.error('Error fetching user profile:', error)
+    if (profileError) {
+      console.error('Error fetching profile:', profileError.message);
+      // Differentiate common errors if helpful for debugging
+      if (profileError.code === 'PGRST116') { // " esattamente uma linha esperada, mas 0 linhas foram encontradas"
+        console.warn('Profile not found for user:', session.user.id);
+        return null; // Profile doesn't exist, which is a valid state
       }
-      return null
+      return null; // Other errors
     }
 
-    return data
+    if (!profileData) {
+      console.warn('Profile data is null for user:', session.user.id, '(Should have been caught by PGRST116 if not found)');
+      return null;
+    }
+
+    console.log('User profile fetched successfully:', profileData);
+    return profileData;
+
   } catch (error) {
-    console.error('Error fetching user profile:', error)
-    return null
+    console.error('Unexpected error in getUserProfile:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    // Depending on desired behavior, might rethrow or return null/specific error shape
+    // For now, logging and returning null to match existing patterns if errors occur.
+    console.error(`getUserProfile failed: ${message}`);
+    return null;
   }
 }
 
@@ -488,7 +513,7 @@ export async function getUserProfile() {
 export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<WorkoutGroup | null> {
   try {
     console.log('Logging workout group, checking for active session...')
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await browserSupabaseClient.auth.getSession()
     
     if (!session?.user) {
       console.log('No active session found when logging workout group')
@@ -526,7 +551,7 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
     
     // Start a transaction by creating the workout group first
     try {
-      const { data: groupData, error: groupError } = await supabase
+      const { data: groupData, error: groupError } = await browserSupabaseClient
         .from('workout_groups')
         .insert(workoutGroupData)
         .select()
@@ -554,7 +579,7 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
       
       console.log('Creating workout exercises:', exercisesData);
       
-      const { data: exercisesResult, error: exercisesError } = await supabase
+      const { data: exercisesResult, error: exercisesError } = await browserSupabaseClient
         .from('workouts')
         .insert(exercisesData)
         .select()
@@ -562,7 +587,7 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
       if (exercisesError) {
         console.error('Error creating workout exercises:', exercisesError)
         // Attempt to delete the workout group since the exercises failed
-        await supabase.from('workout_groups').delete().eq('id', groupData.id)
+        await browserSupabaseClient.from('workout_groups').delete().eq('id', groupData.id)
         return null
       }
       
@@ -600,7 +625,7 @@ export async function getTodayWorkoutStats(
 ): Promise<WorkoutStats | null> {
   try {
     console.log(`Getting today's workout stats (tz: ${userTimezone})...`)
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session } } = await browserSupabaseClient.auth.getSession()
 
     if (!session?.user) {
       console.log('No active session found')
@@ -625,7 +650,7 @@ export async function getTodayWorkoutStats(
     // --- End Timezone Calculation ---
 
     // Build query
-    let query = supabase
+    let query = browserSupabaseClient
       .from('workouts')
       .select('sets, reps, weight, duration')
       .eq('user_id', session.user.id)
@@ -704,7 +729,7 @@ export async function getTodayWorkoutStats(
 export async function getAllWorkouts(): Promise<HistoricalWorkout[]> {
   try {
     console.log('Getting all workouts, checking for active session...');
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await browserSupabaseClient.auth.getSession();
 
     if (!session?.user) {
       console.log('No active session found when fetching all workouts');
@@ -714,7 +739,7 @@ export async function getAllWorkouts(): Promise<HistoricalWorkout[]> {
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}... Fetching all workouts.`);
 
     // Select only necessary fields and order by date
-    const { data, error } = await supabase
+    const { data, error } = await browserSupabaseClient
       .from('workouts')
       .select('id, created_at, duration, exercise_name')
       .eq('user_id', session.user.id)
@@ -760,7 +785,7 @@ export async function getWorkoutsForMonth(year: number, monthIndex: number): Pro
 
   try {
     console.log(`Getting combined workouts for ${year}-${monthIndex + 1}, checking session...`);
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await browserSupabaseClient.auth.getSession();
 
     if (!session?.user) {
       console.log('No active session found when fetching monthly workouts');
@@ -775,7 +800,7 @@ export async function getWorkoutsForMonth(year: number, monthIndex: number): Pro
     console.log(`Querying monthly lifting workouts between UTC: ${startDateUTC.toISOString()} and ${endDateUTC.toISOString()}`);
 
     // 1. Fetch Lifting Workouts
-    const { data: liftingData, error: liftingError } = await supabase
+    const { data: liftingData, error: liftingError } = await browserSupabaseClient
       .from('workouts')
       .select('id, created_at, duration, exercise_name')
       .eq('user_id', userId)
@@ -799,7 +824,7 @@ export async function getWorkoutsForMonth(year: number, monthIndex: number): Pro
 
     // 2. Fetch Strava Runs
     console.log(`Querying monthly Strava runs between UTC: ${startDateUTC.toISOString()} and ${endDateUTC.toISOString()}`);
-    const { data: runData, error: runError } = await supabase
+    const { data: runData, error: runError } = await browserSupabaseClient
       .from('user_strava_activities')
       .select('id, strava_activity_id, name, start_date, moving_time, distance') // Added distance
       .eq('user_id', userId)
@@ -850,7 +875,7 @@ export async function getLocalStravaRunsForYear(userId: string, year: number): P
   console.log(`Fetching local Strava runs for user ${userId.substring(0,6)}... for year ${year}`);
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await browserSupabaseClient
       .from('user_strava_activities')
       .select('id, strava_activity_id, name, start_date, moving_time') // Select necessary fields
       .eq('user_id', userId)

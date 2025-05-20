@@ -1,11 +1,13 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { type ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
+import { cookies as nextCookies } from 'next/headers'
 
 /**
- * Create a Supabase client for use in server components
+ * Create a Supabase client for use in server components and server actions.
+ * Optionally accepts a pre-fetched cookie store.
  */
-export function createClient() {
-  const cookieStore = cookies()
+export async function createClient(cookieStore?: ReadonlyRequestCookies) {
+  const store = cookieStore || await nextCookies()
   
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,29 +15,18 @@ export function createClient() {
     {
       cookies: {
         getAll() {
-          const nextCookies = cookieStore.getAll()
-          return nextCookies.map(({ name, value }) => ({
+          return store.getAll().map(({ name, value }: { name: string; value: string }) => ({
             name,
             value,
           }))
         },
-        setAll(cookies) {
+        setAll(cookiesToSet) {
           try {
-            cookies.forEach(({ name, value, options }) => {
-              cookieStore.set({
-                name,
-                value,
-                ...options,
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                path: '/',
-                maxAge: 60 * 60 * 24 * 7, // 1 week
-              })
-            })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              store.set(name, value, options as CookieOptions)
+            )
           } catch (error) {
-            // This is normal in server components as they can't set cookies
-            // The middleware handles setting cookies for authentication
+            console.warn('Supabase server client: Failed to set cookies in setAll. Error:', error)
           }
         },
       },

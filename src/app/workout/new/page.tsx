@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea' // Correctly import the new component
+import { ExerciseCombobox } from '@/components/workout/ExerciseCombobox' // Added ExerciseCombobox import
 
 // TODO: Create Textarea component in src/components/ui/textarea.tsx if it doesn't exist
 // Example:
@@ -140,6 +141,9 @@ export default function NewWorkoutPage() {
   // Combined handleChange for both modes and Input/Textarea
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
+    // Remove exerciseName from direct handling by handleChange, as Combobox has its own onValueChange
+    if (name === 'exerciseName') return;
+
     const parsedValue = (type === 'number' || name === 'sets' || name === 'reps' || name === 'weight' || name === 'duration' || name === 'group.duration')
       ? parseInt(value) || 0
       : value;
@@ -431,16 +435,11 @@ export default function NewWorkoutPage() {
               {!groupMode && (
                  <div>
                    <Label htmlFor="exerciseName">Exercise Name</Label>
-                   <Input
-                     id="exerciseName"
-                     name="exerciseName"
-                     type="text"
+                   <ExerciseCombobox
                      value={formData.exerciseName}
-                     onChange={handleChange}
-                     placeholder="e.g., Bench Press"
-                     required={!groupMode}
+                     onValueChange={(value) => setFormData(prev => ({ ...prev, exerciseName: value }))}
                      disabled={isSubmitting}
-                     className="mt-1"
+                     placeholder="Select or type exercise..."
                    />
                  </div>
               )}
@@ -556,15 +555,11 @@ export default function NewWorkoutPage() {
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 items-end">
                  <div className="lg:col-span-2">
                    <Label htmlFor="exerciseName">Exercise Name</Label>
-                   <Input
-                     id="exerciseName"
-                     name="exerciseName" // Matches state key
-                     type="text"
+                   <ExerciseCombobox
                      value={currentExercise.exerciseName}
-                     onChange={handleChange}
-                     placeholder="e.g., Bench Press, Squat"
+                     onValueChange={(value) => setCurrentExercise(prev => ({ ...prev, exerciseName: value }))}
                      disabled={isSubmitting}
-                     className="mt-1"
+                     placeholder="Select or type exercise..."
                    />
                  </div>
                  <div>

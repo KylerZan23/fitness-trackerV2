@@ -1,64 +1,70 @@
 // src/lib/goalsDb.ts - Dedicated file for goal-related DB functions
 
-import { supabase } from '@/lib/supabase'
+import { supabase as browserSupabaseClient } from '@/lib/supabase'
 import type { GoalWithProgress } from '@/lib/types'
 import { startOfWeek, endOfWeek, formatISO } from 'date-fns'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * Fetches active goals for the current user for the current week,
  * including calculated progress.
+ * Can use a passed Supabase client (server-side) or defaults to the browser client.
+ * @param client Optional SupabaseClient instance
  */
-export async function fetchCurrentWeekGoalsWithProgress(): Promise<GoalWithProgress[]> {
-  console.log('Fetching current week goals from goalsDb.ts...');
+export async function fetchCurrentWeekGoalsWithProgress(client?: SupabaseClient): Promise<GoalWithProgress[]> {
+  const supabaseInstance = client || browserSupabaseClient
+  console.log('Fetching current week goals from goalsDb.ts using supabaseInstance...')
 
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  const { data: { session }, error: sessionError } = await supabaseInstance.auth.getSession()
 
   if (sessionError) {
-    console.error('Error getting session:', sessionError);
-    throw new Error(`Authentication error: ${sessionError.message}`);
+    console.error('Error getting session:', sessionError)
+    throw new Error(`Authentication error: ${sessionError.message}`)
   }
 
   if (!session?.user?.id) {
-    console.log('No active session found, cannot fetch goals.');
-    throw new Error('User not authenticated');
+    console.log('No active session found, cannot fetch goals.')
+    throw new Error('User not authenticated')
   }
 
-  const userId = session.user.id;
-  const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const userId = session.user.id
+  const now = new Date()
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 })
 
-  console.log(`Fetching goals for user ${userId} between ${formatISO(weekStart)} and ${formatISO(weekEnd)}`);
+  console.log(`Fetching goals for user ${userId} between ${formatISO(weekStart)} and ${formatISO(weekEnd)}`)
 
   try {
-    const { data, error } = await supabase.rpc(
+    const { data, error } = await supabaseInstance.rpc(
       'get_goals_with_progress',
       {
         user_id_param: userId,
         start_date_param: formatISO(weekStart),
         end_date_param: formatISO(weekEnd)
       }
-    );
+    )
 
     if (error) {
-      console.error('Error calling get_goals_with_progress RPC:', error);
-      throw new Error(`Database error fetching goals: ${error.message}`);
+      console.error('Error calling get_goals_with_progress RPC:', error)
+      throw new Error(`Database error fetching goals: ${error.message}`)
     }
 
-    console.log('Successfully fetched goals:', data);
-    return (data as GoalWithProgress[] | null) ?? [];
+    console.log('Successfully fetched goals:', data)
+    return (data as GoalWithProgress[] | null) ?? []
 
   } catch (error) {
-    console.error('Unexpected error in fetchCurrentWeekGoalsWithProgress:', error);
+    console.error('Unexpected error in fetchCurrentWeekGoalsWithProgress:', error)
     if (error instanceof Error) {
-        throw error;
+        throw error
     }
-    throw new Error('An unexpected error occurred while fetching goals.');
+    throw new Error('An unexpected error occurred while fetching goals.')
   }
 }
 
 /**
  * Creates a new goal in the database.
+ * Note: This function will now use browserSupabaseClient by default due to the import alias.
+ * If it needs to be called from a server context with a server client, it would also need refactoring.
  */
 export async function createGoal(goalData: {
   metric_type: string;
@@ -68,7 +74,8 @@ export async function createGoal(goalData: {
 }) {
   console.log("Creating goal with data:", goalData);
 
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  // Uses browserSupabaseClient due to import alias unless refactored to accept a client
+  const { data: { session }, error: sessionError } = await browserSupabaseClient.auth.getSession();
   if (sessionError || !session?.user) {
     throw new Error(sessionError?.message ?? "User not authenticated");
   }
@@ -95,7 +102,7 @@ export async function createGoal(goalData: {
   console.log("Inserting new goal into DB:", newGoal);
 
   // Perform the actual Supabase insert operation
-  const { data, error } = await supabase
+  const { data, error } = await browserSupabaseClient
     .from('goals') // Target the 'goals' table
     .insert([newGoal]) // Insert the prepared object
     .select() // Select to return the created row(s)

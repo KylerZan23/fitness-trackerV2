@@ -45,17 +45,24 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          // supabaseResponse = NextResponse.next({ // This line from example might be redundant if supabaseResponse is already mutable or if we reconstruct later
-          //   request,
-          // })
-          // Re-assign to ensure the response object used by Supabase has the new cookies set
-          // Create a new response object if cookies are being set, to ensure it reflects the changes for Supabase
-          const responseWithCookies = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            responseWithCookies.cookies.set(name, value, options)
-          )
-          supabaseResponse = responseWithCookies; // Ensure this response is what Supabase uses and what we return/modify
+          // Step 1: Update request.cookies (as per guideline)
+          // The guideline does: cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          // However, request.cookies.set might not accept options or behave as expected for mutation for Supabase internal client.
+          // The key is that supabaseResponse, which is returned, must have the cookies.
+          // The guideline's approach is to update request.cookies AND THEN update supabaseResponse.
+
+          // Let's follow the guideline structure strictly:
+          cookiesToSet.forEach(({ name, value }) => { // Options not used in this first part per guideline example
+            request.cookies.set(name, value);
+          });
+
+          // Step 2: Re-initialize supabaseResponse and set cookies on it (as per guideline)
+          supabaseResponse = NextResponse.next({ // This creates a new response object
+            request,
+          });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            supabaseResponse.cookies.set(name, value, options); // Set with options on the new supabaseResponse
+          });
         },
       },
     }

@@ -13,6 +13,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/Icon'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserProfile {
   id: string
@@ -23,6 +24,8 @@ interface UserProfile {
   weight_unit?: 'kg' | 'lbs'
   profile_picture_url?: string
   role?: string
+  primary_training_focus?: string | null;
+  experience_level?: string | null;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -39,9 +42,31 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [sessionChecked, setSessionChecked] = useState(false)
-  const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
   const [isUpdating, setIsUpdating] = useState(false)
   const [showMigrationNotice, setShowMigrationNotice] = useState(false)
+  const [name, setName] = useState('')
+  const [age, setAge] = useState('')
+  const [fitnessGoals, setFitnessGoals] = useState('')
+  const [primaryTrainingFocus, setPrimaryTrainingFocus] = useState<string | null>(null);
+  const [experienceLevel, setExperienceLevel] = useState<string | null>(null);
+
+  // Constants for select options
+  const PRIMARY_TRAINING_FOCUS_OPTIONS = [
+    { value: "General Fitness", label: "General Fitness" },
+    { value: "Bodybuilding", label: "Bodybuilding" },
+    { value: "Powerlifting", label: "Powerlifting" },
+    { value: "Weight Loss", label: "Weight Loss" },
+    { value: "Endurance", label: "Endurance" },
+    { value: "Athletic Performance", label: "Athletic Performance" },
+    { value: "Beginner Strength", label: "Beginner Strength" },
+    { value: "Other", label: "Other" },
+  ];
+
+  const EXPERIENCE_LEVEL_OPTIONS = [
+    { value: "Beginner (<6 months)", label: "Beginner (<6 months)" },
+    { value: "Intermediate (6mo-2yr)", label: "Intermediate (6mo-2yr)" },
+    { value: "Advanced (2+ years)", label: "Advanced (2+ years)" },
+  ];
 
   useEffect(() => {
     async function checkSessionAndRedirect() {
@@ -92,7 +117,9 @@ export default function ProfilePage() {
           name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
           email: user.email || '',
           age: 0,
-          fitness_goals: 'Set your fitness goals'
+          fitness_goals: 'Set your fitness goals',
+          primary_training_focus: null,
+          experience_level: null,
         }
 
         try {
@@ -118,6 +145,8 @@ export default function ProfilePage() {
                     email: fallbackProfile.email,
                     age: fallbackProfile.age,
                     fitness_goals: fallbackProfile.fitness_goals,
+                    primary_training_focus: fallbackProfile.primary_training_focus,
+                    experience_level: fallbackProfile.experience_level,
                   })
                 
                 if (insertError) {
@@ -180,20 +209,29 @@ export default function ProfilePage() {
   }, [sessionChecked])
 
   useEffect(() => {
-    if (profile?.weight_unit) {
-      setWeightUnit(profile.weight_unit);
+    if (profile) {
+      // Optimization: Only call setters if the value has actually changed.
+      if (name !== (profile.name || '')) setName(profile.name || '');
+      if (age !== (profile.age?.toString() || '') ) setAge(profile.age?.toString() || '');
+      if (fitnessGoals !== (profile.fitness_goals || '') ) setFitnessGoals(profile.fitness_goals || '');
+      if (primaryTrainingFocus !== (profile.primary_training_focus ?? null)) {
+        setPrimaryTrainingFocus(profile.primary_training_focus ?? null);
+      }
+      if (experienceLevel !== (profile.experience_level ?? null)) {
+        setExperienceLevel(profile.experience_level ?? null);
+      }
     }
-  }, [profile]);
+  }, [profile])
 
   const toggleWeightUnit = async () => {
     if (!profile) return;
     
-    const newWeightUnit = weightUnit === 'kg' ? 'lbs' : 'kg';
+    const newWeightUnit = profile.weight_unit === 'kg' ? 'lbs' : 'kg';
     setIsUpdating(true);
     
     try {
       // Update the local state immediately for better UX
-      setWeightUnit(newWeightUnit);
+      setProfile(prevProfile => prevProfile ? { ...prevProfile, weight_unit: newWeightUnit } : null);
       
       // Try to update the database if the column exists
       const { error: updateError } = await supabase
@@ -253,6 +291,41 @@ export default function ProfilePage() {
       });
     }
   };
+
+  const handleSave = async () => {
+    if (!profile) return
+    setIsUpdating(true)
+    setError(null)
+
+    const updates = {
+      name,
+      age: parseInt(age, 10) || 0,
+      fitness_goals: fitnessGoals,
+      weight_unit: profile.weight_unit, // Ensure weight_unit is from profile state (already refactored)
+      primary_training_focus: primaryTrainingFocus, 
+      experience_level: experienceLevel,
+    }
+
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', profile.id)
+
+      if (updateError) {
+        console.error('Error updating profile:', updateError)
+        setError(getErrorMessage(updateError))
+      } else {
+        setProfile(prevProfile => prevProfile ? { ...prevProfile, ...updates } : null)
+        setError(null)
+      }
+    } catch (err) {
+      console.error('Error saving profile:', err)
+      setError(getErrorMessage(err))
+    } finally {
+      setIsUpdating(false)
+    }
+  }
 
   // Prepare props for the Sidebar
   const sidebarProps = {
@@ -350,7 +423,7 @@ export default function ProfilePage() {
               <ul className="space-y-2">
                 {workouts.map((workout) => (
                   <li key={workout.id} className="text-sm text-gray-600 border-b border-gray-100 pb-1">
-                    {workout.created_at ? new Date(workout.created_at).toLocaleDateString() : 'Date unknown'} - {workout.exerciseName} ({workout.sets}x{workout.reps} @ {workout.weight}{weightUnit})
+                    {workout.created_at ? new Date(workout.created_at).toLocaleDateString() : 'Date unknown'} - {workout.exerciseName} ({workout.sets}x{workout.reps} @ {workout.weight}{profile.weight_unit})
                   </li>
                 ))}
               </ul>
@@ -376,9 +449,105 @@ export default function ProfilePage() {
                       onClick={toggleWeightUnit}
                       disabled={isUpdating}
                   >
-                      {isUpdating ? 'Updating...' : `Use ${weightUnit === 'kg' ? 'lbs' : 'kg'}`}
+                      {isUpdating ? 'Updating...' : `Use ${profile?.weight_unit === 'kg' ? 'lbs' : 'kg'}`}
                   </Button>
               </div>
+          </div>
+
+          {/* Edit Profile Details Card - NEW */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Edit Profile Details</h2>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="editName" className="text-sm font-medium text-gray-700">Name</Label>
+                <input
+                  id="editName"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <Label htmlFor="editAge" className="text-sm font-medium text-gray-700">Age</Label>
+                <input
+                  id="editAge"
+                  type="number"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <Label htmlFor="editFitnessGoals" className="text-sm font-medium text-gray-700">Fitness Goals</Label>
+                <textarea
+                  id="editFitnessGoals"
+                  value={fitnessGoals}
+                  onChange={(e) => setFitnessGoals(e.target.value)}
+                  rows={3}
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+              </div>
+              
+              {/* Primary Training Focus */}
+              <div>
+                <Label htmlFor="primary_training_focus" className="text-sm font-medium text-gray-700">Primary Training Focus</Label>
+                <Select
+                  value={primaryTrainingFocus ?? ""}
+                  onValueChange={(selectedValue) => {
+                    const newEffectiveValue = selectedValue === "" ? null : selectedValue;
+                    if (primaryTrainingFocus !== newEffectiveValue) {
+                      setPrimaryTrainingFocus(newEffectiveValue);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="primary_training_focus" className="mt-1 w-full">
+                    <SelectValue placeholder="Select your primary training focus" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIMARY_TRAINING_FOCUS_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Experience Level */}
+              <div>
+                <Label htmlFor="experience_level" className="text-sm font-medium text-gray-700">Experience Level</Label>
+                <Select
+                  value={experienceLevel ?? ""}
+                  onValueChange={(selectedValue) => {
+                    const newEffectiveValue = selectedValue === "" ? null : selectedValue;
+                    if (experienceLevel !== newEffectiveValue) {
+                      setExperienceLevel(newEffectiveValue);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="experience_level" className="mt-1 w-full">
+                    <SelectValue placeholder="Select your experience level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EXPERIENCE_LEVEL_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                onClick={handleSave}
+                disabled={isUpdating}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                {isUpdating ? 'Saving...' : 'Save Profile'}
+              </Button>
+              {error && <Error message={error} className="text-red-500 text-sm mt-2" />}
+            </div>
           </div>
 
           {/* Admin Section Card (Conditional) */}

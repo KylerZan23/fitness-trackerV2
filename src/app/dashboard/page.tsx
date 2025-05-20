@@ -21,6 +21,7 @@ import { RecentRun } from '@/components/dashboard/RecentRun'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { GoalsCard } from '@/components/dashboard/GoalsCard'
 import { AICoachCard } from '@/components/dashboard/AICoachCard'
+import { Button } from '@/components/ui/button'
 
 interface UserProfile {
   id: string
@@ -126,7 +127,12 @@ export default function DashboardPage() {
         .single()
 
       if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Profile fetch error:', profileError)
+        console.error('Detailed Profile fetch error:', JSON.stringify(profileError, null, 2));
+        console.error('profileError keys:', Object.keys(profileError));
+        console.error('profileError message:', profileError.message);
+        console.error('profileError code:', profileError.code);
+        console.error('profileError details:', profileError.details);
+        console.error('profileError hint:', profileError.hint);
       }
 
       if (profileData) {
@@ -383,6 +389,15 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+
+          {/* Add Log New Workout Button Section */}
+          <div className="mt-8 mb-24 flex justify-center"> {/* Added mb-24 for spacing from bottom if content is short */}
+            <Link href="/workout/new" passHref>
+              <Button size="lg" className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 ease-in-out transform hover:scale-105"> {/* Changed to purple */}
+                Log a New Workout
+              </Button>
+            </Link>
+          </div>
         </>
       )}
     </DashboardLayout>

@@ -1,9 +1,14 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { cookies } from 'next/headers';
+import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
 import { getUserProfile } from "@/lib/db";
 import { fetchCurrentWeekGoalsWithProgress } from "@/lib/goalsDb";
-import type { GoalWithProgress } from "@/lib/types"; // Assuming UserProfile is implicitly handled by getUserProfile return type
+import type { GoalWithProgress } from "@/lib/types";
+// Assuming OpenAI client might be needed, or similar for LLM interaction
+// import OpenAI from 'openai';
+
+const AI_COACH_CACHE_DURATION_MINUTES = 30;
 
 // Define the structure for the AI Coach's recommendation
 export interface AICoachRecommendation {
@@ -15,24 +20,22 @@ export interface AICoachRecommendation {
   runRecommendation: {
     title: string;
     details: string;
-  } | null; // Can be null if Strava not connected or no run recommendation/data
+  } | null;
   generalInsight: {
     title: string;
     details: string;
   };
-  focusAreaSuggestion?: { // Optional field
+  focusAreaSuggestion?: {
     title: string;
     details: string;
   } | null;
 }
 
-// Helper interface for exercises within muscle_group_summary.top_3_exercises_by_volume
 interface MuscleExerciseVolume {
   exercise_name: string;
   exercise_volume: number;
 }
 
-// Helper interface for individual muscle group details within muscle_group_summary
 interface MuscleGroupDetail {
   total_sets: number;
   last_trained_date: string | null;
@@ -41,14 +44,12 @@ interface MuscleGroupDetail {
   top_3_exercises_by_volume: MuscleExerciseVolume[];
 }
 
-// Helper interface for sessions within dynamic_exercise_progression.last_sessions
 interface ExerciseSession {
   date: string;
   performance: string;
   notes: string | null;
 }
 
-// Helper interface for elements within dynamic_exercise_progression array
 interface ExerciseProgressionDetail {
   exercise_name: string;
   frequency_rank: number;
@@ -56,7 +57,6 @@ interface ExerciseProgressionDetail {
   trend: string;
 }
 
-// Helper interface for elements within last_3_runs array
 interface RunDetail {
   run_date: string;
   name: string | null;
@@ -67,7 +67,6 @@ interface RunDetail {
   run_type: string;
 }
 
-// This helps with type safety when accessing its properties.
 interface UserActivitySummary {
   total_workout_sessions: number;
   total_run_sessions: number;
@@ -84,264 +83,348 @@ interface UserActivitySummary {
   workout_days_last_week: number;
 }
 
-// Define the structure for the user's profile (inferred)
 interface UserProfile {
   id: string;
   age: number | null;
   fitness_goals: string | null;
-  weight_unit: string | null; // e.g., 'kg', 'lbs'
+  weight_unit: string | null;
   strava_connected: boolean | null;
-  // ... other profile fields
+  primary_training_focus?: string | null;
+  experience_level?: string | null;
+  // other profile fields
 }
 
+// Placeholder for actual OpenAI or LLM client initialization if needed globally
+// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 export async function getAICoachRecommendation(): Promise<AICoachRecommendation | { error: string }> {
-  const supabase = createClient();
+  const cookieStore = await cookies();
+  // Debug log for cookies from next/headers
+  console.log('AI Coach Action: All cookies from next/headers:', JSON.stringify(cookieStore.getAll(), null, 2));
+
+  const supabase = await createSupabaseServerClient(cookieStore);
 
   const { data: { user }, error: authError } = await supabase.auth.getUser();
+  // Debug log for user and authError
+  console.log('AI Coach Action: User from supabase.auth.getUser():', user ? user.id : 'null', 'Auth Error:', authError ? authError.message : 'null'); 
 
-  if (authError || !user?.id) {
-    console.error("getAICoachRecommendation: User not authenticated", authError);
-    return { error: "User not authenticated" };
+  // Simplified and corrected authentication check
+  if (authError || !user?.id) { 
+    console.error("AI Coach Action: User not authenticated or error fetching user.", authError ? authError.message : 'User ID is missing.');
+    // Return a generic error or specific based on authError
+    if (authError) {
+        return { error: `Authentication error: ${authError.message}` };
+    }
+    return { error: "User not authenticated." }; // Covers !user?.id case
   }
 
+  // If we reach here, user and user.id are valid
   const userId = user.id;
+
   let profile: UserProfile | null = null;
   let goals: GoalWithProgress[] = [];
   let summary: UserActivitySummary | null = null;
 
   try {
-    // 1. Fetch User Profile
-    profile = await getUserProfile() as UserProfile | null;
-    // Graceful handling: if profile is null, proceed, prompt will use defaults
+    profile = await getUserProfile(supabase) as UserProfile | null;
 
-    // 2. Fetch Active Goals
     try {
-      goals = await fetchCurrentWeekGoalsWithProgress();
+      goals = await fetchCurrentWeekGoalsWithProgress(supabase);
     } catch (goalFetchError) {
       console.warn(`getAICoachRecommendation: Error fetching goals for user ${userId}`, goalFetchError);
-      // Proceed without goals, prompt will show "No active goals"
     }
 
-    // 3. Fetch User Activity Summary
     const { data: summaryData, error: summaryError } = await supabase.rpc(
       'get_user_activity_summary',
-      {
-        user_id_param: userId,
-        period_days_param: 30,
-      }
+      { user_id_param: userId, period_days_param: 30 }
     );
 
     if (summaryError) {
       console.error(`getAICoachRecommendation: Error fetching activity summary for user ${userId}`, summaryError);
       return { error: `Failed to fetch activity summary: ${summaryError.message}` };
     }
-    summary = summaryData as UserActivitySummary; // Assuming the RPC returns a single row matching the type
+    summary = summaryData as UserActivitySummary;
 
     if (!summary) {
-        console.error(`getAICoachRecommendation: No activity summary returned for user ${userId}`);
-        return { error: "Failed to retrieve user activity summary." };
+      console.error(`getAICoachRecommendation: No activity summary returned for user ${userId}`);
+      return { error: "Failed to retrieve user activity summary." };
     }
-
   } catch (e) {
-    // Catch any other unexpected errors during data fetching phase
     console.error(`getAICoachRecommendation: Unexpected error during data fetching for user ${userId}`, e);
     const message = e instanceof Error ? e.message : "An unexpected error occurred during data retrieval.";
     return { error: message };
   }
     
-  // 4. Construct Prompt
+  const goalsString = goals.length > 0 
+    ? goals.map(g => `- ${g.label || g.metric_type}: Target ${g.target_value} ${g.target_unit || ''}, Current ${(g.current_value ?? 0).toFixed(1)}`).join('\\n') 
+    : 'No active goals set for this week.';
+
+  let dataSignatureObject = {
+    profileFitnessGoals: profile?.fitness_goals || null,
+    stravaConnected: profile?.strava_connected || false,
+    totalWorkouts: summary?.total_workout_sessions || 0,
+    totalRuns: summary?.total_run_sessions || 0,
+    workoutsThisWeek: summary?.workout_days_this_week || 0,
+    topExerciseTrend: summary?.dynamic_exercise_progression?.[0]?.trend || null,
+    activeGoals: goalsString || "",
+    profileTrainingFocus: profile?.primary_training_focus || null,
+    profileExperienceLevel: profile?.experience_level || null,
+  };
+
+  // Refactored to fix linter error - using Record<string, any> for intermediate object
+  const sortedKeys = Object.keys(dataSignatureObject).sort(); // Keys are strings
+  const sortedObjectForStringify: Record<string, any> = {};
+  for (const key of sortedKeys) {
+    // Accessing dataSignatureObject with a string key might require a cast if it were strictly typed
+    // but here dataSignatureObject can be treated as Record<string,any> for this purpose too.
+    sortedObjectForStringify[key] = (dataSignatureObject as Record<string, any>)[key];
+  }
+  const stableSignatureString = JSON.stringify(sortedObjectForStringify);
+
+  const hashedDataInput = Buffer.from(stableSignatureString).toString('base64');
+  const cacheKey = `aiCoach:u${userId}:d${hashedDataInput}`;
+
+  console.log(`AI Coach: Checking cache for key: ${cacheKey}`);
+  const { data: cachedEntry, error: cacheSelectError } = await supabase
+    .from('ai_coach_cache')
+    .select('recommendation, expires_at')
+    .eq('cache_key', cacheKey)
+    .single();
+
+  if (cacheSelectError && cacheSelectError.code !== 'PGRST116') {
+    console.warn('AI Coach: Error fetching from cache:', cacheSelectError.message);
+  }
+
+  if (cachedEntry && new Date(cachedEntry.expires_at) > new Date()) {
+    console.log('AI Coach: Returning valid recommendation from cache.');
+    return JSON.parse(JSON.stringify(cachedEntry.recommendation)) as AICoachRecommendation;
+  } else if (cachedEntry) {
+    console.log('AI Coach: Cache entry found but expired.');
+  } else {
+    console.log('AI Coach: No cache entry found.');
+  }
+
+  // If cache miss or expired, proceed to generate new recommendation
   const metersToMiles = (meters: number | null | undefined) => {
     if (meters === null || meters === undefined || meters === 0) return 0;
     return parseFloat((meters / 1609.34).toFixed(2));
   };
 
-  const goalsString = goals && goals.length > 0 
-    ? goals.map(g => `- ${g.label || g.metric_type}: Target ${g.target_value} ${g.target_unit || ''}, Current ${(g.current_value ?? 0).toFixed(1)}`).join('\n') 
-    : 'No active goals set for this week.';
-
   const preferredWeightUnit = profile?.weight_unit || 'kg';
-  const periodDays = 30; // As used in the RPC call
+  const periodDays = 30;
 
-  const formatMuscleGroupSummary = (summary: UserActivitySummary | null, weightUnit: string): string => {
-    if (!summary?.muscle_group_summary || Object.keys(summary.muscle_group_summary).length === 0) {
+  const formatMuscleGroupSummary = (summaryInput: UserActivitySummary | null, weightUnit: string): string => {
+    if (!summaryInput?.muscle_group_summary || Object.keys(summaryInput.muscle_group_summary).length === 0) {
       return "No muscle group data available for this period.";
     }
     let output = "";
-    for (const groupName in summary.muscle_group_summary) {
-      const group = summary.muscle_group_summary[groupName];
+    for (const groupName in summaryInput.muscle_group_summary) {
+      const group = summaryInput.muscle_group_summary[groupName];
       if (group) {
-        const topExercisesString = group.top_3_exercises_by_volume && group.top_3_exercises_by_volume.length > 0
+        const topExercisesString = group.top_3_exercises_by_volume?.length > 0
           ? group.top_3_exercises_by_volume.map(e => `${e.exercise_name} (${e.exercise_volume}${weightUnit})`).join(', ')
           : 'N/A';
-        output += `- ${groupName}: Sets: ${group.total_sets || 0}, Last Trained: ${group.last_trained_date || 'N/A'}, Volume: ${group.total_volume || 0}${weightUnit}, Distinct Ex: ${group.distinct_exercises_count || 0}. Top Volume Ex: ${topExercisesString}\n`;
+        output += `- ${groupName}: Sets: ${group.total_sets || 0}, Last Trained: ${group.last_trained_date || 'N/A'}, Volume: ${group.total_volume || 0}${weightUnit}, Distinct Ex: ${group.distinct_exercises_count || 0}. Top Volume Ex: ${topExercisesString}\\n`;
       }
     }
     return output.trim() || "No muscle group data available for this period.";
   };
 
-  const formatDynamicExerciseProgression = (summary: UserActivitySummary | null): string => {
-    if (!summary?.dynamic_exercise_progression || summary.dynamic_exercise_progression.length === 0) {
+  const formatDynamicExerciseProgression = (summaryInput: UserActivitySummary | null): string => {
+    if (!summaryInput?.dynamic_exercise_progression || summaryInput.dynamic_exercise_progression.length === 0) {
       return "No specific exercise progression data tracked for top lifts in this period.";
     }
-    return summary.dynamic_exercise_progression.map(ex => {
-      const sessionsString = ex.last_sessions && ex.last_sessions.length > 0
-        ? ex.last_sessions.map(s => `  - ${s.date}: ${s.performance} (Notes: ${s.notes || 'None'})`).join('\n')
+    return summaryInput.dynamic_exercise_progression.map(ex => {
+      const sessionsString = ex.last_sessions?.length > 0
+        ? ex.last_sessions.map(s => `  - ${s.date}: ${s.performance} (Notes: ${s.notes || 'None'})`).join('\\n')
         : '  N/A';
-      return `- ${ex.exercise_name} (Rank: ${ex.frequency_rank}): Trend: ${ex.trend || 'N/A'}\nLast Sessions:\n${sessionsString}`;
-    }).join('\n\n');
+      return `- ${ex.exercise_name} (Rank: ${ex.frequency_rank}): Trend: ${ex.trend || 'N/A'}\\nLast Sessions:\\n${sessionsString}`;
+    }).join('\\n\\n');
   };
 
-  const formatLast3Runs = (summary: UserActivitySummary | null): string => {
-    if (!summary?.last_3_runs || summary.last_3_runs.length === 0) {
+  const formatLast3Runs = (summaryInput: UserActivitySummary | null): string => {
+    if (!summaryInput?.last_3_runs || summaryInput.last_3_runs.length === 0) {
       return "No recent run data available for this period.";
     }
-    return summary.last_3_runs.map(r => 
-      `- ${r.run_date} - Name: "${r.name || 'Unnamed Run'}" - ${r.distance_km?.toFixed(1)}km in ${r.duration_min}min (Pace: ${r.avg_pace_min_km || 'N/A'}, Elev: ${r.elevation_gain_m || 0}m, Type: ${r.run_type || 'Run'})`
-    ).join('\n');
+    return summaryInput.last_3_runs.map(r => 
+      `- ${r.run_date} - Name: \"${r.name || 'Unnamed Run'}\" - ${r.distance_km?.toFixed(1)}km in ${r.duration_min}min (Pace: ${r.avg_pace_min_km || 'N/A'}, Elev: ${r.elevation_gain_m || 0}m, Type: ${r.run_type || 'Run'})`
+    ).join('\\n');
   };
 
   const formattedMuscleSummary = formatMuscleGroupSummary(summary, preferredWeightUnit);
   const formattedExerciseProgression = formatDynamicExerciseProgression(summary);
   const formattedRuns = formatLast3Runs(summary);
+  const formattedGoals = goalsString;
 
   const promptText = `
-You are an expert AI Personal Fitness Coach for FitnessTracker. Your primary goal is to provide actionable, personalized, and encouraging advice. Your tone should be supportive and motivational.
+You are an expert AI Fitness Coach for FitnessTracker V2. Your goal is to provide a personalized, actionable, and encouraging daily/bi-daily recommendation. Users will see this in a dedicated "AI Coach" card in their dashboard.
 
-User Profile:
-- Age: ${profile?.age || 'N/A'}
-- Stated Fitness Goals: "${profile?.fitness_goals || 'Not specified'}"
+**Key Instructions for LLM:**
+1.  **Be Concise & Actionable**: Provide clear, direct advice. Focus on 1-2 key recommendations.
+2.  **Positive & Encouraging Tone**: Motivate the user.
+3.  **Personalize Deeply**: Use all available user data to tailor advice. Reference specific numbers, trends, and goals.
+4.  **Holistic View**: Consider workouts, runs (if Strava connected), goals, and overall activity patterns.
+5.  **Variety**: Suggest varied workouts or focus areas over time if data suggests stagnation or imbalance.
+6.  **Safety First**: If suggesting new exercises, subtly remind about good form or starting with lighter weights.
+7.  **Data-Driven Insights**: Connect your suggestions directly to the data provided (e.g., "I see your squat volume is trending up, let's build on that...").
+8.  **Crucially, tailor all recommendations considering the user's Primary Training Focus and Experience Level.**
+
+**User Profile:**
+- Age: ${profile?.age || 'Not specified'}
+- Fitness Goals: ${profile?.fitness_goals || 'Not set'}
 - Preferred Weight Unit: ${preferredWeightUnit}
-- Strava Connected: ${profile?.strava_connected ? 'Yes' : 'No'}
+- Strava Connected for Runs: ${profile?.strava_connected ? 'Yes' : 'No'}
+- Primary Training Focus: ${profile?.primary_training_focus || 'General Fitness'}
+- Experience Level: ${profile?.experience_level || 'Not Specified'}
 
-Active Goals This Week:
-${goalsString}
+**Current Weekly Goals (Tracked in App):**
+${formattedGoals}
 
-Activity Summary (Last ${periodDays} Days):
-
-Overall Stats:
+**Activity Summary (Last ${periodDays} Days):**
 - Total Workout Sessions: ${summary?.total_workout_sessions || 0}
-- Total Run Sessions: ${summary?.total_run_sessions || 0}
-- Avg Workout Duration: ${summary?.avg_workout_duration_minutes?.toFixed(0) || '0'} min (per session day)
-- Avg Run Distance: ${metersToMiles(summary?.avg_run_distance_meters).toFixed(2) || '0.00'} mi
-- Avg Run Duration: ${Math.round((summary?.avg_run_duration_seconds || 0) / 60)} min
+- Total Run Sessions (from Strava if connected): ${summary?.total_run_sessions || 0}
+- Avg Workout Duration: ${summary?.avg_workout_duration_minutes?.toFixed(0) || 'N/A'} minutes
+- Avg Run Distance: ${metersToMiles(summary?.avg_run_distance_meters).toFixed(1)} miles / ${(summary?.avg_run_distance_meters / 1000).toFixed(1)} km
+- Avg Run Duration: ${(summary?.avg_run_duration_seconds / 60).toFixed(0) || 'N/A'} minutes
+- Workout Days This Week: ${summary?.workout_days_this_week || 0}
+- Workout Days Last Week: ${summary?.workout_days_last_week || 0}
+- Recent Run Pace Trend (Last 3 runs vs. prior): ${summary?.recent_run_pace_trend || 'N/A'}
 
-Workout Consistency:
-- Workouts This Week (Mon-Sun): ${summary?.workout_days_this_week || 0} days
-- Workouts Last Week (Mon-Sun): ${summary?.workout_days_last_week || 0} days
-
-Muscle Group Focus (Last ${periodDays} Days):
+**Detailed Muscle Group Summary (Last ${periodDays} Days):**
 ${formattedMuscleSummary}
 
-Key Exercise Progression (Your Top Lifts):
+**Dynamic Exercise Progression (Top Lifts, Last ${periodDays} Days):**
 ${formattedExerciseProgression}
 
-Recent Running Performance:
-- Recent Run Pace Trend: ${summary?.recent_run_pace_trend || 'N/A'}
-- Last 3 Runs:
+**Last 3 Runs (If Strava Connected):**
 ${formattedRuns}
 
-Based on ALL this information, provide:
-
-1.  A Workout Recommendation (workoutRecommendation):
-    *   For workoutRecommendation.title, give a concise name for the suggested workout (e.g., 'Full Body Strength Focus', 'Chest & Triceps Hypertrophy').
-    *   For workoutRecommendation.details, provide a brief overview of the workout's focus.
-    *   For workoutRecommendation.suggestedExercises, list 3-5 specific exercises. For each, suggest a target (e.g., 'Bench Press: 3 sets of 6-8 reps at RPE 8', 'Squats: 4 sets of 10 reps', 'Leg Press: 3 sets of 12-15 reps'). When selecting exercises, consider the user's dynamic_exercise_progression for their top lifts (e.g., if a lift is 'Stagnant', suggest a variation or different rep scheme). Also, heavily consider the muscle_group_summary, prioritizing muscle groups with older last_trained_date or lower total_volume if it aligns with the user's profile.fitness_goals. Ensure suggestions are varied and avoid excessive overlap if a muscle group was just trained.
-
-2.  A Run Recommendation (runRecommendation):
-    *   If profile.strava_connected is true AND summary.total_run_sessions > 0, provide a runRecommendation. If not, runRecommendation MUST BE null.
-    *   The runRecommendation.title should be concise (e.g., 'Easy Recovery Run', 'Tempo Run Challenge').
-    *   The runRecommendation.details should describe the run (e.g., 'Aim for a 30-minute easy jog at a conversational pace to aid recovery.', 'Try a 20-minute tempo run: 5 min warm-up, 10 min at a comfortably hard pace, 5 min cool-down.'). Base this on summary.last_3_runs and summary.recent_run_pace_trend. If recent runs are all short/easy, suggest a slightly longer run or one with some intensity. If the recent_run_pace_trend is 'Slower' or indicates fatigue, suggest an easier run or rest. If the user has specific running goals (check goalsString), try to align the recommendation.
-
-3.  A General Insight (generalInsight):
-    *   The generalInsight.title should be a short, catchy phrase (e.g., 'Consistency is Key!', 'Volume Milestone').
-    *   The generalInsight.details should be a brief (1-2 sentences), positive, and encouraging observation based on their overall Activity Summary (e.g., workout consistency like workout_days_this_week, trends in total volume, or meeting a goal from goalsString).
-
-4.  A Focus Area Suggestion (focusAreaSuggestion):
-    *   Your task is to identify ONE specific area for improvement or attention. This can be null if everything looks well-balanced or no clear focus emerges.
-    *   Consider these factors:
-        *   A muscle group from muscle_group_summary with notably low total_sets or total_volume compared to others, OR a significantly older last_trained_date.
-        *   A stagnant or declining trend in dynamic_exercise_progression for a key lift.
-        *   A recent_run_pace_trend that is 'Slower' or 'Stagnant' if running is part of their goals.
-        *   Low workout_days_this_week if inconsistent with workout_days_last_week or stated goals.
-    *   If a focus area is identified:
-        *   focusAreaSuggestion.title should be concise (e.g., 'Boost Leg Volume', 'Address Squat Plateau', 'Run Pace Improvement').
-        *   focusAreaSuggestion.details should explain why it's a focus (e.g., 'Your leg training volume has been a bit lower compared to upper body work this past month. This could be an opportunity to build more balanced strength.') and suggest 1-2 actionable steps or example exercises (e.g., 'Consider adding an extra set to your Squats or incorporating Romanian Deadlifts.').
-        *   If multiple potential focus areas exist, pick the one you deem most impactful for the user's profile.fitness_goals.
-
-Constraints:
-- Your primary goal is to provide actionable, personalized, and encouraging advice.
-- Your tone should be supportive and motivational.
-- Keep recommendations concise and actionable.
-- VERY IMPORTANT: Your entire response MUST be a single, valid JSON object strictly adhering to the AICoachRecommendation interface structure provided in previous context. Ensure all strings are properly escaped within the JSON. Do not include any text outside of this JSON object.
-  The AICoachRecommendation structure is:
-  {
-    "workoutRecommendation": { "title": "string", "details": "string", "suggestedExercises": ["string", "string"] },
-    "runRecommendation": { "title": "string", "details": "string" } | null,
-    "generalInsight": { "title": "string", "details": "string" },
-    "focusAreaSuggestion": { "title": "string", "details": "string" } | null
+**Output Format (Strict JSON - provide only the JSON object):**
+Provide your response as a single JSON object matching this TypeScript interface:
+\`\`\`json
+{
+  "workoutRecommendation": {
+    "title": "Your Suggested Workout Focus",
+    "details": "Explain why and what to do. Be specific. E.g., focus on X today with Y sets/reps because your Z data shows...",
+    "suggestedExercises": ["Exercise 1 (e.g., Barbell Squat 3x5-8)", "Exercise 2 (e.g., Bench Press 3x8-12)", "Accessory 1 (e.g., Leg Press 3x10-15)"]
+  },
+  "runRecommendation": {
+    "title": "Your Suggested Run", // Or null if not applicable or Strava not connected
+    "details": "Details for the run. E.g., a 5k tempo run at X pace, or an easy 30-min recovery run."
+  },
+  "generalInsight": {
+    "title": "One Key Insight from Your Data",
+    "details": "A brief, encouraging insight. E.g., 'Great job on increasing your chest volume!' or 'Remember to incorporate rest days.'"
+  },
+  "focusAreaSuggestion": {
+    "title": "Suggested Focus Area (Optional)", // e.g., "Improve Squat Form", "Increase Cardio Endurance"
+    "details": "A brief suggestion for a broader area to focus on, complementing the main recommendation."
   }
+}
+\`\`\`
+
+**Specific Instructions for Output Fields:**
+-   \`workoutRecommendation.title\`: Catchy and descriptive (e.g., "Leg Day Power Builder", "Upper Body Hypertrophy Focus").
+-   \`workoutRecommendation.details\`: Explain the rationale based on user data. Provide specific sets/reps or intensity cues.
+-   \`workoutRecommendation.suggestedExercises\`:
+    *   List 3-5 key exercises. Include example sets/reps.
+    *   If Experience Level is 'Beginner', prioritize fundamental compound movements, ensure clear form cues or suggest simpler variations. Avoid overly complex or high-volume routines.
+    *   If Primary Training Focus is 'Bodybuilding', suggest exercises and set/rep schemes conducive to hypertrophy.
+    *   If Primary Training Focus is 'Powerlifting', focus recommendations on Squat, Bench, Deadlift variations and accessory exercises.
+    *   If Primary Training Focus involves running (e.g., 'Endurance'), suggest strength exercises that complement this.
+-   \`runRecommendation\`: Only include if Strava is connected AND user has run data OR their goals suggest running focus. If so, make it specific. Title example: "Tempo Run Challenge", "Easy Recovery Jog".
+    *   If Primary Training Focus involves running, make the run recommendation highly specific to that focus (e.g., interval suggestions for 'Sprint Training', varied runs for 'Marathon Training').
+-   \`generalInsight\`: Positive and data-driven. One concise sentence or two.
+-   \`focusAreaSuggestion\` (Optional): Suggest a skill, habit, or area for longer-term improvement. Examples: "Focus on Sleep Hygiene", "Explore Core Strength Routines", "Learn about Progressive Overload".
+    *   Use Primary Training Focus and Experience Level to make the suggestion more relevant (e.g., beginner might focus on form; bodybuilder on a lagging part).
+
+Now, generate the recommendation based on all the above data and instructions.
 `;
 
-  // 5. Call LLM API
-  if (!process.env.LLM_API_KEY) {
-    console.error("CRITICAL: LLM_API_KEY is not set.");
-    return { error: "AI Coach configuration error: API key not available." };
-  }
-
-  const apiKey = process.env.LLM_API_KEY;
-  const llmApiUrl = "https://api.openai.com/v1/chat/completions";
-
   try {
-    console.log("----------- Sending Prompt to LLM (getAICoachRecommendation) -----------");
-    // console.log(promptText); // Uncomment for debugging if needed, but can be verbose
-    console.log("----------------------------------------------------------------------");
+    // --- Start of Replacement: LLM Call Logic ---
+    console.log('AI Coach: Cache miss or stale, calling OpenAI API...');
 
-    const response = await fetch(llmApiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: promptText }],
-        temperature: 0.7,
-        max_tokens: 600,
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text(); // Use text() first to avoid JSON parse error if not JSON
-      console.error(`LLM API request failed with status ${response.status}:`, errorBody);
-      throw new Error(`LLM API request failed: ${response.statusText} - ${errorBody}`);
+    const apiKey = process.env.LLM_API_KEY;
+    if (!apiKey) {
+        console.error("CRITICAL: LLM_API_KEY is not set in environment variables.");
+        return { error: "AI Coach configuration error: API key not set." };
     }
 
-    const data = await response.json();
-
-    if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
-      console.error("LLM API response format error: Unexpected structure", data);
-      throw new Error("LLM API response format error: Unexpected structure.");
-    }
-    
-    const llmResponseContent = data.choices[0].message.content;
-    console.log("----------- LLM Raw Response Content (getAICoachRecommendation) ----------");
-    console.log(llmResponseContent);
-    console.log("--------------------------------------------------------------------------");
+    let advice: AICoachRecommendation | null = null; 
 
     try {
-      const recommendation: AICoachRecommendation = JSON.parse(llmResponseContent);
-      return recommendation;
-    } catch (parseError) {
-      console.error("LLM API response JSON parsing failed:", parseError, "Raw content:", llmResponseContent);
-      // Try to provide more context from the parseError
-      const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
-      throw new Error(`Failed to parse LLM response as JSON: ${errorMessage}`);
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: "gpt-4o",
+                messages: [{ "role": "user", "content": promptText }],
+                temperature: 0.7,
+                max_tokens: 800,
+                response_format: { "type": "json_object" }
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: "Failed to parse error response from LLM" }));
+            console.error('OpenAI API Error Response:', errorData);
+            throw new Error(`OpenAI API Error: ${response.status} - ${errorData.error?.message || response.statusText || 'Unknown API error'}`);
+        }
+
+        const data = await response.json();
+        if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+            console.error('Invalid response structure from OpenAI:', data);
+            throw new Error('Invalid response structure from AI coach.');
+        }
+
+        const jsonContentString = data.choices[0].message.content;
+        advice = JSON.parse(jsonContentString) as AICoachRecommendation;
+
+    } catch (error: any) { 
+        console.error("LLM API call failed:", error);
+        const errorMessage = error.message || 'Unknown AI Coach communication error';
+        return { error: `AI Coach communication error: ${errorMessage}` };
     }
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("LLM API call failed in getAICoachRecommendation:", errorMessage, error);
-    return { error: `AI Coach communication error: ${errorMessage}` };
+    if (!advice) {
+        console.error("AI Coach: Advice object is null after LLM call attempt, despite no explicit error thrown.");
+        return { error: "AI Coach: Failed to generate advice." };
+    }
+    // --- End of Replacement: LLM Call Logic ---
+
+    // If LLM call was successful and advice is populated:
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + AI_COACH_CACHE_DURATION_MINUTES * 60 * 1000);
+
+    console.log(`AI Coach: Storing new recommendation in cache. Key: ${cacheKey}, Expires: ${expiresAt.toISOString()}`);
+    const { error: cacheUpsertError } = await supabase
+      .from('ai_coach_cache')
+      .upsert({
+        cache_key: cacheKey,
+        user_id: userId,
+        recommendation: advice, // advice from LLM (or placeholder)
+        hashed_data_input: hashedDataInput,
+        created_at: now.toISOString(),
+        expires_at: expiresAt.toISOString()
+      }, {
+        onConflict: 'cache_key'
+      });
+
+    if (cacheUpsertError) {
+      console.error('AI Coach: Failed to store recommendation in cache:', cacheUpsertError.message);
+    } else {
+      console.log('AI Coach: Recommendation stored in cache successfully.');
+    }
+
+    return advice; // Return the newly fetched (or placeholder) advice
+
+  } catch (error: any) {
+    console.error("getAICoachRecommendation: Error during LLM call or processing", error);
+    const message = error.message || "Failed to get recommendation from AI coach.";
+    return { error: message };
   }
-} 
+}
