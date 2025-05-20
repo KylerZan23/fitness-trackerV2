@@ -7,9 +7,13 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
-import Image from 'next/image'
+// import Image from 'next/image' // Removed as image panels are being removed
 import { SignupFormData, signupSchema } from '@/lib/schemas'
 import { supabase } from '@/lib/supabase'
+import { Label } from '@/components/ui/label' // Added for form labels
+import { Button } from '@/components/ui/button' // Added for consistent button styling
+import { Input } from '@/components/ui/input' // Added for consistent input styling
+import { Textarea } from '@/components/ui/textarea' // Added for consistent textarea styling
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
@@ -45,7 +49,7 @@ export default function SignupPage() {
             age: data.age,
             fitness_goals: data.fitnessGoals,
           },
-          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/confirm`,
         },
       })
 
@@ -64,35 +68,24 @@ export default function SignupPage() {
   }
 
   const SuccessView = () => (
-    <div className="min-h-screen bg-black text-white flex">
-      <div className="w-full md:w-[480px] p-8 flex flex-col justify-center items-center">
-        <Link href="/" className="text-2xl font-bold mb-12">FitnessTracker</Link>
-        
-        <div className="text-center max-w-md">
-          <h1 className="text-4xl font-serif mb-4">Check Your Email</h1>
-          <p className="text-gray-400 mb-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <Link href="/" className="block mx-auto text-center text-3xl font-bold text-indigo-600 hover:text-indigo-700 mb-8">
+          FitnessTracker
+        </Link>
+        <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10 border border-gray-200 text-center">
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-3">Check Your Email</h1>
+          <p className="text-gray-600 mb-6">
             We've sent you an email with a confirmation link.
             Please check your inbox and click the link to complete your registration.
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-white hover:text-gray-300 transition-colors"
+          <Button
+            onClick={() => typeof window !== 'undefined' ? window.location.reload() : null}
+            variant="outline"
+            className="w-full"
           >
             Didn't receive the email? Try again
-          </button>
-        </div>
-      </div>
-
-      <div className="hidden md:block relative flex-1">
-        <div className="absolute inset-0">
-          <Image
-            src="/signup-success-bg.jpg"
-            alt="Success"
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black to-black/50" />
+          </Button>
         </div>
       </div>
     </div>
@@ -103,149 +96,129 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex">
-      <div className="w-full md:w-[480px] p-8 flex flex-col justify-between">
-        <div>
-          <Link href="/" className="text-2xl font-bold">FitnessTracker</Link>
-        </div>
-        
-        <div>
-          <h1 className="text-4xl font-serif mb-4">Create an Account</h1>
-          <p className="text-gray-400 mb-8">Sign up to start your fitness journey</p>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <Link href="/" className="block mx-auto text-center text-3xl font-bold text-indigo-600 hover:text-indigo-700 mb-2">
+          FitnessTracker
+        </Link>
+        <h2 className="mt-1 text-center text-2xl font-semibold text-gray-800">
+          Create your account
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Already have an account?{' '}
+          <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+            Sign in
+          </Link>
+        </p>
+      </div>
 
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10 border border-gray-200">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {error && (
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <p className="text-red-500 text-sm">{error}</p>
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-red-700 text-sm">{error}</p>
               </div>
             )}
             
             <div className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2">
-                  Email
-                </label>
-                <input
+                <Label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email address
+                </Label>
+                <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   {...register('email')}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  placeholder="Enter your email"
+                  placeholder="you@example.com"
                   disabled={isLoading}
+                  className={errors.email ? 'border-red-500' : ''}
                 />
                 {errors.email && (
-                  <p className="mt-2 text-sm text-red-500">{errors.email.message}</p>
+                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-2">
+                <Label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                   Password
-                </label>
-                <input
+                </Label>
+                <Input
                   id="password"
                   type="password"
+                  autoComplete="new-password"
                   {...register('password')}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  placeholder="Choose a strong password"
+                  placeholder="Create a password"
                   disabled={isLoading}
+                  className={errors.password ? 'border-red-500' : ''}
                 />
                 {errors.password && (
-                  <p className="mt-2 text-sm text-red-500">{errors.password.message}</p>
+                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="name" className="block text-sm font-medium mb-2">
+                <Label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                   Full Name
-                </label>
-                <input
+                </Label>
+                <Input
                   id="name"
                   type="text"
+                  autoComplete="name"
                   {...register('name')}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  placeholder="Enter your full name"
+                  placeholder="Your full name"
                   disabled={isLoading}
+                  className={errors.name ? 'border-red-500' : ''}
                 />
                 {errors.name && (
-                  <p className="mt-2 text-sm text-red-500">{errors.name.message}</p>
+                  <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="age" className="block text-sm font-medium mb-2">
+                <Label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">
                   Age
-                </label>
-                <input
+                </Label>
+                <Input
                   id="age"
                   type="number"
                   {...register('age', { valueAsNumber: true })}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  placeholder="Enter your age"
+                  placeholder="Your age"
                   disabled={isLoading}
+                  className={errors.age ? 'border-red-500' : ''}
                 />
                 {errors.age && (
-                  <p className="mt-2 text-sm text-red-500">{errors.age.message}</p>
+                  <p className="mt-1 text-sm text-red-600">{errors.age.message}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="fitnessGoals" className="block text-sm font-medium mb-2">
+                <Label htmlFor="fitnessGoals" className="block text-sm font-medium text-gray-700 mb-1">
                   Fitness Goals
-                </label>
-                <textarea
+                </Label>
+                <Textarea
                   id="fitnessGoals"
                   {...register('fitnessGoals')}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20"
                   rows={3}
-                  placeholder="Tell us about your fitness goals"
+                  placeholder="Tell us about your fitness goals (e.g., lose weight, build muscle)"
                   disabled={isLoading}
+                  className={errors.fitnessGoals ? 'border-red-500' : ''}
                 />
                 {errors.fitnessGoals && (
-                  <p className="mt-2 text-sm text-red-500">{errors.fitnessGoals.message}</p>
+                  <p className="mt-1 text-sm text-red-600">{errors.fitnessGoals.message}</p>
                 )}
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
               disabled={isLoading}
-              className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full"
             >
               {isLoading ? 'Creating account...' : 'Create account'}
-            </button>
-
-            <p className="text-center text-gray-400">
-              Already have an account?{' '}
-              <Link href="/login" className="text-white hover:text-gray-300 transition-colors">
-                Sign in
-              </Link>
-            </p>
+            </Button>
           </form>
-        </div>
-
-        <div />
-      </div>
-
-      {/* Right Panel - Image */}
-      <div className="hidden md:block relative flex-1">
-        <div className="absolute inset-0">
-          <Image
-            src="/signup-bg.jpg"
-            alt="Fitness motivation"
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black to-black/50" />
-        </div>
-        <div className="relative z-10 h-full flex items-center justify-center p-12">
-          <blockquote className="max-w-lg">
-            <p className="text-3xl font-serif leading-relaxed">
-              "The difference between try and triumph is just a little umph!"
-            </p>
-            <footer className="mt-4 text-gray-400">- Fitness Motivation</footer>
-          </blockquote>
         </div>
       </div>
     </div>

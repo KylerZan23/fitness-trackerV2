@@ -64,12 +64,11 @@ const V0AboutSection = () => {
             <div ref={missionRef} className="fade-up">
               <h2 className="text-3xl lg:text-4xl font-bold leading-tight mb-5">
                 Our Mission: <br />
-                <span className="text-blue-600">Empower Your Fitness Journey</span>
+                <span className="text-blue-600">Unlock next‑level performance through AI precision.</span>
               </h2>
               <p className="text-xl leading-relaxed">
-                At FitnessTracker, we believe everyone deserves the tools to achieve their fitness goals. Our platform
-                combines cutting-edge technology with user-friendly design to help you track, analyze, and improve your
-                performance.
+                FitnessTracker fuses elite sport‑science with cutting‑edge machine learning, turning everyday training
+                data into a personalized playbook for unstoppable progress.
               </p>
             </div>
 
@@ -77,10 +76,10 @@ const V0AboutSection = () => {
               <h2 className="text-2xl font-bold">Why Choose FitnessTracker?</h2>
               <ul className="space-y-3">
                 {[
-                  "Seamless integration with Strava and other fitness apps",
+                  "An AI-Personal Coach at your fingertips",
                   "Advanced analytics to track your progress over time",
-                  "Personalized workout recommendations",
-                  "Community features to keep you motivated",
+                  "Become your best self through a goal driven format",
+                  "Seamless integration with Strava",
                 ].map((feature, index) => (
                   <li
                     key={index}
@@ -118,14 +117,14 @@ const V0AboutSection = () => {
                 </div>
                 <div>
                   <h2 className="text-gray-800 text-2xl font-bold">Our Story</h2>
-                  <p className="text-gray-500">Founded in 2020</p>
+                  <p className="text-gray-500">Founded in 2025</p>
                 </div>
               </div>
 
               <div className="space-y-6">
                 <p className="leading-relaxed text-gray-700">
-                  FitnessTracker began with a simple idea: make fitness tracking accessible, intuitive, and actionable
-                  for everyone.
+                  First <em>premium</em> AI fitness OS on the market.<br />
+                  No templates. No guesswork. Just hyper‑personal coaching, 24/7.
                 </p>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -147,8 +146,9 @@ const V0AboutSection = () => {
                 </div>
 
                 <p className="leading-relaxed text-gray-700">
-                  Our team of fitness enthusiasts and tech experts work together to create the most comprehensive
-                  fitness tracking experience available.
+                  Our team of data scientists and elite athletes work together to create the most comprehensive
+                  fitness tracking experience available, closing the gap between professional analytics and everyday
+                  training through AI.
                 </p>
               </div>
             </div>
@@ -159,7 +159,7 @@ const V0AboutSection = () => {
         </div>
 
         <div ref={ctaRef} className="mt-20 text-center fade-up">
-          <h2 className="text-4xl font-bold mb-5 text-gray-800">Ready to Transform Your Fitness Journey?</h2>
+          <h2 className="text-4xl font-bold mb-5 text-gray-800">Join the future of fitness tracking.</h2>
           <p className="text-xl max-w-2xl mx-auto mb-8 text-gray-600">
             Join thousands of users who are already tracking their progress and unlocking their potential with
             FitnessTracker.
@@ -427,14 +427,14 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full">
         <div className="max-w-xl">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Track Your Progress,
+            Train Smarter with AI,
           </h1>
           <h2 className="text-4xl md:text-5xl font-bold mb-8">
-            Unlock Your Potential.
+            Unlock Elite Performance.
           </h2>
           <p className="text-xl mb-12 max-w-lg">
-            Log workouts, track runs with Strava, analyze your performance, 
-            and achieve your fitness goals with FitnessTracker.
+            FitnessTracker's premium AI engine logs every rep and run, analyzes your data in real time, and delivers
+            hyper‑personal insights that propel you past your goals.
           </p>
           
           {isAuthenticated ? (

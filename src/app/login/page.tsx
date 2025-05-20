@@ -4,11 +4,14 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
-import Image from 'next/image'
+// import Image from 'next/image' // Removed as image panel is being removed
 import { LoginFormData, loginSchema } from '@/lib/schemas'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
+import { Label } from '@/components/ui/label' // Added
+import { Input } from '@/components/ui/input' // Added
+import { Button } from '@/components/ui/button' // Added
 
 interface AuthError {
   message: string;
@@ -34,7 +37,7 @@ export default function LoginPage() {
     if (bypassAuth && !forceLogin) {
       const checkSession = async () => {
         // Use getSession() instead of getUser() for secure authentication verification
-        const { data, error } = await supabase.auth.getSession()
+        const { data } = await supabase.auth.getSession()
         if (data.session) {
           setShowSessionInfo(true)
         }
@@ -62,7 +65,9 @@ export default function LoginPage() {
       setShowSessionInfo(false)
       
       // Refresh the page with force_login parameter to ensure we can access the login page
-      window.location.href = '/login?force_login=true'
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login?force_login=true'
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign out')
     } finally {
@@ -339,149 +344,141 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex">
-      {/* Left Panel - Form */}
-      <div className="w-full md:w-[480px] p-8 flex flex-col justify-between">
-        <div>
-          <Link href="/" className="text-2xl font-bold">FitnessTracker</Link>
-        </div>
-        
-        <div>
-          <h1 className="text-4xl font-serif mb-4">Welcome Back</h1>
-          <p className="text-gray-400 mb-8">Sign in to continue your fitness journey</p>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <Link href="/" className="block mx-auto text-center text-3xl font-bold text-indigo-600 hover:text-indigo-700 mb-2">
+          FitnessTracker
+        </Link>
+        <h2 className="mt-1 text-center text-2xl font-semibold text-gray-800">
+          Sign in to your account
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Or{' '}
+          <Link href="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
+            create a new account
+          </Link>
+        </p>
+      </div>
 
-          {/* Display session warning if user is already logged in but using bypass */}
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10 border border-gray-200">
           {showSessionInfo && (
-            <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-6">
-              <h3 className="text-yellow-400 font-medium">You're already logged in</h3>
-              <p className="text-gray-300 text-sm mt-1 mb-3">
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-300 rounded-md">
+              <h3 className="text-yellow-700 font-medium">You're already logged in</h3>
+              <p className="text-yellow-600 text-sm mt-1 mb-3">
                 You currently have an active session. Do you want to continue with your 
                 current session or sign in with a different account?
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <button
+                <Button
                   onClick={() => router.push('/dashboard')}
-                  className="px-4 py-2 bg-white/10 text-white text-sm rounded-lg hover:bg-white/20 transition-colors"
+                  variant="outline"
+                  className="w-full sm:w-auto"
                 >
                   Continue to Dashboard
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={handleForceLogout}
-                  className="px-4 py-2 bg-yellow-500/20 text-yellow-400 text-sm rounded-lg hover:bg-yellow-500/30 transition-colors"
+                  variant="outline"
                   disabled={isLoading}
+                  className="w-full sm:w-auto text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700"
                 >
                   {isLoading ? 'Signing Out...' : 'Sign Out & Use Different Account'}
-                </button>
+                </Button>
               </div>
             </div>
           )}
 
-          {/* Display complete sign out button if force_login is true */}
           {forceLogin && (
-            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg mb-6">
-              <h3 className="text-blue-400 font-medium">Fresh Login</h3>
-              <p className="text-gray-300 text-sm mt-1 mb-3">
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-300 rounded-md">
+              <h3 className="text-blue-700 font-medium">Fresh Login</h3>
+              <p className="text-blue-600 text-sm mt-1 mb-3">
                 You're accessing the login page directly. Please sign in with your credentials.
               </p>
             </div>
           )}
 
-          {/* Add troubleshooting section for authentication issues */}
           {!forceLogin && !showSessionInfo && (
-            <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg mb-6">
-              <h3 className="text-purple-400 font-medium">Having trouble signing in?</h3>
-              <p className="text-gray-300 text-sm mt-1 mb-3">
+            <div className="mb-6 p-4 bg-purple-50 border border-purple-300 rounded-md">
+              <h3 className="text-purple-700 font-medium">Having trouble signing in?</h3>
+              <p className="text-purple-600 text-sm mt-1 mb-3">
                 If you're experiencing authentication issues, try a complete sign out first.
               </p>
-              <button
-                onClick={() => window.location.href = '/login?force_login=true'}
-                className="px-4 py-2 bg-purple-500/20 text-purple-400 text-sm rounded-lg hover:bg-purple-500/30 transition-colors"
+              <Button
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.href = '/login?force_login=true'
+                  }
+                }}
+                variant="outline" // Or a purple themed outline
+                className="w-full"
               >
                 Force Complete Sign Out
-              </button>
+              </Button>
             </div>
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {error && (
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <p className="text-red-500 text-sm">{error}</p>
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-red-700 text-sm">{error}</p>
               </div>
             )}
             
             <div className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2">
-                  Email
-                </label>
-                <input
+                <Label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email address
+                </Label>
+                <Input
                   id="email"
                   type="email"
                   autoComplete="email"
                   {...register('email')}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20"
-                  placeholder="Enter your email"
+                  placeholder="you@example.com"
                   disabled={isLoading}
+                  className={errors.email ? 'border-red-500' : ''}
                 />
                 {errors.email && (
-                  <p className="mt-2 text-sm text-red-500">{errors.email.message}</p>
+                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-2">
+                <Label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                   Password
-                </label>
-                <input
+                </Label>
+                <Input
                   id="password"
                   type="password"
                   autoComplete="current-password"
                   {...register('password')}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white/20"
                   placeholder="Enter your password"
                   disabled={isLoading}
+                  className={errors.password ? 'border-red-500' : ''}
                 />
                 {errors.password && (
-                  <p className="mt-2 text-sm text-red-500">{errors.password.message}</p>
+                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
                 )}
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
               disabled={isLoading}
-              className="w-full px-4 py-3 bg-white text-black font-medium rounded-lg hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2"></div>
                   Signing in...
                 </div>
               ) : (
                 'Sign in'
               )}
-            </button>
+            </Button>
           </form>
         </div>
-
-        <div className="mt-8 text-center">
-          <p className="text-gray-400">
-            Don't have an account?{' '}
-            <Link href="/signup" className="text-white hover:text-gray-300 transition-colors">
-              Create one now
-            </Link>
-          </p>
-        </div>
-      </div>
-
-      {/* Right Panel - Image */}
-      <div className="hidden md:block flex-1 relative">
-        <Image 
-          src="/login-bg.jpg"
-          alt="Fitness background" 
-          fill
-          className="object-cover" 
-        />
       </div>
     </div>
   )

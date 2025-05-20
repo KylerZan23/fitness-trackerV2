@@ -15,6 +15,10 @@ import { StravaConnect } from '@/components/run/StravaConnect'
 import { RunList } from '@/components/run/RunList'
 import { StravaRunList } from '@/components/run/StravaRunList'
 import { ManualRunLogger } from '@/components/run/ManualRunLogger'
+import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import { Icon } from '@/components/ui/Icon'
+import { Error as ErrorComponent } from '@/components/ui/error'
+import { Button } from '@/components/ui/button'
 
 export default function RunLoggerPage() {
   const router = useRouter()
@@ -23,200 +27,211 @@ export default function RunLoggerPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [profileName, setProfileName] = useState<string | undefined>(undefined)
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | undefined>(undefined)
   const [isStravaConnected, setIsStravaConnected] = useState(false)
   const [activeTab, setActiveTab] = useState<'card-view' | 'table-view' | 'log'>('card-view')
   const runId = searchParams?.get('runId')
 
-  // Check authentication
   useEffect(() => {
-    const checkSession = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true)
-        
-        // Get current session
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
-        
+
         if (sessionError) {
           setError(`Session error: ${sessionError.message}`)
+          setIsLoading(false)
           return
         }
-        
+
         if (!currentSession) {
           router.push('/login')
-          return
+          return // isLoading will be set to false in finally block if this path is taken after router.push completes
         }
-        
+
         setSession(currentSession)
         setUserId(currentSession.user.id)
+
+        // Fetch minimal profile for DashboardLayout
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('name, profile_picture_url')
+          .eq('id', currentSession.user.id)
+          .single()
+
+        if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
+          console.warn('Error fetching profile for layout:', profileError.message)
+          // Not setting main page error, layout will degrade gracefully
+        }
+        if (profileData) {
+          setProfileName(profileData.name || undefined)
+          setProfilePictureUrl(profileData.profile_picture_url || undefined)
+        }
+
       } catch (err) {
-        console.error('Run Logger error:', err)
-        // Safe error handling with type checking
-        const errorMessage = err && typeof err === 'object' && 'message' in err 
-          ? String(err.message) 
+        console.error('Run Logger setup error:', err)
+        const errorMessage = err && typeof err === 'object' && 'message' in err
+          ? String(err.message)
           : 'An error occurred while loading the run logger'
         setError(errorMessage)
       } finally {
         setIsLoading(false)
       }
     }
-    
-    checkSession()
-    
-    // Set up auth state change listener
+
+    fetchData()
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sessionData) => {
       if (event === 'SIGNED_OUT') {
         router.push('/login')
       } else if (sessionData) {
         setSession(sessionData)
         setUserId(sessionData.user.id)
+        // Optionally re-fetch profile info here if it can change during the session
+      } else {
+        // Handle cases like USER_DELETED, TOKEN_REFRESHED_ERROR etc.
+        router.push('/login')
       }
     })
-    
+
     return () => {
       subscription.unsubscribe()
     }
   }, [router])
-  
-  // If run ID is provided, default to card view
+
   useEffect(() => {
     if (runId) {
       setActiveTab('card-view')
     }
   }, [runId])
-  
+
   const handleRunLogged = () => {
-    // Refresh the run list when a new run is logged
-    setActiveTab('card-view')
+    setActiveTab('card-view') 
+    // Potentially add a toast notification here or trigger a refresh of the run list data
+  }
+  
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/login') // Explicit redirect after sign out
   }
 
-  // Loading state
+  const sidebarProps = {
+    userName: profileName,
+    userEmail: session?.user?.email,
+    profilePictureUrl: profilePictureUrl,
+    onLogout: handleSignOut,
+  }
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto"></div>
-      </div>
+      <DashboardLayout sidebarProps={sidebarProps}>
+        <div className="flex items-center justify-center h-[calc(100vh-theme(spacing.24))]">
+          <Icon name="loader" className="animate-spin h-12 w-12 text-indigo-600" />
+        </div>
+      </DashboardLayout>
     )
   }
 
-  // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-black text-white p-6 flex flex-col items-center justify-center">
-        <div className="max-w-md w-full bg-black/60 backdrop-blur-sm p-8 rounded-xl border border-white/20 shadow-lg">
-          <h1 className="text-2xl font-serif font-bold mb-4">Run Logger Error</h1>
-          <p className="text-red-500 mb-6">{error}</p>
-          <div className="flex space-x-4">
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-white text-black px-4 py-2 rounded-full font-medium hover:bg-white/90 transition-colors flex-1"
-            >
-              Retry
-            </button>
-            <Link
-              href="/dashboard"
-              className="border border-white text-white px-4 py-2 rounded-full font-medium hover:bg-white/20 transition-colors flex-1 text-center"
-            >
-              Back to Dashboard
-            </Link>
-          </div>
+      <DashboardLayout sidebarProps={sidebarProps}>
+        <div className="container mx-auto px-4 py-8 text-center">
+            <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md border border-gray-200">
+                <Icon name="alertTriangle" className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-gray-800 mb-2">Run Logger Error</h2>
+                <ErrorComponent message={error} className="text-red-600 mb-6" />
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-center">
+                    <Button
+                        onClick={() => typeof window !== 'undefined' ? window.location.reload() : null}
+                        variant="outline"
+                    >
+                        Retry
+                    </Button>
+                    <Button onClick={() => router.push('/dashboard')} variant="default">
+                        Back to Dashboard
+                    </Button>
+                </div>
+            </div>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
-  // Main content
+  // Main content when not loading and no error
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
-      {/* Header */}
-      <header className="bg-black/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/dashboard" className="text-2xl font-bold">FitnessTracker</Link>
-          
-          <div className="flex items-center gap-4">
-            <Link 
-              href="/dashboard"
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-            >
-              Back to Dashboard
-            </Link>
-          </div>
-        </div>
-      </header>
-      
-      {/* Main content */}
-      <main className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-serif mb-8">Run Logger</h1>
-        
-        {/* Strava Connect Component */}
+    <DashboardLayout sidebarProps={sidebarProps}>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Run Logger</h1>
+
         {userId && (
-          <StravaConnect 
-            userId={userId} 
-            onConnectionChange={setIsStravaConnected} 
-          />
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Strava Connection</h2>
+            <StravaConnect
+              userId={userId}
+              onConnectionChange={setIsStravaConnected}
+            />
+          </div>
         )}
-        
-        {/* Tabs for switching between viewing runs and logging runs */}
-        <div className="mb-6 border-b border-white/10">
-          <div className="flex space-x-8">
+
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-6" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('card-view')}
-              className={`py-3 px-2 relative ${
-                activeTab === 'card-view' 
-                  ? 'text-white font-medium' 
-                  : 'text-gray-400 hover:text-white'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'card-view'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Card View
-              {activeTab === 'card-view' && (
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-white"></span>
-              )}
+              Activity Feed (Cards)
             </button>
             <button
               onClick={() => setActiveTab('table-view')}
-              className={`py-3 px-2 relative ${
-                activeTab === 'table-view' 
-                  ? 'text-white font-medium' 
-                  : 'text-gray-400 hover:text-white'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'table-view'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Table View
-              {activeTab === 'table-view' && (
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-white"></span>
-              )}
+              All Runs (Table)
             </button>
             <button
               onClick={() => setActiveTab('log')}
-              className={`py-3 px-2 relative ${
-                activeTab === 'log' 
-                  ? 'text-white font-medium' 
-                  : 'text-gray-400 hover:text-white'
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'log'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Log Run
-              {activeTab === 'log' && (
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-white"></span>
-              )}
+              Log New Run
             </button>
-          </div>
+          </nav>
         </div>
-        
-        {/* Tab Content */}
-        {activeTab === 'card-view' && userId && (
-          <StravaRunList userId={userId} isConnected={isStravaConnected} />
-        )}
-        
-        {activeTab === 'table-view' && userId && (
-          <RunList userId={userId} isConnected={isStravaConnected} />
-        )}
-        
-        {activeTab === 'log' && userId && (
-          <ManualRunLogger 
-            userId={userId} 
-            isConnected={isStravaConnected} 
-            onRunLogged={handleRunLogged} 
-          />
-        )}
-      </main>
-    </div>
+
+        {/* Tab Content - Potentially wrap these in cards too if their content is complex or needs distinct visual separation */} 
+        <div className="mt-6">
+            {activeTab === 'card-view' && userId && (
+                <StravaRunList userId={userId} isConnected={isStravaConnected} />
+            )}
+            
+            {activeTab === 'table-view' && userId && (
+                <RunList userId={userId} isConnected={isStravaConnected} />
+            )}
+            
+            {activeTab === 'log' && userId && (
+                // Consider wrapping ManualRunLogger in a card for better visual grouping of the form
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Manually Log a Run</h2>
+                    <ManualRunLogger
+                        userId={userId}
+                        isConnected={isStravaConnected} // This prop might be less relevant for manual logging
+                        onRunLogged={handleRunLogged}
+                    />
+                </div>
+            )}
+        </div>
+      </div>
+    </DashboardLayout>
   )
 } 
