@@ -50,12 +50,16 @@ We will automatically handle the conversion between the metrics used by Strava's
    - Updated to use centralized unit conversion functions
    - Displays distances in miles, pace in min/mile, elevation in feet
 
-3. ManualRunLogger component: 
-   - Updated to use centralized unit conversion functions
-   - Input labels indicate miles
-   - User inputs are converted to metric before sending to Strava API
+3. StravaRunList component: 
+   - Leverages `RunCard` for displaying distances in miles, pace in min/mi.
 
-4. README documentation: 
+4. RecentRun component: 
+   - Leverages `RunCard` for displaying distances in miles.
+
+5. WorkoutCalendar component: 
+   - If displaying run distances, ensures they are in miles.
+
+6. README documentation: 
    - Updated to reflect imperial unit support
 
 ### Future Considerations

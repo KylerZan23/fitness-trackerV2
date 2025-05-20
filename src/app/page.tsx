@@ -132,7 +132,7 @@ const V0AboutSection = () => {
                     { value: "50K+", label: "Active Users" },
                     { value: "1M+", label: "Workouts Tracked" },
                     { value: "15+", label: "Integrations" },
-                    { value: "4.8", label: "App Store Rating" },
+                    { value: "100+", label: "Supported Exercises" },
                   ].map((stat, index) => (
                     <div
                       key={index}

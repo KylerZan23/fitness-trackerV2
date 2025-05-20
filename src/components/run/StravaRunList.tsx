@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { getStravaActivities, getStravaActivityWithPolyline } from '@/lib/strava';
 import { getTokensFromDatabase } from '@/lib/strava-token-store';
 import { RunCard } from './RunCard';
+import { supabase } from '@/lib/supabase';
 
 interface StravaRunListProps {
   userId: string;
@@ -61,7 +62,7 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
         setError(null);
         
         // Get tokens from database
-        const tokens = await getTokensFromDatabase(userId);
+        const tokens = await getTokensFromDatabase(supabase, userId);
         
         if (!tokens) {
           setError('No Strava tokens found. Please reconnect your account.');
@@ -96,7 +97,7 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
         setIsLoading(true);
         
         // Get tokens from database
-        const tokens = await getTokensFromDatabase(userId);
+        const tokens = await getTokensFromDatabase(supabase, userId);
         
         if (!tokens) {
           setError('No Strava tokens found. Please reconnect your account.');
@@ -134,8 +135,8 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
   
   if (!isConnected) {
     return (
-      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-        <p className="text-gray-400 text-center py-6">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <p className="text-gray-500 text-center py-6">
           Connect your Strava account to see your runs here.
         </p>
       </div>
@@ -144,10 +145,10 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
   
   if (isLoading && !runs.length) {
     return (
-      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center justify-center py-6">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-          <span className="ml-3 text-white/70">Loading your runs...</span>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-3 text-gray-700">Loading your runs...</span>
         </div>
       </div>
     );
@@ -155,9 +156,10 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
   
   if (error) {
     return (
-      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-        <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
-          <p className="text-red-400">{error}</p>
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md relative" role="alert">
+          <strong className="font-bold">Error:</strong>
+          <span className="block sm:inline">{error}</span>
         </div>
       </div>
     );
@@ -165,8 +167,8 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
   
   if (runs.length === 0) {
     return (
-      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-        <p className="text-gray-400 text-center py-6">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <p className="text-gray-500 text-center py-6">
           No runs found in your Strava account. Go for a run and sync with Strava, or log a run manually.
         </p>
       </div>
@@ -176,9 +178,9 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
   // If a specific run is selected, show only that run with details
   if (selectedRun) {
     return (
-      <div className="space-y-6">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 space-y-6">
         <div className="flex justify-between items-center">
-          <h3 className="text-xl font-serif">Run Details</h3>
+          <h3 className="text-xl font-semibold text-gray-800">Run Details</h3>
           <button
             onClick={() => {
               setSelectedRunId(null);
@@ -191,7 +193,7 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
                 window.history.pushState({}, '', url);
               }
             }}
-            className="text-sm text-white/60 hover:text-white"
+            className="text-sm text-primary hover:text-primary/80"
           >
             Back to all runs
           </button>
@@ -216,8 +218,8 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
   
   // Show list of runs
   return (
-    <div className="space-y-6">
-      <h3 className="text-xl font-serif mb-4">Your Recent Runs</h3>
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 space-y-6">
+      <h3 className="text-xl font-semibold text-gray-800 mb-4">Your Recent Runs</h3>
       
       {runs.map(run => (
         <RunCard
@@ -238,8 +240,8 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
       
       {isLoading && (
         <div className="flex items-center justify-center py-4">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-          <span className="ml-2 text-white/70">Loading more data...</span>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          <span className="ml-2 text-gray-700">Loading more data...</span>
         </div>
       )}
     </div>

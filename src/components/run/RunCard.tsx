@@ -225,13 +225,7 @@ export function RunCard({
       )}
       
       {/* Footer Actions */}
-      <div className="p-4 border-t border-white/10 flex justify-between">
-        <Link 
-          href={`/run-logger?runId=${id}`}
-          className="text-sm text-gray-500 hover:text-gray-700"
-        >
-          View Details
-        </Link>
+      <div className="p-4 border-t border-white/10 flex justify-end">
         <button
           onClick={toggleExpanded}
           className="text-sm text-gray-500 hover:text-gray-700"

@@ -38,6 +38,7 @@ export interface WorkoutTrend {
   count: number
   totalWeight: number
   totalDuration: number
+  totalSets: number
   exerciseNames?: string[]
   notes?: string[]
   workoutNames?: string[]
@@ -51,6 +52,20 @@ export interface HistoricalWorkout {
   exerciseName: string;
   type?: 'lift' | 'run' | 'other'; // Add this
   distance?: number; // in meters for runs
+}
+
+// New Interfaces for Weekly Muscle Comparison
+export interface MuscleGroupWeeklySnapshot {
+  muscleGroup: string;
+  totalSets: number;
+}
+
+export interface WeeklyMuscleComparisonItem {
+  muscleGroup: MuscleGroup; // Changed from string to MuscleGroup
+  currentWeekSets: number;
+  previousWeekSets: number;
+  changeInSets: number;
+  percentageChange: number;
 }
 
 /**
@@ -357,11 +372,10 @@ export async function getWorkoutTrends(
     // 3. Fetch Raw Workout Data within the UTC date range
     const { data: workouts, error } = await browserSupabaseClient
       .from('workouts')
-      .select('created_at, duration, weight, exercise_name, notes, workout_group_id') // Select needed fields
+      .select('created_at, duration, weight, sets, exercise_name, notes, workout_group_id') // Added 'sets'
       .eq('user_id', session.user.id)
       .gte('created_at', startDateUTC)
       .lte('created_at', endDateUTC)
-      .order('created_at', { ascending: true })
 
     if (error) {
       console.error('Error fetching workout data for trends:', error.message)
@@ -408,6 +422,7 @@ export async function getWorkoutTrends(
         existing.count += 1
         existing.totalDuration += workout.duration ?? 0
         existing.totalWeight += workout.weight ?? 0
+        existing.totalSets += workout.sets ?? 0 // Added aggregation for sets
         if (workout.exercise_name) {
              existing.exerciseNames = [...(existing.exerciseNames ?? []), workout.exercise_name];
         }
@@ -423,6 +438,7 @@ export async function getWorkoutTrends(
           count: 1,
           totalDuration: workout.duration ?? 0,
           totalWeight: workout.weight ?? 0,
+          totalSets: workout.sets ?? 0, // Added initialization for sets
           exerciseNames: workout.exercise_name ? [workout.exercise_name] : [],
           notes: workout.notes ? [workout.notes] : [],
           workoutNames: workoutGroupName ? [workoutGroupName] : [],
@@ -907,5 +923,106 @@ export async function getLocalStravaRunsForYear(userId: string, year: number): P
   } catch (err) {
     console.error(`Exception in getLocalStravaRunsForYear for user ${userId.substring(0,6)} year ${year}:`, err);
     return [];
+  }
+}
+
+// Function to get weekly muscle comparison data
+export async function getWeeklyMuscleComparisonData(
+  userId: string,
+  userTimezone: string,
+  supabaseClient: SupabaseClient = browserSupabaseClient, // Allow passing a client, default to browser
+  weekOffset: number = 0 // 0 for current week vs prev, 1 for last week vs week before, etc.
+): Promise<WeeklyMuscleComparisonItem[]> {
+  // Determine the base date for comparison by applying the offset
+  const baseDateForComparison = subWeeks(new Date(), weekOffset);
+  const baseDateInUserTz = toZonedTime(baseDateForComparison, userTimezone);
+
+  // "Current" week for comparison (which could be a past week if offset > 0)
+  const currentComparisonWeekStartUserTz = startOfWeek(baseDateInUserTz, { weekStartsOn: 1 });
+  const currentComparisonWeekEndUserTz = endOfWeek(baseDateInUserTz, { weekStartsOn: 1 });
+  const currentComparisonWeekStartUtc = fromZonedTime(currentComparisonWeekStartUserTz, userTimezone);
+  const currentComparisonWeekEndUtc = fromZonedTime(currentComparisonWeekEndUserTz, userTimezone);
+
+  // "Previous" week relative to the "current" comparison week
+  const previousComparisonWeekBaseDate = subWeeks(baseDateForComparison, 1);
+  const previousComparisonWeekBaseDateInUserTz = toZonedTime(previousComparisonWeekBaseDate, userTimezone);
+  const previousComparisonWeekStartUserTz = startOfWeek(previousComparisonWeekBaseDateInUserTz, { weekStartsOn: 1 });
+  const previousComparisonWeekEndUserTz = endOfWeek(previousComparisonWeekBaseDateInUserTz, { weekStartsOn: 1 });
+  const previousComparisonWeekStartUtc = fromZonedTime(previousComparisonWeekStartUserTz, userTimezone);
+  const previousComparisonWeekEndUtc = fromZonedTime(previousComparisonWeekEndUserTz, userTimezone);
+
+  try {
+    // Fetch workouts for current and previous comparison weeks in parallel
+    const [currentWeekWorkoutsResponse, previousWeekWorkoutsResponse] = await Promise.all([
+      supabaseClient
+        .from('workouts')
+        .select('exercise_name, sets')
+        .eq('user_id', userId)
+        .gte('created_at', currentComparisonWeekStartUtc.toISOString())
+        .lte('created_at', currentComparisonWeekEndUtc.toISOString()),
+      supabaseClient
+        .from('workouts')
+        .select('exercise_name, sets')
+        .eq('user_id', userId)
+        .gte('created_at', previousComparisonWeekStartUtc.toISOString())
+        .lte('created_at', previousComparisonWeekEndUtc.toISOString())
+    ]);
+
+    if (currentWeekWorkoutsResponse.error) throw currentWeekWorkoutsResponse.error;
+    if (previousWeekWorkoutsResponse.error) throw previousWeekWorkoutsResponse.error;
+
+    // Explicitly type the data after fetching
+    const currentWeekRawData: { exercise_name: string; sets: number }[] = currentWeekWorkoutsResponse.data || [];
+    const previousWeekRawData: { exercise_name: string; sets: number }[] = previousWeekWorkoutsResponse.data || [];
+
+    // Aggregate data by muscle group
+    const aggregateSetsByMuscleGroup = (workouts: { exercise_name: string; sets: number }[]): Map<MuscleGroup, number> => {
+      const aggregation = new Map<MuscleGroup, number>();
+      workouts.forEach(workout => {
+        const muscleGroup = findMuscleGroupForExercise(workout.exercise_name);
+        aggregation.set(muscleGroup, (aggregation.get(muscleGroup) || 0) + (workout.sets || 0));
+      });
+      return aggregation;
+    };
+
+    const currentWeekAggregated = aggregateSetsByMuscleGroup(currentWeekRawData);
+    const previousWeekAggregated = aggregateSetsByMuscleGroup(previousWeekRawData);
+
+    // Get all unique muscle groups involved
+    const allMuscleGroups = new Set<MuscleGroup>([
+      ...Array.from(currentWeekAggregated.keys()),
+      ...Array.from(previousWeekAggregated.keys())
+    ]);
+
+    const comparisonData: WeeklyMuscleComparisonItem[] = [];
+
+    allMuscleGroups.forEach(muscleGroup => {
+      const currentWeekSets = currentWeekAggregated.get(muscleGroup) || 0;
+      const previousWeekSets = previousWeekAggregated.get(muscleGroup) || 0;
+      const changeInSets = currentWeekSets - previousWeekSets;
+      let percentageChange = 0;
+
+      if (previousWeekSets > 0) {
+        percentageChange = (changeInSets / previousWeekSets); // Store as fraction, format later
+      } else if (currentWeekSets > 0) {
+        percentageChange = Infinity; // Indicates new activity
+      }
+      // If both are 0, percentageChange remains 0.
+
+      comparisonData.push({
+        muscleGroup,
+        currentWeekSets,
+        previousWeekSets,
+        changeInSets,
+        percentageChange,
+      });
+    });
+
+    return comparisonData;
+
+  } catch (error) {
+    console.error('Error fetching weekly muscle comparison data:', error);
+    // Optionally, rethrow or return an empty array/specific error structure
+    throw error; // Rethrow to be caught by the caller in dashboard page
   }
 } 

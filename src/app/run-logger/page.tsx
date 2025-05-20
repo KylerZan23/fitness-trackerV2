@@ -14,7 +14,7 @@ import Link from 'next/link'
 import { StravaConnect } from '@/components/run/StravaConnect'
 import { RunList } from '@/components/run/RunList'
 import { StravaRunList } from '@/components/run/StravaRunList'
-import { ManualRunLogger } from '@/components/run/ManualRunLogger'
+// import { ManualRunLogger } from '@/components/run/ManualRunLogger' // Removed import
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Icon } from '@/components/ui/Icon'
 import { Error as ErrorComponent } from '@/components/ui/error'
@@ -106,10 +106,10 @@ export default function RunLoggerPage() {
     }
   }, [runId])
 
-  const handleRunLogged = () => {
-    setActiveTab('card-view') 
-    // Potentially add a toast notification here or trigger a refresh of the run list data
-  }
+  // const handleRunLogged = () => { // Function no longer needed as ManualRunLogger is removed
+  //   setActiveTab('card-view') 
+  //   // Potentially add a toast notification here or trigger a refresh of the run list data
+  // }
   
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -174,7 +174,8 @@ export default function RunLoggerPage() {
           </div>
         )}
 
-        <div className="mb-6 border-b border-gray-200">
+        {/* Tabs removed as per request, only Activity Feed (Cards) will be shown by default */}
+        {/* <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-6" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('card-view')}
@@ -186,49 +187,13 @@ export default function RunLoggerPage() {
             >
               Activity Feed (Cards)
             </button>
-            <button
-              onClick={() => setActiveTab('table-view')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'table-view'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              All Runs (Table)
-            </button>
-            <button
-              onClick={() => setActiveTab('log')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'log'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Log New Run
-            </button>
           </nav>
-        </div>
+        </div> */}
 
-        {/* Tab Content - Potentially wrap these in cards too if their content is complex or needs distinct visual separation */} 
+        {/* Content Area - Directly show StravaRunList as other tabs are removed */}
         <div className="mt-6">
-            {activeTab === 'card-view' && userId && (
+            {userId && (
                 <StravaRunList userId={userId} isConnected={isStravaConnected} />
-            )}
-            
-            {activeTab === 'table-view' && userId && (
-                <RunList userId={userId} isConnected={isStravaConnected} />
-            )}
-            
-            {activeTab === 'log' && userId && (
-                // Consider wrapping ManualRunLogger in a card for better visual grouping of the form
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Manually Log a Run</h2>
-                    <ManualRunLogger
-                        userId={userId}
-                        isConnected={isStravaConnected} // This prop might be less relevant for manual logging
-                        onRunLogged={handleRunLogged}
-                    />
-                </div>
             )}
         </div>
       </div>

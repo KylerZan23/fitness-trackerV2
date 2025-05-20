@@ -84,7 +84,7 @@ export default function NewWorkoutPage() {
   const [detailedError, setDetailedError] = useState<any>(null) // Keep for detailed debugging if needed
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof getUserProfile>> | null>(null)
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
-  const [groupMode, setGroupMode] = useState(true) // Default to group mode
+  // const [groupMode, setGroupMode] = useState(true) // Default to group mode, no longer needs to be toggled
   const [exercises, setExercises] = useState<WorkoutExercise[]>([])
   const [currentExercise, setCurrentExercise] = useState<WorkoutExercise>({
     exerciseName: '', // Now direct input
@@ -92,16 +92,16 @@ export default function NewWorkoutPage() {
     reps: 10,
     weight: 0
   })
-  // Single workout form data (less used if default is group)
-  const [formData, setFormData] = useState<WorkoutFormData>({
-    exerciseName: '',
-    sets: 3,
-    reps: 10,
-    weight: 0,
-    duration: 30,
-    notes: '',
-    workoutDate: getTodayDateString()
-  })
+  // Single workout form data (REMOVED as single exercise mode is removed)
+  // const [formData, setFormData] = useState<WorkoutFormData>({
+  //   exerciseName: '',
+  //   sets: 3,
+  //   reps: 10,
+  //   weight: 0,
+  //   duration: 30,
+  //   notes: '',
+  //   workoutDate: getTodayDateString()
+  // })
   // Group workout form data
   const [groupFormData, setGroupFormData] = useState<WorkoutGroupFormData>({
     name: '',
@@ -148,18 +148,18 @@ export default function NewWorkoutPage() {
       ? parseInt(value) || 0
       : value;
 
-    if (groupMode) {
-      if (name.startsWith('group.')) {
-        const groupField = name.split('.')[1];
-        setGroupFormData(prev => ({ ...prev, [groupField]: parsedValue }));
-      } else {
-        // Handle fields for the current exercise being added
-        setCurrentExercise(prev => ({ ...prev, [name]: parsedValue }));
-      }
+    // if (groupMode) { // groupMode is always true now
+    if (name.startsWith('group.')) {
+      const groupField = name.split('.')[1];
+      setGroupFormData(prev => ({ ...prev, [groupField]: parsedValue }));
     } else {
-      // Handle fields for single workout mode
-      setFormData(prev => ({ ...prev, [name]: parsedValue }));
+      // Handle fields for the current exercise being added
+      setCurrentExercise(prev => ({ ...prev, [name]: parsedValue }));
     }
+    // } else {
+      // Handle fields for single workout mode (REMOVED)
+      // setFormData(prev => ({ ...prev, [name]: parsedValue }));
+    // }
   };
 
   // handleSelectExercise is REMOVED as ExerciseSelector is removed. Name is typed directly.
@@ -221,89 +221,89 @@ export default function NewWorkoutPage() {
      }
 
     try {
-      console.log('Form submission started', groupMode ? 'Group mode' : 'Single mode');
+      console.log('Form submission started'); // groupMode check removed, always group mode
 
-      if (groupMode) {
-        console.log('Group Form data:', groupFormData);
-        if (groupFormData.exercises.length === 0) {
-          throw new Error('Please add at least one exercise to your workout group');
-        }
-        // Ensure group name is present
-         if (!groupFormData.name.trim()) {
-           throw new Error('Please enter a name for your workout group');
-         }
-
-        const groupPayload = {
-          name: groupFormData.name,
-          exercises: groupFormData.exercises, // Use groupFormData.exercises directly
-          duration: groupFormData.duration,
-          notes: groupFormData.notes,
-          workoutDate: groupFormData.workoutDate
-        };
-        console.log('Workout group payload:', groupPayload);
-
-        const validationResult = workoutGroupSchema.safeParse(groupPayload);
-        if (!validationResult.success) {
-          console.error('Validation error:', validationResult.error);
-          const errorMessage = validationResult.error.errors[0]?.message || 'Invalid workout group data';
-          throw new Error(errorMessage);
-        }
-
-        await logWorkoutGroup(validationResult.data); // Use validated data
-        toast.success('Workout group logged successfully!');
-        // Reset form after successful submission
-         setGroupFormData({
-           name: '',
-           exercises: [],
-           duration: 30,
-           notes: '',
-           workoutDate: getTodayDateString()
-         });
-         setExercises([]); // Clear exercise list too
-
-
-      } else {
-        // Single Exercise Mode
-        console.log('Single Form data:', formData);
-         // Ensure exercise name is present
-         if (!formData.exerciseName.trim()) {
-           throw new Error('Please enter an exercise name');
-         }
-
-        const singlePayload = {
-          exerciseName: formData.exerciseName,
-          sets: formData.sets,
-          reps: formData.reps,
-          weight: formData.weight,
-          duration: formData.duration,
-          notes: formData.notes,
-          workoutDate: formData.workoutDate,
-          weight_unit: weightUnit // Add weight unit
-        };
-        console.log('Single workout payload:', singlePayload);
-
-        // Validate single workout data (assuming workoutSchema includes weight_unit now)
-        // If workoutSchema doesn't include weight_unit, adjust schema or payload
-        const validationResult = workoutSchema.safeParse(singlePayload);
-         if (!validationResult.success) {
-           console.error('Validation error:', validationResult.error);
-           const errorMessage = validationResult.error.errors[0]?.message || 'Invalid workout data';
-           throw new Error(errorMessage);
-         }
-
-        await logWorkout(validationResult.data); // Use validated data
-        toast.success('Workout logged successfully!');
-        // Reset form
-         setFormData({
-            exerciseName: '',
-            sets: 3,
-            reps: 10,
-            weight: 0,
-            duration: 30,
-            notes: '',
-            workoutDate: getTodayDateString()
-          });
+      // if (groupMode) { // groupMode is always true now
+      console.log('Group Form data:', groupFormData);
+      if (groupFormData.exercises.length === 0) {
+        throw new Error('Please add at least one exercise to your workout group');
       }
+      // Ensure group name is present
+       if (!groupFormData.name.trim()) {
+         throw new Error('Please enter a name for your workout group');
+       }
+
+      const groupPayload = {
+        name: groupFormData.name,
+        exercises: groupFormData.exercises, // Use groupFormData.exercises directly
+        duration: groupFormData.duration,
+        notes: groupFormData.notes,
+        workoutDate: groupFormData.workoutDate
+      };
+      console.log('Workout group payload:', groupPayload);
+
+      const validationResult = workoutGroupSchema.safeParse(groupPayload);
+      if (!validationResult.success) {
+        console.error('Validation error:', validationResult.error);
+        const errorMessage = validationResult.error.errors[0]?.message || 'Invalid workout group data';
+        throw new Error(errorMessage);
+      }
+
+      await logWorkoutGroup(validationResult.data); // Use validated data
+      toast.success('Workout group logged successfully!');
+      // Reset form after successful submission
+       setGroupFormData({
+         name: '',
+         exercises: [],
+         duration: 30,
+         notes: '',
+         workoutDate: getTodayDateString()
+       });
+       setExercises([]); // Clear exercise list too
+
+
+      // } else {
+        // Single Exercise Mode (REMOVED)
+        // console.log('Single Form data:', formData);
+        //  // Ensure exercise name is present
+        //  if (!formData.exerciseName.trim()) {
+        //    throw new Error('Please enter an exercise name');
+        //  }
+
+        // const singlePayload = {
+        //   exerciseName: formData.exerciseName,
+        //   sets: formData.sets,
+        //   reps: formData.reps,
+        //   weight: formData.weight,
+        //   duration: formData.duration,
+        //   notes: formData.notes,
+        //   workoutDate: formData.workoutDate,
+        //   weight_unit: weightUnit // Add weight unit
+        // };
+        // console.log('Single workout payload:', singlePayload);
+
+        // // Validate single workout data (assuming workoutSchema includes weight_unit now)
+        // // If workoutSchema doesn't include weight_unit, adjust schema or payload
+        // const validationResult = workoutSchema.safeParse(singlePayload);
+        //  if (!validationResult.success) {
+        //    console.error('Validation error:', validationResult.error);
+        //    const errorMessage = validationResult.error.errors[0]?.message || 'Invalid workout data';
+        //    throw new Error(errorMessage);
+        //  }
+
+        // await logWorkout(validationResult.data); // Use validated data
+        // toast.success('Workout logged successfully!');
+        // // Reset form
+        //  setFormData({
+        //     exerciseName: '',
+        //     sets: 3,
+        //     reps: 10,
+        //     weight: 0,
+        //     duration: 30,
+        //     notes: '',
+        //     workoutDate: getTodayDateString()
+        //   });
+      // }
 
       // Optionally navigate away after success
       // router.push('/workouts'); // Example: navigate to workouts list
@@ -385,8 +385,8 @@ export default function NewWorkoutPage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Log New Workout</h1>
 
-        {/* Mode Toggle */}
-        <div className="mb-6 flex justify-center gap-2 p-1 bg-gray-200 rounded-lg">
+        {/* Mode Toggle (REMOVED) */}
+        {/* <div className="mb-6 flex justify-center gap-2 p-1 bg-gray-200 rounded-lg">
            <Button
              variant={groupMode ? "default" : "ghost"}
              onClick={() => setGroupMode(true)}
@@ -403,18 +403,18 @@ export default function NewWorkoutPage() {
            >
              Log Single Exercise
            </Button>
-         </div>
+         </div> */}
 
 
         <form onSubmit={handleSubmit}>
           {/* --- Shared or Conditional Fields --- */}
           <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              {groupMode ? 'Workout Group Details' : 'Exercise Details'}
+              Workout Group Details {/* groupMode check removed, always group mode */}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Group Name (Group Mode Only) */}
-              {groupMode && (
+              {/* Group Name (Group Mode Only) - now always visible */}
+              {/* {groupMode && ( */}
                 <div className="md:col-span-2">
                   <Label htmlFor="group.name">Workout Name</Label>
                   <Input
@@ -424,15 +424,15 @@ export default function NewWorkoutPage() {
                     value={groupFormData.name}
                     onChange={handleChange}
                     placeholder="e.g., Morning Push Day"
-                    required={groupMode}
+                    required // groupMode check removed
                     disabled={isSubmitting}
                     className="mt-1"
                   />
                 </div>
-              )}
+              {/* )} */}
 
-              {/* Exercise Name (Single Mode Only) */}
-              {!groupMode && (
+              {/* Exercise Name (Single Mode Only) (REMOVED) */}
+              {/* {!groupMode && (
                  <div>
                    <Label htmlFor="exerciseName">Exercise Name</Label>
                    <ExerciseCombobox
@@ -442,10 +442,10 @@ export default function NewWorkoutPage() {
                      placeholder="Select or type exercise..."
                    />
                  </div>
-              )}
+              )} */}
 
-               {/* Sets, Reps, Weight (Single Mode Only) */}
-               {!groupMode && (
+               {/* Sets, Reps, Weight (Single Mode Only) (REMOVED) */}
+               {/* {!groupMode && (
                  <>
                    <div>
                      <Label htmlFor="sets">Sets</Label>
@@ -491,19 +491,19 @@ export default function NewWorkoutPage() {
                      />
                    </div>
                  </>
-               )}
+               )} */}
 
 
               {/* Duration */}
                <div>
-                <Label htmlFor={groupMode ? "group.duration" : "duration"}>Duration (minutes)</Label>
+                <Label htmlFor="group.duration">Duration (minutes)</Label> {/* groupMode check removed from name/id */}
                 <Input
-                  id={groupMode ? "group.duration" : "duration"}
-                  name={groupMode ? "group.duration" : "duration"}
+                  id="group.duration" // groupMode check removed
+                  name="group.duration" // groupMode check removed
                   type="number"
-                  value={groupMode ? groupFormData.duration : formData.duration}
+                  value={groupFormData.duration} // Always use groupFormData
                   onChange={handleChange}
-                  min="1"
+                  min="0"
                   required
                   disabled={isSubmitting}
                   className="mt-1"
@@ -512,12 +512,12 @@ export default function NewWorkoutPage() {
 
               {/* Workout Date */}
               <div>
-                <Label htmlFor={groupMode ? "group.workoutDate" : "workoutDate"}>Workout Date</Label>
+                <Label htmlFor="group.workoutDate">Workout Date</Label> {/* groupMode check removed from name/id */}
                 <Input
-                  id={groupMode ? "group.workoutDate" : "workoutDate"}
-                  name={groupMode ? "group.workoutDate" : "workoutDate"}
+                  id="group.workoutDate" // groupMode check removed
+                  name="group.workoutDate" // groupMode check removed
                   type="date"
-                  value={groupMode ? groupFormData.workoutDate : formData.workoutDate}
+                  value={groupFormData.workoutDate} // Always use groupFormData
                   onChange={handleChange}
                   required
                   disabled={isSubmitting}
@@ -527,12 +527,12 @@ export default function NewWorkoutPage() {
 
               {/* Notes */}
               <div className="md:col-span-2">
-                <Label htmlFor={groupMode ? "group.notes" : "notes"}>Notes (Optional)</Label>
+                <Label htmlFor="group.notes">Notes (Optional)</Label> {/* groupMode check removed from name/id */}
                  {/* Assuming Textarea component exists or style similarly */}
                  <Textarea
-                   id={groupMode ? "group.notes" : "notes"}
-                   name={groupMode ? "group.notes" : "notes"}
-                   value={groupMode ? groupFormData.notes : formData.notes}
+                   id="group.notes" // groupMode check removed
+                   name="group.notes" // groupMode check removed
+                   value={groupFormData.notes} // Always use groupFormData
                    onChange={handleChange}
                    placeholder="e.g., Felt strong today, focus on form..."
                    rows={3}
@@ -545,7 +545,7 @@ export default function NewWorkoutPage() {
 
 
           {/* --- Group Mode: Add Exercise Section --- */}
-          {groupMode && (
+          {/* {groupMode && ( */}
             <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Exercise to Group</h2>
                {/* Removed MuscleGroupSelector */}
@@ -612,11 +612,11 @@ export default function NewWorkoutPage() {
                  Add Exercise
                </Button>
             </div>
-          )}
+          {/* )} */}
 
 
            {/* --- Group Mode: Exercise List --- */}
-           {groupMode && exercises.length > 0 && (
+           {/* {groupMode && exercises.length > 0 && ( */}
              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
                <h2 className="text-xl font-semibold text-gray-800 mb-4">Exercises in this Group</h2>
                <ul className="space-y-3">
@@ -641,7 +641,7 @@ export default function NewWorkoutPage() {
                  ))}
                </ul>
              </div>
-           )}
+           {/* )} */}
 
 
           {/* --- Submission Area --- */}
@@ -658,10 +658,10 @@ export default function NewWorkoutPage() {
 
             <Button
               type="submit"
-              disabled={isSubmitting || (groupMode && exercises.length === 0)}
+              disabled={isSubmitting || (/* groupMode && */ exercises.length === 0)}
               className="w-full md:w-auto"
             >
-              {isSubmitting ? 'Logging...' : (groupMode ? 'Log Workout Group' : 'Log Single Exercise')}
+              {isSubmitting ? 'Logging...' : (/* groupMode ? 'Log Workout Group' : */ 'Log Workout Group')}
             </Button>
              {/* Optionally add a cancel button */}
              <Button

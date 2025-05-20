@@ -27,13 +27,19 @@ ChartJS.register(
   Legend
 )
 
+// Define the type for selectable trend metrics locally
+export type TrendMetric = 'totalDuration' | 'totalWeight' | 'totalSets';
+
 interface WorkoutChartProps {
-  data: WorkoutTrend[]
+  data: WorkoutTrend[];
+  weightUnit: 'kg' | 'lbs';
 }
 
-export function WorkoutChart({ data }: WorkoutChartProps) {
+export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
   // State for week offset (0 = current week, -1 = last week, etc.)
   const [weekOffset, setWeekOffset] = useState(0);
+  // State for the active metric to display
+  const [activeMetric, setActiveMetric] = useState<TrendMetric>('totalDuration');
 
   // --- Helper Functions ---
 
@@ -90,6 +96,8 @@ export function WorkoutChart({ data }: WorkoutChartProps) {
       isPast: dayDate < todayDateOnly,
       count: matchingData?.count ?? 0,
       duration: matchingData?.totalDuration ?? 0,
+      weight: matchingData?.totalWeight ?? 0,
+      sets: matchingData?.totalSets ?? 0,
       exerciseNames: matchingData?.exerciseNames ?? [],
       notes: matchingData?.notes ?? [],
       workoutNames: matchingData?.workoutNames ?? []
@@ -98,14 +106,45 @@ export function WorkoutChart({ data }: WorkoutChartProps) {
 
   // --- Chart Configuration ---
 
+  const getCurrentMetricDisplayInfo = () => {
+    switch (activeMetric) {
+      case 'totalWeight':
+        return {
+          data: mappedData.map(item => item.weight),
+          label: `Total Weight (${weightUnit})`,
+          yAxisLabel: `Weight (${weightUnit})`,
+          color: 'rgba(54, 162, 235, 0.7)', // Blue
+          borderColor: 'rgba(54, 162, 235, 1)',
+        };
+      case 'totalSets':
+        return {
+          data: mappedData.map(item => item.sets),
+          label: 'Total Sets',
+          yAxisLabel: 'Sets',
+          color: 'rgba(75, 192, 192, 0.7)', // Green
+          borderColor: 'rgba(75, 192, 192, 1)',
+        };
+      case 'totalDuration':
+      default:
+        return {
+          data: mappedData.map(item => item.duration),
+          label: 'Duration (min)',
+          yAxisLabel: 'Duration (min)',
+          color: 'rgba(251, 146, 60, 0.7)', // Orange
+          borderColor: 'rgba(251, 146, 60, 1)',
+        };
+    }
+  };
+  const currentMetricInfo = getCurrentMetricDisplayInfo();
+
   const chartData: ChartData<'bar'> = {
     labels: mappedData.map(item => item.label),
     datasets: [
       {
-        label: 'Duration (min)',
-        data: mappedData.map(item => item.duration),
-        backgroundColor: 'rgba(251, 146, 60, 0.7)',
-        borderColor: 'rgba(251, 146, 60, 1)',
+        label: currentMetricInfo.label,
+        data: currentMetricInfo.data,
+        backgroundColor: currentMetricInfo.color,
+        borderColor: currentMetricInfo.borderColor,
         borderWidth: 1,
         borderRadius: 4,
       }
@@ -227,7 +266,7 @@ export function WorkoutChart({ data }: WorkoutChartProps) {
         },
         title: {
           display: true,
-          text: 'Duration (min)',
+          text: currentMetricInfo.yAxisLabel,
           color: axisColor,
           font: {
             family: 'system-ui',
@@ -297,7 +336,7 @@ export function WorkoutChart({ data }: WorkoutChartProps) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-      <div className="flex justify-between items-center mb-4 px-2">
+      <div className="flex justify-between items-center mb-2 px-2">
          <Button 
            variant="ghost" 
            size="icon" 
@@ -307,7 +346,27 @@ export function WorkoutChart({ data }: WorkoutChartProps) {
            <ChevronLeft className="h-5 w-5" />
          </Button>
          
-         <div className="flex-1"></div>
+         {/* Metric Selection Buttons */}
+         <div className="flex justify-center space-x-2">
+          {(['totalDuration', 'totalWeight', 'totalSets'] as TrendMetric[]).map((metric) => {
+            let buttonText = '';
+            if (metric === 'totalDuration') buttonText = 'Duration';
+            else if (metric === 'totalWeight') buttonText = `Weight (${weightUnit})`;
+            else if (metric === 'totalSets') buttonText = 'Sets';
+            
+            return (
+              <Button
+                key={metric}
+                variant={activeMetric === metric ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveMetric(metric)}
+                className={`px-3 py-1 text-xs sm:text-sm ${activeMetric === metric ? 'bg-primary text-primary-foreground' : 'border-gray-300 hover:bg-gray-100'}`}
+              >
+                {buttonText}
+              </Button>
+            );
+          })}
+        </div>
 
          <Button 
            variant="ghost" 

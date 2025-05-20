@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getWorkoutStats, getTodayWorkoutStats, getWorkoutTrends, type WorkoutStats, type WorkoutTrend } from '@/lib/db'
+import { getWorkoutStats, getTodayWorkoutStats, getWorkoutTrends, type WorkoutStats, type WorkoutTrend, getWeeklyMuscleComparisonData, WeeklyMuscleComparisonItem } from '@/lib/db'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { WorkoutChart } from '@/components/dashboard/WorkoutChart'
 import { Error } from '@/components/ui/error'
@@ -22,6 +22,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { GoalsCard } from '@/components/dashboard/GoalsCard'
 import { AICoachCard } from '@/components/dashboard/AICoachCard'
 import { Button } from '@/components/ui/button'
+import { WeeklyComparison } from '@/components/dashboard/WeeklyComparison'
 
 interface UserProfile {
   id: string
@@ -74,11 +75,15 @@ export default function DashboardPage() {
   const [trends, setTrends] = useState<WorkoutTrend[]>(emptyTrends)
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
   const [isMuscleChartCollapsed, setIsMuscleChartCollapsed] = useState(false)
-  // Get user's timezone once on mount
-  const [userTimezone, setUserTimezone] = useState('UTC'); // Default to UTC
-  const [isCoachPopupOpen, setIsCoachPopupOpen] = useState(false); // New state for AI Coach popup
+  const [userTimezone, setUserTimezone] = useState('UTC');
+  const [isCoachPopupOpen, setIsCoachPopupOpen] = useState(false);
+  const [isCoachTooltipVisible, setIsCoachTooltipVisible] = useState(false);
 
-  // Toggle function for AI Coach popup
+  const [weeklyComparisonData, setWeeklyComparisonData] = useState<WeeklyMuscleComparisonItem[] | null>(null);
+  const [isComparisonLoading, setIsComparisonLoading] = useState(true);
+  const [comparisonError, setComparisonError] = useState<string | null>(null);
+  const [comparisonWeekOffset, setComparisonWeekOffset] = useState(0);
+
   const toggleCoachPopup = () => setIsCoachPopupOpen(prev => !prev);
 
   useEffect(() => {
@@ -93,12 +98,13 @@ export default function DashboardPage() {
       }
   }, []); // Empty dependency array ensures it runs only once client-side
 
-  // Memoized data fetching function - now uses userTimezone state
   const fetchData = useCallback(async (isInitialLoad = false) => {
     if (isInitialLoad) {
       setIsLoading(true)
     }
     setError(null)
+    setIsComparisonLoading(true);
+    setComparisonError(null);
 
     try {
       const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
@@ -175,6 +181,25 @@ export default function DashboardPage() {
         setTrends(emptyTrends)
       }
 
+      // Fetch weekly comparison data
+      if (currentSession) {
+        try {
+          const comparisonDataResult = await getWeeklyMuscleComparisonData(
+            currentSession.user.id, 
+            userTimezone, 
+            supabase, 
+            comparisonWeekOffset
+          );
+          setWeeklyComparisonData(comparisonDataResult);
+        } catch (compError: any) {
+          console.error('Error fetching weekly comparison data:', compError);
+          setComparisonError(compError.message || 'Failed to load weekly comparison.');
+          setWeeklyComparisonData(null);
+        } finally {
+          setIsComparisonLoading(false);
+        }
+      }
+
     } catch (err) {
       console.error('Dashboard fetch data error:', err)
       const errorMessage = err && typeof err === 'object' && 'message' in err
@@ -186,16 +211,23 @@ export default function DashboardPage() {
       setStats(emptyStats)
       setTodayStats(emptyStats)
       setTrends(emptyTrends)
+      setWeeklyComparisonData(null);
+      setIsComparisonLoading(false);
     } finally {
       if (isInitialLoad) {
         setIsLoading(false)
       }
     }
-  // IMPORTANT: Add userTimezone to dependency array
-  // This ensures fetchData is recreated if timezone changes (e.g., hydration)
-  // and subsequent effects using fetchData get the updated version.
-  }, [router, userTimezone])
+  }, [router, userTimezone, comparisonWeekOffset])
 
+  // Handlers for week navigation
+  const handlePreviousComparisonWeek = () => {
+    setComparisonWeekOffset(prevOffset => prevOffset + 1);
+  };
+
+  const handleNextComparisonWeek = () => {
+    setComparisonWeekOffset(prevOffset => Math.max(0, prevOffset - 1)); // Prevent going into the future (offset < 0)
+  };
 
   // Effect for initial data load and auth state changes
   useEffect(() => {
@@ -228,7 +260,6 @@ export default function DashboardPage() {
     }
   // FetchData dependency already includes userTimezone
   }, [router, fetchData])
-
 
   // Effect for refetching data on visibility change
   useEffect(() => {
@@ -318,11 +349,14 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Workout Trends Chart - MOVED HERE */}
+          {/* Workout Trends Chart */}
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
-            <h2 className="text-xl font-semibold text-gray-700 mb-3">Workout Trends (Last 8 Weeks)</h2>
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-xl font-semibold text-gray-700">Workout Trends (Last 8 Weeks)</h2>
+              {/* Metric selection buttons REMOVED from here */}
+            </div>
             {trends.length > 0 
-              ? <WorkoutChart data={trends} />
+              ? <WorkoutChart data={trends} weightUnit={weightUnit} /> // Pass only data and weightUnit
               : <p className="text-sm text-gray-500">No workout data available for trends.</p>}
           </div>
           
@@ -338,7 +372,7 @@ export default function DashboardPage() {
             {/* Muscle Distribution Chart Container */}
             <div className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all duration-300 ease-in-out ${isMuscleChartCollapsed ? 'max-h-16 overflow-hidden' : 'max-h-none'}`}>
               <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-semibold text-gray-700">Muscle Focus (Last 30 Days)</h3>
+                <h3 className="text-lg font-semibold text-gray-700">Muscle Distribution (By Week)</h3>
                 <button 
                   onClick={() => setIsMuscleChartCollapsed(!isMuscleChartCollapsed)}
                   className="text-sm text-primary hover:text-primary/80"
@@ -357,17 +391,40 @@ export default function DashboardPage() {
             <GoalsCard /> 
           </div>
           
+          {/* Weekly Comparison Section - Use the actual component now */}
+          <div className="mb-6">
+            <WeeklyComparison 
+              data={weeklyComparisonData} 
+              isLoading={isComparisonLoading} 
+              error={comparisonError} 
+              weekOffset={comparisonWeekOffset}
+              userTimezone={userTimezone}
+              onPreviousWeek={handlePreviousComparisonWeek}
+              onNextWeek={handleNextComparisonWeek}
+            />
+          </div>
+          
           {/* Recent Run Card */}
           <RecentRun userId={session!.user!.id} />
           
           {/* Floating AI Coach Toggle Button */}
           <button
             onClick={toggleCoachPopup}
-            className="fixed bottom-8 right-8 z-50 bg-primary text-primary-foreground p-3 rounded-full shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-transform hover:scale-110"
+            onMouseEnter={() => setIsCoachTooltipVisible(true)}
+            onMouseLeave={() => setIsCoachTooltipVisible(false)}
+            className="fixed bottom-8 right-8 z-50 bg-primary text-primary-foreground p-4 rounded-full shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-transform hover:scale-110"
             aria-label="Toggle AI Personal Coach"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 8v4"/><path d="M12 16v4"/><path d="M16 12h4M8 12H4M17 9l2-2M7 9l-2-2m12 8 2 2M7 17l-2 2m7-5a1 1 0 0 0-2 0v1a1 1 0 0 0 2 0Z"/><path d="M12 12a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 8v4"/><path d="M12 16v4"/><path d="M16 12h4M8 12H4M17 9l2-2M7 9l-2-2m12 8 2 2M7 17l-2 2m7-5a1 1 0 0 0-2 0v1a1 1 0 0 0 2 0Z"/><path d="M12 12a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg>
           </button>
+          {isCoachTooltipVisible && (
+            <div
+              className="fixed bottom-28 right-8 z-50 bg-primary text-primary-foreground p-3 rounded-md shadow-lg text-xs font-medium animate-fadeIn"
+              role="tooltip"
+            >
+              Your AI Personal Coach: Get personalized tips and guidance!
+            </div>
+          )}
 
           {/* Popup Container for AI Coach Card */}
           {isCoachPopupOpen && (
