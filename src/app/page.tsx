@@ -55,7 +55,7 @@ const V0AboutSection = () => {
     <section id="about" className="min-h-screen bg-gray-50 text-gray-800 py-10 md:py-16 flex flex-col justify-center">
       <div className="container mx-auto px-4 flex-grow flex flex-col justify-center">
         <div className="text-center mb-14 animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold mb-4 text-gray-800">About FitnessTracker</h1>
+          <h1 className="text-5xl md:text-6xl font-bold mb-4 text-gray-800">About FitTrackAI</h1>
           <div className="w-24 h-1 bg-blue-600 mx-auto rounded-full animate-scale-in"></div>
         </div>
 
@@ -67,13 +67,13 @@ const V0AboutSection = () => {
                 <span className="text-blue-600">Unlock next‑level performance through AI precision.</span>
               </h2>
               <p className="text-xl leading-relaxed">
-                FitnessTracker fuses elite sport‑science with cutting‑edge machine learning, turning everyday training
+                FitTrackAI fuses elite sport‑science with cutting‑edge machine learning, turning everyday training
                 data into a personalized playbook for unstoppable progress.
               </p>
             </div>
 
             <div ref={featuresRef} className="space-y-4 fade-up">
-              <h2 className="text-2xl font-bold">Why Choose FitnessTracker?</h2>
+              <h2 className="text-2xl font-bold">Why Choose FitTrackAI?</h2>
               <ul className="space-y-3">
                 {[
                   "An AI-Personal Coach at your fingertips",
@@ -162,7 +162,7 @@ const V0AboutSection = () => {
           <h2 className="text-4xl font-bold mb-5 text-gray-800">Join the future of fitness tracking.</h2>
           <p className="text-xl max-w-2xl mx-auto mb-8 text-gray-600">
             Join thousands of users who are already tracking their progress and unlocking their potential with
-            FitnessTracker.
+            FitTrackAI.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -227,7 +227,7 @@ const V0AboutSection = () => {
             </div>
           </div>
           <div className="text-center mt-8 text-sm text-gray-500 animate-fade-in">
-            © {new Date().getFullYear()} FitnessTracker. All rights reserved.
+            © {new Date().getFullYear()} FitTrackAI. All rights reserved.
           </div>
         </footer>
       </div>
@@ -390,7 +390,7 @@ export default function HomePage() {
                 <path fillRule="evenodd" d="M12.316 3.076A8.5 8.5 0 001.499 8.562a8.5 8.5 0 0011.018 8.241 1 1 0 01.817 1.81 10.5 10.5 0 11-10.4-14.09 1 1 0 111.382 1.453zM14.5 6a1 1 0 011 1v2.586l2.707 2.707a1 1 0 11-1.414 1.414L14 11.414V14a1 1 0 11-2 0V8a1 1 0 011-1h1.5z" clipRule="evenodd" />
               </svg>
             </div>
-            <div className="text-xl font-bold">FitnessTracker</div>
+            <div className="text-xl font-bold">FitTrackAI</div>
           </div>
         </div>
         <div className="flex items-center gap-6">
@@ -427,13 +427,13 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full">
         <div className="max-w-xl">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Train Smarter with AI,
+            Train Smarter with AI
           </h1>
           <h2 className="text-4xl md:text-5xl font-bold mb-8">
             Unlock Elite Performance.
           </h2>
           <p className="text-xl mb-12 max-w-lg">
-            FitnessTracker's premium AI engine logs every rep and run, analyzes your data in real time, and delivers
+            FitTrackAI's premium AI engine logs every rep and run, analyzes your data in real time, and delivers
             hyper‑personal insights that propel you past your goals.
           </p>
           
@@ -445,7 +445,6 @@ export default function HomePage() {
               >
                 Go to Your Dashboard
               </button>
-              <p className="text-gray-100 ml-2">Continue tracking your fitness journey</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -463,7 +462,7 @@ export default function HomePage() {
           )}
         </div>
         
-        <div className="relative h-[500px] md:h-[600px] hidden md:block">
+        <div className="relative h-[500px] md:h-[600px] hidden md:block -ml-24">
           {/* Laptop/Computer Mockup */}
           <div className="relative mx-auto w-full h-full max-w-4xl flex flex-col items-center">
             {/* Computer Screen */}
@@ -478,7 +477,7 @@ export default function HomePage() {
                     <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   </div>
                   <div className="mx-auto bg-white rounded-md px-3 py-1 text-sm text-gray-600">
-                    fitness-tracker-dashboard.app
+                    fittrack-ai-dashboard.app
                   </div>
                 </div>
                 
