@@ -4,6 +4,9 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **AI Training Program Generator**: Implemented complete AI-powered training program generation with comprehensive onboarding questionnaire, LLM integration (OpenAI GPT-4o-mini), and personalized program creation based on user goals, equipment, and experience level.
+- **Comprehensive Onboarding Flow**: Added multi-step onboarding questionnaire collecting fitness goals, training preferences, equipment access, and limitations with seamless integration to AI program generation.
+- **Training Program Database Schema**: Created robust database schema for storing AI-generated training programs with JSONB storage, automatic field extraction, and Row Level Security.
 - **Dashboard "Log New Workout" Button**: Re-implemented a prominent "Log a New Workout" button on the dashboard page for easy access to workout logging.
 - **Workout Calendar Enhancement**: The yearly workout history calendar on the `/workouts` page now displays both Strava run activities and traditional lifting workouts, providing a unified view of all training.
 - **Workout Logging UI Overhaul**: Redesigned the workout logging page (`/workout/new`) to match the dashboard's light theme and layout for a consistent user experience.
@@ -34,6 +37,12 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Features
 
+- **AI Training Program Generator**: Complete LLM-powered personalized training program creation with:
+  - Multi-step onboarding questionnaire (9 comprehensive questions)
+  - OpenAI GPT-4o-mini integration with structured JSON responses
+  - Equipment-based exercise selection and progressive overload
+  - Zod schema validation for type-safe program generation
+  - Automatic database persistence and program management
 - User authentication with email/password (SSR-compatible)
 - Profile management
 - Workout tracking with detailed exercise logging (integrated into the light-themed dashboard layout)

@@ -80,6 +80,9 @@ export async function middleware(request: NextRequest) {
                            request.nextUrl.pathname.startsWith('/workout');
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || 
                      request.nextUrl.pathname.startsWith('/signup');
+  const isOnboardingRoute = request.nextUrl.pathname.startsWith('/onboarding');
+
+  console.log(`Middleware: Processing ${request.nextUrl.pathname}, isProtected: ${isProtectedRoute}, isAuth: ${isAuthRoute}, isOnboarding: ${isOnboardingRoute}`);
 
   // --- Authentication Logic --- 
 
@@ -90,7 +93,7 @@ export async function middleware(request: NextRequest) {
       console.log("Middleware: Redirecting to login due to user fetch error on protected route.");
       return redirectToLogin(request); // Use your helper
     }
-    // For non-protected routes, allow if there's a user fetch error, but log it.
+    // For non-protected routes (including onboarding), allow if there's a user fetch error, but log it.
     // Ensure to return supabaseResponse to keep cookie context
     return supabaseResponse; 
   }
@@ -102,7 +105,7 @@ export async function middleware(request: NextRequest) {
       console.log(`Middleware: Redirecting unauthenticated user from ${request.nextUrl.pathname} to login.`);
       return redirectToLogin(request); // Use your helper
     }
-    // Allow access to auth routes or public routes if not logged in.
+    // Allow access to auth routes, onboarding, or public routes if not logged in.
     // Return supabaseResponse to keep cookie context
     console.log(`Middleware: Allowing unauthenticated access to ${request.nextUrl.pathname}.`);
     return supabaseResponse;
@@ -112,6 +115,7 @@ export async function middleware(request: NextRequest) {
   if (user) {
     console.log(`Middleware: User ${user.id} IS authenticated.`);
     const bypassAuth = request.nextUrl.searchParams.get('bypass') === 'true';
+    
     if (isAuthRoute && !bypassAuth) {
       console.log('Middleware: Redirecting authenticated user from auth route to dashboard.');
       // Construct a new response for redirection, but copy cookies from supabaseResponse
@@ -122,7 +126,7 @@ export async function middleware(request: NextRequest) {
       return redirectResponse;
     }
     
-    // Allow access to protected routes or other public routes if logged in
+    // Allow access to protected routes, onboarding, or other public routes if logged in
     console.log(`Middleware: Allowing authenticated access to ${request.nextUrl.pathname}.`);
     // Add user info to headers for downstream use, onto supabaseResponse
     supabaseResponse.headers.set('x-user-id', user.id);
@@ -149,5 +153,5 @@ function redirectToLogin(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/profile/:path*', '/workout/:path*', '/login', '/signup']
+  matcher: ['/dashboard/:path*', '/profile/:path*', '/workout/:path*', '/login', '/signup', '/onboarding']
 } 

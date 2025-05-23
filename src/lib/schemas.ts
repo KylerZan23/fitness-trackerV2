@@ -65,6 +65,24 @@ export const workoutGroupSchema = z.object({
   workoutDate: z
     .string()
     .optional(),
+  // Program linking fields (optional)
+  linked_program_id: z
+    .string()
+    .uuid('Invalid program ID format')
+    .optional(),
+  linked_program_phase_index: z
+    .number()
+    .min(0, 'Phase index must be non-negative')
+    .optional(),
+  linked_program_week_index: z
+    .number()
+    .min(0, 'Week index must be non-negative')
+    .optional(),
+  linked_program_day_of_week: z
+    .number()
+    .min(1, 'Day of week must be between 1-7')
+    .max(7, 'Day of week must be between 1-7')
+    .optional(),
 })
 
 export type LoginFormData = z.infer<typeof loginSchema>

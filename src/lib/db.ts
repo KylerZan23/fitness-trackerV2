@@ -21,6 +21,11 @@ export interface WorkoutGroup {
   notes?: string
   created_at: string
   exercises: Workout[]
+  // Program linking fields (optional)
+  linked_program_id?: string
+  linked_program_phase_index?: number
+  linked_program_week_index?: number
+  linked_program_day_of_week?: number
 }
 
 export interface WorkoutStats {
@@ -560,7 +565,12 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
       name: workoutGroup.name,
       duration: workoutGroup.duration,
       notes: workoutGroup.notes || null,
-      created_at: createdAtISO // Use consistent UTC timestamp
+      created_at: createdAtISO, // Use consistent UTC timestamp
+      // Program linking fields (optional)
+      linked_program_id: workoutGroup.linked_program_id || null,
+      linked_program_phase_index: workoutGroup.linked_program_phase_index ?? null,
+      linked_program_week_index: workoutGroup.linked_program_week_index ?? null,
+      linked_program_day_of_week: workoutGroup.linked_program_day_of_week ?? null,
     };
     
     console.log('Creating workout group with data:', workoutGroupData);
@@ -617,7 +627,12 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
         duration: groupData.duration,
         notes: groupData.notes,
         created_at: groupData.created_at, // Return ISO string
-        exercises: exercisesResult.map(ex => ({ ...ex, exerciseName: ex.exercise_name })) as Workout[] // Map db columns
+        exercises: exercisesResult.map(ex => ({ ...ex, exerciseName: ex.exercise_name })) as Workout[], // Map db columns
+        // Program linking fields (optional)
+        linked_program_id: groupData.linked_program_id,
+        linked_program_phase_index: groupData.linked_program_phase_index,
+        linked_program_week_index: groupData.linked_program_week_index,
+        linked_program_day_of_week: groupData.linked_program_day_of_week,
       }
     } catch (dbError) {
       console.error('Database error in logWorkoutGroup:', dbError);

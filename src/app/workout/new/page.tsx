@@ -22,6 +22,12 @@ import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea' // Correctly import the new component
 import { ExerciseCombobox } from '@/components/workout/ExerciseCombobox' // Added ExerciseCombobox import
 
+// Add imports for training program functionality
+import { fetchActiveProgramAction } from '@/app/_actions/aiProgramActions'
+import { type TrainingProgram, type WorkoutDay, DayOfWeek, type ExerciseDetail } from '@/lib/types/program'
+import { type TrainingProgramWithId } from '@/lib/programDb'
+import { ExerciseListDisplay } from '@/components/program/ExerciseListDisplay'
+
 // TODO: Create Textarea component in src/components/ui/textarea.tsx if it doesn't exist
 // Example:
 // import * as React from "react"
@@ -43,6 +49,13 @@ import { ExerciseCombobox } from '@/components/workout/ExerciseCombobox' // Adde
 // Textarea.displayName = "Textarea"
 // export { Textarea }
 
+// Interface for storing program context details for linking
+interface ProgramContext {
+  programId: string
+  phaseIndex: number
+  weekIndex: number
+  dayOfWeek: number
+}
 
 // Interfaces remain largely the same, but exerciseName is now direct input
 interface WorkoutFormData {
@@ -112,6 +125,189 @@ export default function NewWorkoutPage() {
   })
   const [successMessage, setSuccessMessage] = useState<string | null>(null) // Keep for potential success indicators
 
+  // Add state for training program and today's planned workout
+  const [trainingProgram, setTrainingProgram] = useState<TrainingProgramWithId | null>(null)
+  const [todaysPlannedWorkout, setTodaysPlannedWorkout] = useState<WorkoutDay | null>(null)
+  const [programLoading, setProgramLoading] = useState(false)
+  
+  // Add state for program context details for linking to logged workouts
+  const [currentPlanContext, setCurrentPlanContext] = useState<ProgramContext | null>(null)
+
+  // Utility function to convert JavaScript day (0=Sunday, 1=Monday...) to DayOfWeek enum
+  const getJSDateToDayOfWeek = (jsDay: number): DayOfWeek => {
+    // JavaScript: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+    // DayOfWeek enum: 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday
+    const mapping = {
+      0: DayOfWeek.SUNDAY,    // Sunday
+      1: DayOfWeek.MONDAY,    // Monday
+      2: DayOfWeek.TUESDAY,   // Tuesday
+      3: DayOfWeek.WEDNESDAY, // Wednesday
+      4: DayOfWeek.THURSDAY,  // Thursday
+      5: DayOfWeek.FRIDAY,    // Friday
+      6: DayOfWeek.SATURDAY   // Saturday
+    }
+    return mapping[jsDay as keyof typeof mapping] || DayOfWeek.MONDAY
+  }
+
+  // Function to find today's planned workout from the training program
+  // Returns both the workout and the context for linking
+  const findTodaysPlannedWorkout = (program: TrainingProgramWithId): { workout: WorkoutDay | null, context: ProgramContext | null } => {
+    if (!program || !program.phases || program.phases.length === 0) {
+      return { workout: null, context: null }
+    }
+
+    const today = new Date()
+    const todayDayOfWeek = getJSDateToDayOfWeek(today.getDay())
+
+    // For MVP: Use the first week of the first phase
+    // TODO: In the future, calculate based on program start_date and current date
+    const firstPhase = program.phases[0]
+    if (!firstPhase || !firstPhase.weeks || firstPhase.weeks.length === 0) {
+      return { workout: null, context: null }
+    }
+
+    const firstWeek = firstPhase.weeks[0]
+    if (!firstWeek || !firstWeek.days || firstWeek.days.length === 0) {
+      return { workout: null, context: null }
+    }
+
+    // Find the workout day that matches today's day of week
+    const todaysWorkout = firstWeek.days.find(day => day.dayOfWeek === todayDayOfWeek)
+    
+    if (todaysWorkout) {
+      // Create context for linking this workout to the program
+      const context: ProgramContext = {
+        programId: program.id,
+        phaseIndex: 0, // Using first phase (index 0)
+        weekIndex: 0,  // Using first week (index 0)
+        dayOfWeek: todayDayOfWeek
+      }
+      return { workout: todaysWorkout, context }
+    }
+    
+    return { workout: null, context: null }
+  }
+
+  // Utility functions to parse planned exercise data into form format
+  const parseExerciseSets = (sets: number): number => {
+    return sets || 3 // Default to 3 if invalid
+  }
+
+  const parseExerciseReps = (reps: string | number): number => {
+    if (typeof reps === 'number') {
+      return reps
+    }
+    
+    // Handle string formats like "8-12", "5", "15-20"
+    const repsStr = String(reps).trim()
+    
+    // Check if it's a range (contains dash)
+    if (repsStr.includes('-')) {
+      const parts = repsStr.split('-')
+      if (parts.length === 2) {
+        const min = parseInt(parts[0].trim())
+        const max = parseInt(parts[1].trim())
+        if (!isNaN(min) && !isNaN(max)) {
+          // Return middle value of the range, or first value if range is small
+          return Math.round((min + max) / 2)
+        }
+      }
+    }
+    
+    // Try to parse as single number
+    const singleValue = parseInt(repsStr)
+    return !isNaN(singleValue) ? singleValue : 10 // Default to 10 if unparseable
+  }
+
+  const parseExerciseWeight = (weight?: string): number => {
+    if (!weight) return 0
+    
+    // Try to extract number from weight string (e.g., "40kg", "25lbs", "bodyweight")
+    const weightStr = String(weight).toLowerCase().trim()
+    
+    // Handle bodyweight exercises
+    if (weightStr.includes('bodyweight') || weightStr.includes('bw')) {
+      return 0
+    }
+    
+    // Extract number from string
+    const match = weightStr.match(/(\d+(?:\.\d+)?)/)
+    if (match) {
+      const value = parseFloat(match[1])
+      return !isNaN(value) ? value : 0
+    }
+    
+    return 0 // Default to 0 if unparseable
+  }
+
+  // Convert planned exercise to workout exercise format
+  const convertPlannedExerciseToWorkoutExercise = (exercise: ExerciseDetail): WorkoutExercise => {
+    return {
+      exerciseName: exercise.name,
+      sets: parseExerciseSets(exercise.sets),
+      reps: parseExerciseReps(exercise.reps),
+      weight: parseExerciseWeight(exercise.weight)
+    }
+  }
+
+  // Function to load today's planned workout into the form
+  const handleLoadPlannedWorkout = () => {
+    if (!todaysPlannedWorkout || todaysPlannedWorkout.isRestDay) {
+      toast.error('No active workout plan to load for today')
+      return
+    }
+
+    try {
+      // Clear existing exercises
+      setExercises([])
+      
+      // Prepare new exercises array
+      const allPlannedExercises: ExerciseDetail[] = []
+      
+      // Combine all exercise types (warm-up, main, cool-down)
+      if (todaysPlannedWorkout.warmUp && todaysPlannedWorkout.warmUp.length > 0) {
+        allPlannedExercises.push(...todaysPlannedWorkout.warmUp)
+      }
+      if (todaysPlannedWorkout.exercises && todaysPlannedWorkout.exercises.length > 0) {
+        allPlannedExercises.push(...todaysPlannedWorkout.exercises)
+      }
+      if (todaysPlannedWorkout.coolDown && todaysPlannedWorkout.coolDown.length > 0) {
+        allPlannedExercises.push(...todaysPlannedWorkout.coolDown)
+      }
+
+      if (allPlannedExercises.length === 0) {
+        toast.warning('No exercises found in today\'s planned workout')
+        return
+      }
+
+      // Convert planned exercises to workout exercise format
+      const workoutExercises = allPlannedExercises.map(convertPlannedExerciseToWorkoutExercise)
+      
+      // Update state
+      setExercises(workoutExercises)
+      
+      // Set workout name based on focus
+      const workoutName = todaysPlannedWorkout.focus 
+        ? `Today's ${todaysPlannedWorkout.focus} Workout`
+        : 'Today\'s Planned Workout'
+      
+      // Update group form data
+      setGroupFormData(prev => ({
+        ...prev,
+        name: workoutName,
+        exercises: workoutExercises,
+        duration: todaysPlannedWorkout.estimatedDurationMinutes || prev.duration,
+        notes: todaysPlannedWorkout.notes || ''
+      }))
+
+      toast.success(`Loaded ${workoutExercises.length} exercises from your planned workout!`)
+      
+    } catch (error) {
+      console.error('Error loading planned workout:', error)
+      toast.error('Failed to load planned workout. Please try again.')
+    }
+  }
+
   // Updated useEffect to fetch full profile for Sidebar
   useEffect(() => {
     async function fetchProfileAndAuth() {
@@ -137,6 +333,44 @@ export default function NewWorkoutPage() {
     }
     fetchProfileAndAuth();
   }, [router]); // Add router dependency
+
+  // Fetch active training program
+  useEffect(() => {
+    async function fetchTrainingProgram() {
+      if (!profile) return // Don't fetch program until profile is loaded
+      
+      setProgramLoading(true)
+      try {
+        const result = await fetchActiveProgramAction()
+        
+        if (result.error) {
+          console.log('No active training program found:', result.error)
+          setTrainingProgram(null)
+          setTodaysPlannedWorkout(null)
+        } else if (result.program) {
+          setTrainingProgram(result.program as TrainingProgramWithId)
+          
+          // Determine today's planned workout
+          const { workout, context } = findTodaysPlannedWorkout(result.program as TrainingProgramWithId)
+          setTodaysPlannedWorkout(workout)
+          setCurrentPlanContext(context)
+          
+          console.log('Found today\'s planned workout:', workout)
+        } else {
+          setTrainingProgram(null)
+          setTodaysPlannedWorkout(null)
+        }
+      } catch (err) {
+        console.error('Error fetching training program:', err)
+        setTrainingProgram(null)
+        setTodaysPlannedWorkout(null)
+      } finally {
+        setProgramLoading(false)
+      }
+    }
+
+    fetchTrainingProgram()
+  }, [profile]) // Depend on profile so it runs after profile is loaded
 
   // Combined handleChange for both modes and Input/Textarea
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -238,7 +472,14 @@ export default function NewWorkoutPage() {
         exercises: groupFormData.exercises, // Use groupFormData.exercises directly
         duration: groupFormData.duration,
         notes: groupFormData.notes,
-        workoutDate: groupFormData.workoutDate
+        workoutDate: groupFormData.workoutDate,
+        // Include program linking fields if we have context from today's planned workout
+        ...(currentPlanContext && {
+          linked_program_id: currentPlanContext.programId,
+          linked_program_phase_index: currentPlanContext.phaseIndex,
+          linked_program_week_index: currentPlanContext.weekIndex,
+          linked_program_day_of_week: currentPlanContext.dayOfWeek,
+        }),
       };
       console.log('Workout group payload:', groupPayload);
 
@@ -260,6 +501,7 @@ export default function NewWorkoutPage() {
          workoutDate: getTodayDateString()
        });
        setExercises([]); // Clear exercise list too
+       // Note: We keep currentPlanContext and todaysPlannedWorkout for continued reference
 
 
       // } else {
@@ -385,26 +627,125 @@ export default function NewWorkoutPage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Log New Workout</h1>
 
-        {/* Mode Toggle (REMOVED) */}
-        {/* <div className="mb-6 flex justify-center gap-2 p-1 bg-gray-200 rounded-lg">
-           <Button
-             variant={groupMode ? "default" : "ghost"}
-             onClick={() => setGroupMode(true)}
-             className="flex-1"
-             size="sm"
-           >
-             Log Workout Group
-           </Button>
-           <Button
-             variant={!groupMode ? "default" : "ghost"}
-             onClick={() => setGroupMode(false)}
-             className="flex-1"
-             size="sm"
-           >
-             Log Single Exercise
-           </Button>
-         </div> */}
+        {/* Today's Planned Workout Section */}
+        {!programLoading && (
+          <div className="mb-6">
+            {todaysPlannedWorkout ? (
+              todaysPlannedWorkout.isRestDay ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h2 className="text-lg font-semibold text-green-800 mb-2">
+                    🧘 Today's Planned Activity
+                  </h2>
+                  <p className="text-green-700">
+                    Today is a planned rest day in your program. Take time to recover and prepare for tomorrow's workout.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h2 className="text-lg font-semibold text-blue-800 mb-3">
+                    📋 Today's Planned Workout (From Your Program)
+                  </h2>
+                  <p className="text-blue-700 text-sm mb-4">
+                    Reference your AI-generated program while logging what you actually did.
+                  </p>
+                  
+                  <div className="bg-white rounded-md p-3 space-y-3">
+                    {todaysPlannedWorkout.focus && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-600">Focus:</span>
+                        <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          {todaysPlannedWorkout.focus}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {todaysPlannedWorkout.estimatedDurationMinutes && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-600">Estimated Duration:</span>
+                        <span className="text-sm text-gray-800">
+                          {todaysPlannedWorkout.estimatedDurationMinutes} minutes
+                        </span>
+                      </div>
+                    )}
 
+                    {/* Warm-up exercises */}
+                    {todaysPlannedWorkout.warmUp && todaysPlannedWorkout.warmUp.length > 0 && (
+                      <div className="space-y-2">
+                        <ExerciseListDisplay 
+                          exercises={todaysPlannedWorkout.warmUp} 
+                          listTitle="🔥 Planned Warm-up" 
+                        />
+                      </div>
+                    )}
+
+                    {/* Main exercises */}
+                    {todaysPlannedWorkout.exercises && todaysPlannedWorkout.exercises.length > 0 && (
+                      <div className="space-y-2">
+                        <ExerciseListDisplay 
+                          exercises={todaysPlannedWorkout.exercises} 
+                          listTitle="💪 Planned Main Workout" 
+                        />
+                      </div>
+                    )}
+
+                    {/* Cool-down exercises */}
+                    {todaysPlannedWorkout.coolDown && todaysPlannedWorkout.coolDown.length > 0 && (
+                      <div className="space-y-2">
+                        <ExerciseListDisplay 
+                          exercises={todaysPlannedWorkout.coolDown} 
+                          listTitle="🧘 Planned Cool-down" 
+                        />
+                      </div>
+                    )}
+
+                    {todaysPlannedWorkout.notes && (
+                      <div className="mt-3 p-2 bg-blue-50 rounded">
+                        <p className="text-sm text-blue-800">
+                          <strong>Notes:</strong> {todaysPlannedWorkout.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Load Planned Workout Button */}
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      type="button"
+                      onClick={handleLoadPlannedWorkout}
+                      disabled={isSubmitting}
+                      variant="outline"
+                      className="bg-blue-600 text-white hover:bg-blue-700 border-blue-600 hover:border-blue-700"
+                    >
+                      📋 Load Today's Plan into Form
+                    </Button>
+                  </div>
+                </div>
+              )
+            ) : trainingProgram ? (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h2 className="text-lg font-semibold text-gray-700 mb-2">
+                  📅 No Specific Workout Planned for Today
+                </h2>
+                <p className="text-gray-600 text-sm">
+                  You have an active training program, but no specific workout is scheduled for today. 
+                  Log whatever workout you decide to do!
+                </p>
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h2 className="text-lg font-semibold text-yellow-800 mb-2">
+                  💡 No Active Training Program
+                </h2>
+                <p className="text-yellow-700 text-sm">
+                  You don't have an active AI-generated training program yet. 
+                  <a href="/onboarding" className="underline hover:text-yellow-900 ml-1">
+                    Complete your onboarding
+                  </a> to get a personalized program, or just log your workout below.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           {/* --- Shared or Conditional Fields --- */}

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/Icon'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { type OnboardingData } from '@/lib/types/onboarding'
 
 interface UserProfile {
   id: string
@@ -26,6 +27,8 @@ interface UserProfile {
   role?: string
   primary_training_focus?: string | null;
   experience_level?: string | null;
+  onboarding_responses?: OnboardingData;
+  onboarding_completed?: boolean;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -120,6 +123,8 @@ export default function ProfilePage() {
           fitness_goals: 'Set your fitness goals',
           primary_training_focus: null,
           experience_level: null,
+          onboarding_responses: undefined,
+          onboarding_completed: false,
         }
 
         try {
@@ -147,6 +152,8 @@ export default function ProfilePage() {
                     fitness_goals: fallbackProfile.fitness_goals,
                     primary_training_focus: fallbackProfile.primary_training_focus,
                     experience_level: fallbackProfile.experience_level,
+                    onboarding_responses: fallbackProfile.onboarding_responses,
+                    onboarding_completed: fallbackProfile.onboarding_completed,
                   })
                 
                 if (insertError) {
@@ -304,6 +311,8 @@ export default function ProfilePage() {
       weight_unit: profile.weight_unit, // Ensure weight_unit is from profile state (already refactored)
       primary_training_focus: primaryTrainingFocus, 
       experience_level: experienceLevel,
+      onboarding_responses: profile.onboarding_responses,
+      onboarding_completed: profile.onboarding_completed,
     }
 
     try {
