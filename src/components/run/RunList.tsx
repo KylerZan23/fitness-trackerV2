@@ -5,8 +5,8 @@
  */
 
 import { useState, useEffect } from 'react'
-import { getStravaActivities } from '@/lib/strava'
-import { getTokensFromDatabase } from '@/lib/strava-token-store'
+import { getStravaActivitiesClient } from '@/lib/strava-client'
+import { getTokensFromDatabase, saveTokensToDatabase } from '@/lib/strava-token-store'
 import { formatDistanceMiles, formatElevation, calculatePace } from '@/lib/units'
 import { supabase } from '@/lib/supabase'
 
@@ -51,8 +51,22 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
         }
 
         // Fetch activities (only runs)
-        const activities = await getStravaActivities(tokens)
-        const runActivities = activities.filter(activity => activity.type === 'Run')
+        const activities = await getStravaActivitiesClient(
+          tokens,
+          1,
+          30,
+          undefined,
+          undefined,
+          async (newTokens) => {
+            // Update tokens in database when they're refreshed
+            await saveTokensToDatabase(supabase, userId, {
+              access_token: newTokens.access_token,
+              refresh_token: tokens.refresh_token, // Keep existing refresh token
+              expires_at: newTokens.expires_at,
+            })
+          }
+        )
+        const runActivities = activities.filter((activity: any) => activity.type === 'Run')
 
         setRuns(runActivities)
       } catch (err) {

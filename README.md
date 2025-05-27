@@ -146,8 +146,20 @@ The application features a dedicated Run Logger page with Strava integration:
 4. **Manual Run Logging**: Add runs manually with distance, time, and location
 5. **Dual View Options**: Toggle between card view (with maps) and table view
 6. **Imperial Units**: All distances shown in miles, elevations in feet, and pace in minutes per mile
+7. **Secure Token Management**: Server-side token refresh with automatic database updates
+
+### Strava Security Architecture
+
+The application implements a secure, server-side token management system:
+
+- **Server-Side Token Refresh**: All token refresh operations happen on the server using `/api/strava/refresh-token`
+- **Client-Side Safety**: `STRAVA_CLIENT_SECRET` is never exposed to the browser
+- **Automatic Token Updates**: Tokens are automatically refreshed and persisted to the database
+- **User Authentication**: All token operations require proper user authentication
+- **Transparent Operation**: Client components handle token refresh seamlessly without user intervention
 
 For more information on run tracking features, see [Run Tracking Documentation](docs/run-tracking.md).
+For details on the Strava token security implementation, see [ADR-001: Strava Token Refresh Server-Side Only](docs/adr/001-strava-token-refresh-server-side-only.md).
 
 ## Image Attribution
 

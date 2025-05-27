@@ -524,23 +524,23 @@ export default function HomePage() {
                     </div>
 
                     {/* Dashboard Content (mockup) */}
-                    <div className="bg-gray-100 h-[calc(100%-32px)] flex overflow-hidden">
+                    <div className="bg-gray-50 h-[calc(100%-32px)] flex overflow-hidden">
                       {/* === SIDEBAR START === */}
-                      <div className="w-36 bg-white p-3 flex flex-col border-r border-gray-200">
+                      <div className="w-36 bg-white p-3 flex flex-col border-r border-gray-200 shadow-sm">
                         {/* User Profile Area */}
-                        <div className="flex flex-col items-center text-center mb-1">
-                          <div className="w-16 h-16 rounded-full bg-gray-300 mb-2 flex items-center justify-center text-gray-500 text-2xl">
-                            <span>🧑‍💻</span> {/* Placeholder Avatar */}
+                        <div className="flex flex-col items-center text-center mb-3">
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-2 flex items-center justify-center text-white text-lg font-bold shadow-lg">
+                            K
                           </div>
                           <p className="font-semibold text-gray-800 text-xs">Kyler</p>
-                          <p className="text-xxs text-gray-500">kzanuck@gmail.com</p>
+                          <p className="text-xxs text-gray-500 truncate w-full">kzanuck@gmail.com</p>
                         </div>
                         {/* Divider */}
                         <hr className="border-gray-200 my-2" />
                         {/* Navigation Links */}
-                        <nav className="flex flex-col space-y-0.5 text-xs">
+                        <nav className="flex flex-col space-y-1 text-xs">
                           {/* Home */}
-                          <div className="flex items-center space-x-2.5 py-1.5 px-2 rounded-md hover:bg-slate-100 text-slate-700 cursor-pointer">
+                          <div className="flex items-center space-x-2.5 py-2 px-2 rounded-lg hover:bg-gray-50 text-gray-600 cursor-pointer transition-colors">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               width="16"
@@ -551,15 +551,15 @@ export default function HomePage() {
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              className="text-slate-500"
+                              className="text-gray-500"
                             >
                               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                               <polyline points="9 22 9 12 15 12 15 22"></polyline>
                             </svg>
-                            <span className="text-slate-700">Home</span>
+                            <span>Home</span>
                           </div>
                           {/* Dashboard (Active) */}
-                          <div className="flex items-center space-x-2.5 py-1.5 px-2 rounded-md bg-slate-100 text-blue-700 cursor-pointer">
+                          <div className="flex items-center space-x-2.5 py-2 px-2 rounded-lg bg-blue-50 text-blue-700 cursor-pointer border border-blue-200">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               width="16"
@@ -577,10 +577,32 @@ export default function HomePage() {
                               <rect x="3" y="14" width="7" height="7" rx="1"></rect>
                               <rect x="14" y="14" width="7" height="7" rx="1"></rect>
                             </svg>
-                            <span className="font-medium text-blue-700">Dashboard</span>
+                            <span className="font-medium">Dashboard</span>
+                          </div>
+                          {/* My Program */}
+                          <div className="flex items-center space-x-2.5 py-2 px-2 rounded-lg hover:bg-gray-50 text-gray-600 cursor-pointer transition-colors">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="text-gray-500"
+                            >
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                              <polyline points="14 2 14 8 20 8"></polyline>
+                              <line x1="16" y1="13" x2="8" y2="13"></line>
+                              <line x1="16" y1="17" x2="8" y2="17"></line>
+                              <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                            <span>My Program</span>
                           </div>
                           {/* Workouts */}
-                          <div className="flex items-center space-x-2.5 py-1.5 px-2 rounded-md hover:bg-slate-100 text-slate-700 cursor-pointer">
+                          <div className="flex items-center space-x-2.5 py-2 px-2 rounded-lg hover:bg-gray-50 text-gray-600 cursor-pointer transition-colors">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               width="16"
@@ -591,15 +613,15 @@ export default function HomePage() {
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              className="text-slate-500"
+                              className="text-gray-500"
                             >
-                              <path d="M15.9 5H8.1C7.5 5 7 5.5 7 6.1V7c0 .6.5 1.1 1.1 1.1h7.7c.6 0 1.1-.5 1.1-1.1V6.1C17 5.5 16.5 5 15.9 5zM15.9 17H8.1c-.6 0-1.1.5-1.1 1.1v.9c0 .6.5 1.1 1.1 1.1h7.7c.6 0 1.1-.5 1.1-1.1v-.9c0-.6-.5-1.1-1.1-1.1z"></path>
-                              <line x1="12" y1="8" x2="12" y2="16"></line>
+                              <path d="M6.5 6.5h11v11h-11z"></path>
+                              <path d="M6.5 6.5L12 12l5.5-5.5"></path>
                             </svg>
-                            <span className="text-slate-700">Workouts</span>
+                            <span>Workouts</span>
                           </div>
                           {/* Profile */}
-                          <div className="flex items-center space-x-2.5 py-1.5 px-2 rounded-md hover:bg-slate-100 text-slate-700 cursor-pointer">
+                          <div className="flex items-center space-x-2.5 py-2 px-2 rounded-lg hover:bg-gray-50 text-gray-600 cursor-pointer transition-colors">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               width="16"
@@ -610,15 +632,15 @@ export default function HomePage() {
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              className="text-slate-500"
+                              className="text-gray-500"
                             >
                               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                               <circle cx="12" cy="7" r="4"></circle>
                             </svg>
-                            <span className="text-slate-700">Profile</span>
+                            <span>Profile</span>
                           </div>
                           {/* Settings */}
-                          <div className="flex items-center space-x-2.5 py-1.5 px-2 rounded-md hover:bg-slate-100 text-slate-700 cursor-pointer">
+                          <div className="flex items-center space-x-2.5 py-2 px-2 rounded-lg hover:bg-gray-50 text-gray-600 cursor-pointer transition-colors">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               width="16"
@@ -629,298 +651,270 @@ export default function HomePage() {
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              className="text-slate-500"
+                              className="text-gray-500"
                             >
-                              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l-.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
                               <circle cx="12" cy="12" r="3"></circle>
+                              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                             </svg>
-                            <span className="text-slate-700">Settings</span>
+                            <span>Settings</span>
                           </div>
                         </nav>
                       </div>
                       {/* === SIDEBAR END === */}
-                      {/* === MAIN CONTENT AREA (Snapshot & Trends) START === */}
-                      <div className="flex-1 p-3 flex flex-col space-y-3 overflow-y-auto text-xs">
-                        {/* Define workout data once */}
-                        {(() => {
-                          const workoutData = [30, 45, 0, 50, 35, 75, 0]
-                          const targetWorkoutDays = 5
-                          const actualWorkoutDays = workoutData.filter(d => d > 0).length
-                          const workoutDaysProgress = (actualWorkoutDays / targetWorkoutDays) * 100
+                      {/* === MAIN CONTENT AREA START === */}
+                      <div className="flex-1 p-4 flex flex-col space-y-4 overflow-y-auto">
+                        {/* Hero Section */}
+                        <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500 text-white p-4 rounded-xl shadow-lg relative overflow-hidden">
+                          {/* Background pattern overlay */}
+                          <div className="absolute inset-0 opacity-10">
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+                          </div>
+                          <div className="relative z-10 flex justify-between items-center">
+                            <div>
+                              <h1 className="text-lg font-bold mb-1">Welcome back, Kyler!</h1>
+                              <p className="text-white/90 text-sm">Ready to crush your fitness goals today?</p>
+                            </div>
+                            {/* Streak Indicator */}
+                            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center">
+                              <div className="text-yellow-300 text-lg">🔥</div>
+                              <div className="text-xs font-bold">7 days</div>
+                              <div className="text-xxs text-white/80">On fire!</div>
+                            </div>
+                          </div>
+                        </div>
 
-                          const targetDuration = 180
-                          const actualDuration = workoutData.reduce((sum, d) => sum + d, 0)
-                          const durationProgress = Math.min(
-                            100,
-                            (actualDuration / targetDuration) * 100
-                          )
-
-                          const muscleFocusData = [
-                            {
-                              name: 'Arms',
-                              sets: '8 sets',
-                              reps: '76 total reps',
-                              weight: '120 lbs total',
-                              barColor: 'bg-green-500',
-                              barWidthPercent: 100,
-                            },
-                            {
-                              name: 'Chest',
-                              sets: '4 sets',
-                              reps: '36 total reps',
-                              weight: '100 lbs total',
-                              barColor: 'bg-yellow-400',
-                              barWidthPercent: 70,
-                            },
-                            {
-                              name: 'Shoulders',
-                              sets: '4 sets',
-                              reps: '40 total reps',
-                              weight: '50 lbs total',
-                              barColor: 'bg-yellow-400',
-                              barWidthPercent: 70,
-                            },
-                            {
-                              name: 'Back',
-                              sets: '3 sets',
-                              reps: '24 total reps',
-                              weight: '0 lbs total',
-                              barColor: 'bg-orange-400',
-                              barWidthPercent: 50,
-                            },
-                          ]
-
-                          return (
-                            <>
-                              {/* Today's Snapshot */}
-                              <div>
-                                <h4 className="text-sm font-semibold text-gray-700 mb-1">
-                                  Today's Snapshot
-                                </h4>
-                                <div className="grid grid-cols-5 gap-1.5">
-                                  {/* Card 1: Exercises */}
-                                  <div className="bg-white p-1.5 rounded-md shadow-sm flex flex-col items-center justify-center text-center">
-                                    <p className="text-xxs font-medium text-gray-500 uppercase tracking-wider">
-                                      EXERCISES
-                                    </p>
-                                    <p className="text-lg font-bold text-gray-800">5</p>
-                                  </div>
-                                  {/* Card 2: Sets */}
-                                  <div className="bg-white p-1.5 rounded-md shadow-sm flex flex-col items-center justify-center text-center">
-                                    <p className="text-xxs font-medium text-gray-500 uppercase tracking-wider">
-                                      SETS
-                                    </p>
-                                    <p className="text-lg font-bold text-gray-800">15</p>
-                                  </div>
-                                  {/* Card 3: Reps */}
-                                  <div className="bg-white p-1.5 rounded-md shadow-sm flex flex-col items-center justify-center text-center">
-                                    <p className="text-xxs font-medium text-gray-500 uppercase tracking-wider">
-                                      REPS
-                                    </p>
-                                    <p className="text-lg font-bold text-gray-800">75</p>
-                                  </div>
-                                  {/* Card 4: Duration */}
-                                  <div className="bg-white p-1.5 rounded-md shadow-sm flex flex-col items-center justify-center text-center">
-                                    <p className="text-xxs font-medium text-gray-500 uppercase tracking-wider">
-                                      DURATION
-                                    </p>
-                                    <p className="text-lg font-bold text-gray-800">60</p>
-                                    <p className="text-xxs text-gray-400">min</p>
-                                  </div>
-                                  {/* Card 5: Avg Weight */}
-                                  <div className="bg-white p-1.5 rounded-md shadow-sm flex flex-col items-center justify-center text-center">
-                                    <p className="text-xxs font-medium text-gray-500 uppercase tracking-wider">
-                                      AVG WEIGHT
-                                    </p>
-                                    <p className="text-lg font-bold text-gray-800">135</p>
-                                    <p className="text-xxs text-gray-400">lbs</p>
-                                  </div>
+                        {/* Today's Snapshot */}
+                        <div>
+                          <div className="mb-3">
+                            <h2 className="text-lg font-bold text-gray-800 mb-1">Today's Snapshot</h2>
+                            <p className="text-gray-600 text-sm">Track your daily progress and achievements</p>
+                          </div>
+                          <div className="grid grid-cols-4 gap-3">
+                            {/* Card 1: Exercises */}
+                            <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden">
+                              <div className="absolute inset-0 opacity-10">
+                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+                              </div>
+                              <div className="relative z-10">
+                                <div className="flex items-center justify-between mb-2">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80">
+                                    <path d="M6.5 6.5h11v11h-11z"></path>
+                                    <path d="M6.5 6.5L12 12l5.5-5.5"></path>
+                                  </svg>
+                                </div>
+                                <h3 className="text-xxs font-semibold uppercase tracking-wider opacity-90 mb-1">EXERCISES</h3>
+                                <p className="text-xl font-bold">8</p>
+                                <p className="text-xxs opacity-80">Workouts completed</p>
+                              </div>
+                            </div>
+                            {/* Card 2: Sets */}
+                            <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden">
+                              <div className="absolute inset-0 opacity-10">
+                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+                              </div>
+                              <div className="relative z-10">
+                                <div className="flex items-center justify-between mb-2">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80">
+                                    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+                                    <path d="m15 5 4 4"></path>
+                                  </svg>
+                                </div>
+                                <h3 className="text-xxs font-semibold uppercase tracking-wider opacity-90 mb-1">SETS</h3>
+                                <p className="text-xl font-bold">21</p>
+                                <p className="text-xxs opacity-80">Total sets performed</p>
+                              </div>
+                            </div>
+                            {/* Card 3: Duration */}
+                            <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden">
+                              <div className="absolute inset-0 opacity-10">
+                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+                              </div>
+                              <div className="relative z-10">
+                                <div className="flex items-center justify-between mb-2">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                  </svg>
+                                </div>
+                                <h3 className="text-xxs font-semibold uppercase tracking-wider opacity-90 mb-1">DURATION</h3>
+                                <p className="text-xl font-bold">56 min</p>
+                                <p className="text-xxs opacity-80">Time spent training</p>
+                              </div>
+                            </div>
+                            {/* Card 4: Total Weight */}
+                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden">
+                              <div className="absolute inset-0 opacity-10">
+                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+                              </div>
+                              <div className="relative z-10">
+                                <div className="flex items-center justify-between mb-2">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                  </svg>
+                                </div>
+                                <h3 className="text-xxs font-semibold uppercase tracking-wider opacity-90 mb-1">TOTAL WEIGHT</h3>
+                                <p className="text-xl font-bold">0 lbs</p>
+                                <p className="text-xxs opacity-80">Weight lifted today</p>
+                              </div>
+                            </div>
                                 </div>
                               </div>
 
-                              {/* Workout Trends */}
-                              <div>
-                                <h4 className="text-sm font-semibold text-gray-700 mt-1 mb-1">
-                                  Workout Trends
-                                </h4>
-                                <div className="bg-white p-2 rounded-md shadow-sm flex flex-col text-xs">
-                                  {/* Card Header */}
-                                  <div className="flex justify-between items-center mb-1">
-                                    <button className="text-gray-400 hover:text-gray-600 text-sm">
-                                      &lt;
-                                    </button>
-                                    <p className="text-xxs font-medium text-gray-600">
-                                      Weekly Workout Trends (This Week)
-                                    </p>
-                                    <button className="text-gray-400 hover:text-gray-600 text-sm">
-                                      &gt;
-                                    </button>
-                                  </div>
-                                  {/* Legend */}
-                                  <div className="flex items-center space-x-1 mb-1 self-end">
-                                    <div className="w-2 h-2 bg-orange-400 rounded-sm"></div>
-                                    <p className="text-xxs text-gray-500">Duration (min)</p>
-                                  </div>
-                                  {/* Chart Area */}
-                                  <div className="relative h-28 border border-gray-200 rounded bg-gray-50 p-1">
-                                    {/* Y-Axis Labels */}
+                        {/* Workout Trends */}
+                        <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                          <div className="flex justify-between items-center mb-4">
+                            <div>
+                              <h2 className="text-lg font-bold text-gray-800 mb-1">Workout Trends</h2>
+                              <p className="text-gray-600 text-sm">Your progress over the last 8 weeks</p>
+                            </div>
+                          </div>
+                          {/* Chart Header */}
+                          <div className="flex justify-between items-center mb-3">
+                            <button className="text-gray-400 hover:text-gray-600 text-sm">
+                              ←
+                            </button>
+                            <p className="text-sm font-medium text-gray-600">
+                              Weekly Workout Trends (This Week)
+                            </p>
+                            <button className="text-gray-400 hover:text-gray-600 text-sm">
+                              →
+                            </button>
+                          </div>
+                          {/* Legend */}
+                          <div className="flex justify-end mb-3">
+                            <div className="flex items-center space-x-4 text-sm">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-orange-400 rounded-sm"></div>
+                                <span className="text-gray-600">Duration (min)</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-blue-400 rounded-sm"></div>
+                                <span className="text-gray-600">Weight (lbs)</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
+                                <span className="text-gray-600">Sets</span>
+                              </div>
+                            </div>
+                          </div>
+                          {/* Chart Area */}
+                          <div className="relative h-32 border border-gray-200 rounded-lg bg-gray-50 p-2">
+                            {/* Y-Axis Labels */}
+                            <div className="absolute left-[-24px] top-0 text-xs text-gray-400 h-full flex flex-col justify-between py-1">
+                              <span>60</span>
+                              <span>37</span>
+                              <span>0</span>
+                            </div>
+                            {/* Grid Lines */}
+                            <div className="absolute top-0 left-0 right-0 h-px bg-gray-200"></div>
+                            <div className="absolute left-0 right-0 h-px bg-gray-200" style={{ top: '50%' }}></div>
+                            <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-300"></div>
+                            {/* Bars Container */}
+                            <div className="absolute bottom-0 left-0 right-0 grid grid-cols-7 h-full items-end gap-1 px-1">
+                              {[30, 45, 0, 50, 35, 75, 0].map((value, index) => {
+                                const maxHeight = 75
+                                const barHeightPercentage = maxHeight > 0 ? (value / maxHeight) * 100 : 0
+                                return (
+                                  <div key={index} className="relative flex justify-center items-end h-full">
                                     <div
-                                      className="absolute left-[-20px] top-0 text-xxs text-gray-400 h-full flex flex-col justify-between py-0.5"
-                                      style={{ lineHeight: '1' }}
-                                    >
-                                      <span>75</span> {/* Max Value */}
-                                      <span>37</span> {/* Mid Value (approx) */}
-                                      <span>0</span>
-                                    </div>
-                                    {/* Horizontal Grid Lines */}
-                                    <div
-                                      className="absolute top-0 left-0 right-0 h-px bg-gray-200"
-                                      style={{ bottom: '100%' }}
+                                      className="bg-orange-400 w-[80%] rounded-t-lg hover:bg-orange-500 transition-colors shadow-sm"
+                                      style={{ height: `${barHeightPercentage}%` }}
                                     ></div>
-                                    <div
-                                      className="absolute left-0 right-0 h-px bg-gray-200"
-                                      style={{ bottom: '50%' }}
-                                    ></div>
-                                    <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-300"></div>{' '}
-                                    {/* X-axis base line */}
-                                    {/* Vertical Grid Lines (behind bars) */}
-                                    <div className="absolute top-0 bottom-0 left-0 right-0 grid grid-cols-7">
-                                      {[...Array(6)].map((_, i) => (
-                                        <div
-                                          key={`vline-${i}`}
-                                          className="border-r border-gray-200"
-                                        ></div>
-                                      ))}
-                                      <div></div> {/* Last column doesn't need a right border */}
-                                    </div>
-                                    {/* Bars Container */}
-                                    <div className="absolute bottom-0 left-0 right-0 grid grid-cols-7 h-full items-end gap-px px-0.5">
-                                      {workoutData.map((value, index) => {
-                                        const maxHeight = 75 // Max minutes for scaling
-                                        const barHeightPercentage =
-                                          maxHeight > 0 ? (value / maxHeight) * 100 : 0
-                                        return (
-                                          <div
-                                            key={index}
-                                            className="relative flex justify-center items-end h-full"
-                                          >
-                                            <div
-                                              className="bg-orange-400 w-[70%] rounded-t-sm hover:bg-orange-500 transition-colors"
-                                              style={{ height: `${barHeightPercentage}%` }}
-                                            ></div>
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                    {/* X-Axis labels (overlap with bars but positioned below them effectively) */}
-                                    <div className="absolute bottom-[-14px] left-0 right-0 grid grid-cols-7">
-                                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(
-                                        day => (
-                                          <div key={day} className="text-center">
-                                            <span className="text-xxs text-gray-400">{day}</span>
-                                          </div>
-                                        )
-                                      )}
-                                    </div>
                                   </div>
+                                )
+                              })}
+                            </div>
+                            {/* X-Axis labels */}
+                            <div className="absolute bottom-[-20px] left-0 right-0 grid grid-cols-7">
+                              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                                <div key={day} className="text-center">
+                                  <span className="text-xs text-gray-400">{day}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bottom Section: Muscle Distribution & Goals */}
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Muscle Group Focus */}
+                          <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                            <div className="flex justify-between items-center mb-3">
+                              <div>
+                                <h3 className="text-lg font-bold text-gray-800 mb-1">Muscle Group Focus</h3>
+                                <p className="text-gray-600 text-sm">Weekly training focus</p>
+                              </div>
+                              <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                                Collapse
+                              </button>
+                            </div>
+                            <div className="flex justify-between items-center text-sm text-gray-500 mb-3">
+                              <span>Week</span>
+                              <div className="flex items-center space-x-2">
+                                <button className="text-gray-400 hover:text-gray-600">←</button>
+                                <span className="font-medium">May 12 – May 18, 2025</span>
+                                <button className="text-gray-400 hover:text-gray-600">→</button>
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="font-medium text-gray-700">Arms</span>
+                                  <span className="text-gray-500 text-sm">8 sets</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '80%' }}></div>
                                 </div>
                               </div>
+                            </div>
+                          </div>
 
-                              {/* Container for Muscle Group Focus and Goals (side-by-side) */}
-                              <div className="flex flex-row gap-3">
-                                {/* Muscle Group Focus Section (flex child) */}
-                                <div className="flex-1">
-                                  <div className="flex justify-between items-center mb-1">
-                                    <h4 className="text-sm font-semibold text-gray-700">
-                                      Muscle Group Focus
-                                    </h4>
-                                    <button className="text-xxs text-blue-600 hover:underline">
-                                      Collapse
-                                    </button>
-                                  </div>
-                                  <div className="flex justify-between items-center text-xxs text-gray-500 mb-2">
-                                    <span>Week</span>
-                                    <div className="flex items-center space-x-1">
-                                      <button className="text-gray-400 hover:text-gray-600 text-sm">
-                                        &lt;
-                                      </button>
-                                      <span className="font-medium">May 12 – May 18, 2025</span>
-                                      <button className="text-gray-400 hover:text-gray-600 text-sm">
-                                        &gt;
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="bg-white p-2 rounded-md shadow-sm text-xxs space-y-4">
-                                    {muscleFocusData.map((muscle, index) => (
-                                      <div key={index}>
-                                        <div className="flex justify-between items-center mb-1">
-                                          <span className="font-medium text-gray-700">
-                                            {muscle.name}
-                                          </span>
-                                          <span className="text-gray-500">{muscle.sets}</span>
-                                        </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-0.5">
-                                          <div
-                                            className={`${muscle.barColor} h-1.5 rounded-full`}
-                                            style={{ width: `${muscle.barWidthPercent}%` }}
-                                          ></div>
-                                        </div>
-                                        <div className="flex justify-between text-gray-500">
-                                          <span>{muscle.reps}</span>
-                                          <span>{muscle.weight}</span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
+                          {/* Goals */}
+                          <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                            <div className="flex justify-between items-center mb-3">
+                              <div>
+                                <h3 className="text-lg font-bold text-gray-800 mb-1">Goals (This Week)</h3>
+                              </div>
+                              <button className="text-sm bg-gray-200 text-gray-700 px-3 py-1 rounded-lg hover:bg-gray-300 transition-colors">
+                                Add Goal
+                              </button>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-gray-700">Weekly Workout Days</span>
+                                  <span className="text-gray-500 text-sm">5/5 days</span>
                                 </div>
-
-                                {/* Goals (This Week) Section (flex child) */}
-                                <div className="flex-1">
-                                  <div className="flex justify-between items-center mb-1">
-                                    <h4 className="text-sm font-semibold text-gray-700">
-                                      Goals (This Week)
-                                    </h4>
-                                    <button className="text-xxs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-300">
-                                      Add Goal
-                                    </button>
-                                  </div>
-                                  <div className="bg-white p-2 rounded-md shadow-sm space-y-2 text-xxs">
-                                    <div>
-                                      <div className="flex justify-between items-center mb-0.5">
-                                        <span className="text-gray-700">Weekly Workout Days</span>
-                                        <span className="text-gray-500">
-                                          {actualWorkoutDays}/{targetWorkoutDays} days
-                                        </span>
-                                      </div>
-                                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                        <div
-                                          className="bg-green-500 h-1.5 rounded-full"
-                                          style={{ width: `${workoutDaysProgress}%` }}
-                                        ></div>
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <div className="flex justify-between items-center mb-0.5">
-                                        <span className="text-gray-700">Duration</span>
-                                        <span className="text-gray-500">
-                                          {actualDuration}/{targetDuration} min
-                                        </span>
-                                      </div>
-                                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                        <div
-                                          className="bg-blue-500 h-1.5 rounded-full"
-                                          style={{ width: `${durationProgress}%` }}
-                                        ></div>
-                                      </div>
-                                    </div>
-                                  </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '100%' }}></div>
                                 </div>
                               </div>
-                            </>
-                          )
-                        })()}
-                      </div>{' '}
-                      {/* This now correctly encloses all 4 sections */}
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-gray-700">Duration</span>
+                                  <span className="text-gray-500 text-sm">235/180 min</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Floating AI Coach Button */}
+                        <div className="fixed bottom-4 right-4 z-50">
+                          <button className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 8V4H8" />
+                              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                              <path d="M12 8v4" />
+                              <path d="M12 16v4" />
+                              <path d="M16 12h4M8 12H4M17 9l2-2M7 9l-2-2m12 8 2 2M7 17l-2 2m7-5a1 1 0 0 0-2 0v1a1 1 0 0 0 2 0Z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
                       {/* === MAIN CONTENT AREA END === */}
                     </div>
                   </div>

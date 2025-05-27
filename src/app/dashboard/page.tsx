@@ -31,6 +31,10 @@ import { GoalsCard } from '@/components/dashboard/GoalsCard'
 import { AICoachCard } from '@/components/dashboard/AICoachCard'
 import { Button } from '@/components/ui/button'
 import { WeeklyComparison } from '@/components/dashboard/WeeklyComparison'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { FloatingActionMenu } from '@/components/ui/FloatingActionMenu'
+import { ToastProvider } from '@/components/ui/Toast'
+import { StreakIndicator } from '@/components/ui/StreakIndicator'
 
 interface UserProfile {
   id: string
@@ -351,45 +355,102 @@ export default function DashboardPage() {
 
   // Render dashboard content within the layout
   return (
-    <DashboardLayout sidebarProps={sidebarProps}>
-      {session && profile && (
-        <>
-          {/* Welcome Message - Modified gradient */}
-          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-500 text-white p-6 rounded-lg shadow-lg mb-6">
-            <h1 className="text-2xl font-bold">Welcome back, {profile.name}!</h1>
-            {/* Removed sub-text, dismiss button, and quick links */}
-          </div>
+    <ToastProvider>
+      <DashboardLayout sidebarProps={sidebarProps}>
+        {session && profile && (
+          <>
+            {/* Enhanced Welcome Message with fitness-inspired gradient */}
+            <div className="bg-gradient-hero text-white p-8 rounded-2xl shadow-card-elevated mb-8 relative overflow-hidden animate-fadeIn">
+              {/* Background pattern overlay */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+              </div>
+              
+              <div className="relative z-10">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex-1">
+                    <h1 className="text-3xl font-bold mb-2">Welcome back, {profile.name}!</h1>
+                    <p className="text-white/90 text-lg">Ready to crush your fitness goals today?</p>
+                  </div>
+                  
+                  {/* Workout Streak Indicator */}
+                  <div className="mt-4 lg:mt-0 lg:ml-6">
+                    <StreakIndicator
+                      currentStreak={7} // This would come from your data
+                      longestStreak={14} // This would come from your data
+                      streakType="workout"
+                      showMilestones={false}
+                      className="bg-white/10 backdrop-blur-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
 
           {/* Error Display */}
           {error && <Error message={error} className="mb-6" />}
 
-          {/* Today's Stats Summary - Modified Title and Card Titles */}
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-700 mb-3">Today's Snapshot</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatsCard title="Exercises" value={todayStats.totalWorkouts.toString()} />
-              <StatsCard title="Sets" value={todayStats.totalSets.toString()} />
+          {/* Today's Stats Summary - Enhanced with animations and gradients */}
+          <div className="mb-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Today's Snapshot</h2>
+              <p className="text-gray-600">Track your daily progress and achievements</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatsCard 
+                title="Exercises" 
+                value={todayStats.totalWorkouts.toString()}
+                gradientType="strength"
+                iconName="dumbbell"
+                animationDelay={0}
+                description="Workouts completed"
+              />
+              <StatsCard 
+                title="Sets" 
+                value={todayStats.totalSets.toString()}
+                gradientType="endurance"
+                iconName="repeat"
+                animationDelay={150}
+                description="Total sets performed"
+              />
               <StatsCard
                 title="Duration"
                 value={`${Math.round(todayStats.totalDuration || 0)} min`}
+                gradientType="cardio"
+                iconName="clock"
+                animationDelay={300}
+                description="Time spent training"
               />
               <StatsCard
                 title="Total Weight"
                 value={`${Math.round(todayStats.totalWeight || 0)} ${weightUnit}`}
+                gradientType="energy"
+                iconName="trending-up"
+                animationDelay={450}
+                description="Weight lifted today"
               />
             </div>
           </div>
 
-          {/* Workout Trends Chart */}
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-xl font-semibold text-gray-700">Workout Trends (Last 8 Weeks)</h2>
-              {/* Metric selection buttons REMOVED from here */}
+          {/* Workout Trends Chart - Enhanced with better empty state */}
+          <div className="bg-white p-6 rounded-xl shadow-card border border-gray-200 mb-8">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-1">Workout Trends</h2>
+                <p className="text-gray-600">Your progress over the last 8 weeks</p>
+              </div>
             </div>
             {trends.length > 0 ? (
-              <WorkoutChart data={trends} weightUnit={weightUnit} /> // Pass only data and weightUnit
+              <WorkoutChart data={trends} weightUnit={weightUnit} />
             ) : (
-              <p className="text-sm text-gray-500">No workout data available for trends.</p>
+              <EmptyState
+                title="Start Your Fitness Journey!"
+                description="Begin tracking your workouts to see amazing progress charts and insights. Every champion started with a single workout."
+                iconName="trending-up"
+                actionLabel="Log Your First Workout"
+                actionHref="/workout/new"
+                variant="motivational"
+              />
             )}
           </div>
 
@@ -400,19 +461,22 @@ export default function DashboardPage() {
           </div>
           */}
 
-          {/* Section for Charts (Muscle Distribution & Goals) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Section for Charts (Muscle Distribution & Goals) - Enhanced styling */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Muscle Distribution Chart Container */}
             <div
-              className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all duration-300 ease-in-out ${isMuscleChartCollapsed ? 'max-h-16 overflow-hidden' : 'max-h-none'}`}
+              className={`bg-white p-6 rounded-xl shadow-card border border-gray-200 transition-all duration-300 ease-in-out hover:shadow-card-hover ${isMuscleChartCollapsed ? 'max-h-20 overflow-hidden' : 'max-h-none'}`}
             >
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-semibold text-gray-700">
-                  Muscle Distribution (By Week)
-                </h3>
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-1">
+                    Muscle Distribution
+                  </h3>
+                  <p className="text-gray-600 text-sm">Weekly training focus</p>
+                </div>
                 <button
                   onClick={() => setIsMuscleChartCollapsed(!isMuscleChartCollapsed)}
-                  className="text-sm text-primary hover:text-primary/80"
+                  className="text-sm text-primary hover:text-primary/80 font-medium px-3 py-1 rounded-lg hover:bg-primary/10 transition-colors"
                 >
                   {isMuscleChartCollapsed ? 'Expand' : 'Collapse'}
                 </button>
@@ -421,9 +485,15 @@ export default function DashboardPage() {
                 (trends.length > 0 ? (
                   <MuscleDistributionChart userId={session?.user?.id} weightUnit={weightUnit} />
                 ) : (
-                  <p className="text-sm text-gray-500">
-                    No workout data yet to show muscle distribution.
-                  </p>
+                  <EmptyState
+                    title="Track Muscle Groups"
+                    description="Start logging workouts to see which muscle groups you're targeting and maintain balanced training."
+                    iconName="activity"
+                    actionLabel="Log Workout"
+                    actionHref="/workout/new"
+                    variant="default"
+                    className="py-8"
+                  />
                 ))}
             </div>
 
@@ -517,23 +587,23 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Add Log New Workout Button Section */}
-          <div className="mt-8 mb-24 flex justify-center">
-            {' '}
-            {/* Added mb-24 for spacing from bottom if content is short */}
+          {/* Enhanced Log New Workout Button Section */}
+          <div className="mt-12 mb-24 flex justify-center">
             <Link href="/workout/new" passHref>
               <Button
                 size="lg"
-                className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 ease-in-out transform hover:scale-105"
+                className="bg-gradient-primary text-white px-12 py-6 text-xl font-bold shadow-card-elevated hover:shadow-glow-blue transition-all duration-300 ease-out transform hover:scale-105 hover:-translate-y-1 rounded-2xl"
               >
-                {' '}
-                {/* Changed to purple */}
-                Log a New Workout
+                🏋️ Log a New Workout
               </Button>
             </Link>
           </div>
         </>
       )}
+      
+      {/* Floating Action Menu */}
+      <FloatingActionMenu position="bottom-left" />
     </DashboardLayout>
+    </ToastProvider>
   )
 }

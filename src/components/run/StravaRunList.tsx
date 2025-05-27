@@ -5,8 +5,8 @@
  */
 
 import { useState, useEffect } from 'react'
-import { getStravaActivities, getStravaActivityWithPolyline } from '@/lib/strava'
-import { getTokensFromDatabase } from '@/lib/strava-token-store'
+import { getStravaActivitiesClient, getStravaActivityWithPolylineClient } from '@/lib/strava-client'
+import { getTokensFromDatabase, saveTokensToDatabase } from '@/lib/strava-token-store'
 import { RunCard } from './RunCard'
 import { supabase } from '@/lib/supabase'
 
@@ -70,8 +70,22 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
         }
 
         // Fetch activities (only runs)
-        const activities = await getStravaActivities(tokens)
-        const runActivities = activities.filter(activity => activity.type === 'Run')
+        const activities = await getStravaActivitiesClient(
+          tokens,
+          1,
+          30,
+          undefined,
+          undefined,
+          async (newTokens) => {
+            // Update tokens in database when they're refreshed
+            await saveTokensToDatabase(supabase, userId, {
+              access_token: newTokens.access_token,
+              refresh_token: tokens.refresh_token, // Keep existing refresh token
+              expires_at: newTokens.expires_at,
+            })
+          }
+        )
+        const runActivities = activities.filter((activity: any) => activity.type === 'Run')
 
         setRuns(runActivities)
       } catch (err) {
@@ -106,7 +120,18 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
         }
 
         // Fetch detailed activity with polyline
-        const detailedRun = await getStravaActivityWithPolyline(tokens, selectedRunId)
+        const detailedRun = await getStravaActivityWithPolylineClient(
+          tokens,
+          selectedRunId,
+          async (newTokens) => {
+            // Update tokens in database when they're refreshed
+            await saveTokensToDatabase(supabase, userId, {
+              access_token: newTokens.access_token,
+              refresh_token: tokens.refresh_token, // Keep existing refresh token
+              expires_at: newTokens.expires_at,
+            })
+          }
+        )
         setSelectedRun(detailedRun)
       } catch (err) {
         console.error('Error fetching detailed run:', err)
