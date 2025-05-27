@@ -45,7 +45,7 @@ The middleware implements the bypass feature by checking for a `bypass=true` par
 if (isAuthPath && session) {
   // Check for a bypass parameter to allow access to login/signup even when authenticated
   const bypassAuth = request.nextUrl.searchParams.get('bypass') === 'true'
-  
+
   if (!bypassAuth) {
     console.log('User is authenticated, redirecting to dashboard')
     return NextResponse.redirect(new URL('/dashboard', request.url))
@@ -59,4 +59,4 @@ if (isAuthPath && session) {
 - Authentication uses PKCE flow for enhanced security
 - Sessions are stored in HTTP-only cookies
 - The middleware adds user information to headers for protected routes
-- The application correctly refreshes sessions and handles expired tokens 
+- The application correctly refreshes sessions and handles expired tokens

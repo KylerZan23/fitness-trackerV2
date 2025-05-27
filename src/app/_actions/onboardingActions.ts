@@ -22,15 +22,15 @@ export type FullOnboardingAnswers = OnboardingAndProfileData
 /**
  * Server action response type
  */
-type ActionResponse = 
-  | { success: true; warning?: string }
-  | { error: string }
+type ActionResponse = { success: true; warning?: string } | { error: string }
 
 /**
  * Server action to finalize onboarding and generate training program
  * This is the main function for the new simplified signup flow
  */
-export async function finalizeOnboardingAndGenerateProgram(formData: FullOnboardingAnswers): Promise<ActionResponse> {
+export async function finalizeOnboardingAndGenerateProgram(
+  formData: FullOnboardingAnswers
+): Promise<ActionResponse> {
   return await saveOnboardingData(formData)
 }
 
@@ -38,18 +38,23 @@ export async function finalizeOnboardingAndGenerateProgram(formData: FullOnboard
  * Server action to save user onboarding data and mark onboarding as completed
  * @deprecated Use finalizeOnboardingAndGenerateProgram for new flows
  */
-export async function saveOnboardingData(formData: OnboardingAndProfileData): Promise<ActionResponse> {
+export async function saveOnboardingData(
+  formData: OnboardingAndProfileData
+): Promise<ActionResponse> {
   try {
     const supabase = await createClient()
 
     // Get the authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
     if (authError) {
       console.error('Authentication error in saveOnboardingData:', authError)
       return { error: 'Authentication failed. Please log in again.' }
     }
-    
+
     if (!user) {
       console.error('No authenticated user found in saveOnboardingData')
       return { error: 'You must be logged in to complete onboarding.' }
@@ -76,8 +81,8 @@ export async function saveOnboardingData(formData: OnboardingAndProfileData): Pr
 
     if (updateError) {
       console.error('Error updating profile with onboarding data:', updateError)
-      return { 
-        error: 'Failed to save your onboarding data. Please try again.' 
+      return {
+        error: 'Failed to save your onboarding data. Please try again.',
       }
     }
 
@@ -87,25 +92,32 @@ export async function saveOnboardingData(formData: OnboardingAndProfileData): Pr
     try {
       console.log('Generating training program for user:', user.id)
       const programResult = await generateTrainingProgram(user.id)
-      
+
       if (programResult.success) {
         console.log('Training program generated successfully')
         return { success: true }
       } else {
         console.error('Failed to generate training program:', programResult.error)
         // Don't fail the onboarding if program generation fails - user can regenerate later
-        return { success: true, warning: 'Onboarding completed but program generation failed. Please try generating your program again.' }
+        return {
+          success: true,
+          warning:
+            'Onboarding completed but program generation failed. Please try generating your program again.',
+        }
       }
     } catch (programError) {
       console.error('Error during program generation:', programError)
       // Don't fail the onboarding if program generation fails
-      return { success: true, warning: 'Onboarding completed but program generation failed. Please try generating your program again.' }
+      return {
+        success: true,
+        warning:
+          'Onboarding completed but program generation failed. Please try generating your program again.',
+      }
     }
-
   } catch (error) {
     console.error('Unexpected error in saveOnboardingData:', error)
-    return { 
-      error: 'An unexpected error occurred while saving your data. Please try again.' 
+    return {
+      error: 'An unexpected error occurred while saving your data. Please try again.',
     }
   }
 }
@@ -118,8 +130,11 @@ export async function checkOnboardingStatus(): Promise<{ completed: boolean } | 
   try {
     const supabase = await createClient()
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
     if (authError || !user) {
       return { error: 'Authentication required' }
     }
@@ -136,9 +151,8 @@ export async function checkOnboardingStatus(): Promise<{ completed: boolean } | 
     }
 
     return { completed: profile?.onboarding_completed || false }
-
   } catch (error) {
     console.error('Unexpected error in checkOnboardingStatus:', error)
     return { error: 'An unexpected error occurred' }
   }
-} 
+}

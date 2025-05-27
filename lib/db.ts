@@ -4,4 +4,4 @@ import { startOfWeek, endOfWeek, formatISO } from 'date-fns'
 
 // Removed fetchCurrentWeekGoalsWithProgress function from this file
 
-// ... (other db functions like getWorkoutStats remain here) 
+// ... (other db functions like getWorkoutStats remain here)

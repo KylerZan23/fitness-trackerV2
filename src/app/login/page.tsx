@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
@@ -14,11 +14,11 @@ import { Input } from '@/components/ui/input' // Added
 import { Button } from '@/components/ui/button' // Added
 
 interface AuthError {
-  message: string;
-  status?: number;
+  message: string
+  status?: number
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +42,7 @@ export default function LoginPage() {
           setShowSessionInfo(true)
         }
       }
-      
+
       checkSession()
     }
   }, [bypassAuth, forceLogin])
@@ -52,18 +52,18 @@ export default function LoginPage() {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       // Sign out from Supabase
       await supabase.auth.signOut()
-      
+
       // Clear any local storage items related to auth
       localStorage.removeItem('supabase.auth.token')
-      
+
       // Show success message
       toast.success('Successfully signed out')
-      
+
       setShowSessionInfo(false)
-      
+
       // Refresh the page with force_login parameter to ensure we can access the login page
       if (typeof window !== 'undefined') {
         window.location.href = '/login?force_login=true'
@@ -119,7 +119,7 @@ export default function LoginPage() {
       // Store the user ID for profile operations - this is from the successful sign-in response
       const userId = signInData.session.user.id
       const userEmail = signInData.session.user.email || ''
-      
+
       // Log the full session details for debugging
       console.log('=== Session Debug Information ===')
       console.log('Session:', {
@@ -131,57 +131,58 @@ export default function LoginPage() {
           role: signInData.session.user.role,
           lastSignIn: signInData.session.user.last_sign_in_at,
         },
-        provider: signInData.session.user.app_metadata?.provider
+        provider: signInData.session.user.app_metadata?.provider,
       })
 
       // Give Supabase more time to persist the session in cookies
       console.log('Waiting for session to be properly persisted...')
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
       // Verify session is properly established - with retry mechanism
-      let sessionVerified = false;
-      let retryCount = 0;
-      const maxRetries = 3;
-      
+      let sessionVerified = false
+      let retryCount = 0
+      const maxRetries = 3
+
       while (!sessionVerified && retryCount < maxRetries) {
         try {
-          console.log(`Session verification attempt ${retryCount + 1}/${maxRetries}...`);
-          
+          console.log(`Session verification attempt ${retryCount + 1}/${maxRetries}...`)
+
           // Use getSession() for secure authentication verification
-          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-          
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+
           if (sessionError) {
-            console.warn(`Session verification error on attempt ${retryCount + 1}:`, sessionError);
+            console.warn(`Session verification error on attempt ${retryCount + 1}:`, sessionError)
             // Wait longer between retries
-            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-            retryCount++;
-            continue;
+            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
+            retryCount++
+            continue
           }
-          
+
           if (!sessionData.session) {
-            console.warn(`No session found on attempt ${retryCount + 1}, waiting longer...`);
+            console.warn(`No session found on attempt ${retryCount + 1}, waiting longer...`)
             // Wait longer between retries
-            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-            retryCount++;
-            continue;
+            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
+            retryCount++
+            continue
           }
-          
+
           // Session verified successfully
-          console.log('Session verified and persisted successfully');
-          sessionVerified = true;
-          
+          console.log('Session verified and persisted successfully')
+          sessionVerified = true
         } catch (error) {
-          console.error(`Session verification exception on attempt ${retryCount + 1}:`, error);
+          console.error(`Session verification exception on attempt ${retryCount + 1}:`, error)
           // Wait longer between retries
-          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-          retryCount++;
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
+          retryCount++
         }
       }
-      
+
       // If we couldn't verify the session after all retries, we'll continue anyway
       // since we have the initial session from signInWithPassword
       if (!sessionVerified) {
-        console.warn('Could not verify session persistence after multiple attempts. Continuing with initial session data.');
+        console.warn(
+          'Could not verify session persistence after multiple attempts. Continuing with initial session data.'
+        )
         // We'll continue with the initial session from signInWithPassword
       }
 
@@ -196,18 +197,18 @@ export default function LoginPage() {
 
         if (profileError) {
           console.log('Profile not found, creating new profile...')
-          
+
           // Create profile data object with required fields and proper typing
           interface ProfileData {
-            id: string;
-            email: string;
-            name: string;
-            created_at: string;
-            updated_at: string;
-            age?: number;
-            fitness_goals?: string;
+            id: string
+            email: string
+            name: string
+            created_at: string
+            updated_at: string
+            age?: number
+            fitness_goals?: string
           }
-          
+
           const profileData: ProfileData = {
             id: userId,
             email: userEmail,
@@ -215,61 +216,64 @@ export default function LoginPage() {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }
-          
+
           // Add optional fields only if they exist in user metadata
           if (signInData.session.user.user_metadata?.age) {
             profileData.age = signInData.session.user.user_metadata.age
           }
-          
+
           if (signInData.session.user.user_metadata?.fitness_goals) {
             profileData.fitness_goals = signInData.session.user.user_metadata.fitness_goals
           } else {
-            profileData.fitness_goals = 'Get fit'  // Default value
+            profileData.fitness_goals = 'Get fit' // Default value
           }
-          
+
           // Perform upsert without additional select/single to simplify operation
-          const { error: createError } = await supabase
-            .from('profiles')
-            .upsert(profileData)
+          const { error: createError } = await supabase.from('profiles').upsert(profileData)
 
           if (createError) {
             // Log detailed error information
             console.error('Profile creation error:', JSON.stringify(createError, null, 2))
-            
+
             // Check if this is an RLS policy error
             if (createError.code === '42501') {
-              console.warn('Row-Level Security policy violation - trying server-side profile creation')
-              
+              console.warn(
+                'Row-Level Security policy violation - trying server-side profile creation'
+              )
+
               // Add a small delay to ensure session is fully established
               await new Promise(resolve => setTimeout(resolve, 1000))
-              
+
               // Log access token availability
               console.log(`Access token available: ${!!signInData.session.access_token}`)
               if (signInData.session.access_token) {
-                console.log(`Token length: ${signInData.session.access_token.length}, First 10 chars: ${signInData.session.access_token.substring(0, 10)}...`)
+                console.log(
+                  `Token length: ${signInData.session.access_token.length}, First 10 chars: ${signInData.session.access_token.substring(0, 10)}...`
+                )
               }
-              
+
               // Verify session before proceeding
               console.log('Verifying user before server-side profile creation')
-              const { data: sessionData, error: sessionVerifyError } = await supabase.auth.getSession()
-              
+              const { data: sessionData, error: sessionVerifyError } =
+                await supabase.auth.getSession()
+
               if (sessionVerifyError) {
                 console.error('Session verification error:', sessionVerifyError)
               }
-              
+
               console.log(`Verified session exists: ${!!sessionData.session}`)
               console.log(`User ID: ${sessionData.session?.user.id}`)
-              
+
               // Increase delay to 1.5 seconds to ensure token propagation
               console.log('Adding additional delay before API call for token propagation...')
               await new Promise(resolve => setTimeout(resolve, 1500))
-              
+
               // Attempt to create profile using our server-side API
               try {
                 console.log('Sending profile creation request to server API...')
                 console.log(`Using token from verified session: ${!!sessionData.session?.user.id}`)
                 console.log(`Using user ID: ${userId}`)
-                
+
                 const response = await fetch('/api/create-profile', {
                   method: 'POST',
                   headers: {
@@ -278,31 +282,37 @@ export default function LoginPage() {
                   body: JSON.stringify({
                     id: userId,
                     email: userEmail,
-                    name: signInData.session.user.user_metadata?.name || userEmail.split('@')[0] || 'User',
-                    fitness_goals: signInData.session.user.user_metadata?.fitness_goals || 'Get fit',
+                    name:
+                      signInData.session.user.user_metadata?.name ||
+                      userEmail.split('@')[0] ||
+                      'User',
+                    fitness_goals:
+                      signInData.session.user.user_metadata?.fitness_goals || 'Get fit',
                     age: signInData.session.user.user_metadata?.age,
                     auth_token: signInData.session.access_token,
                   }),
                 })
-                
+
                 const result = await response.json()
-                
+
                 if (response.ok) {
                   console.log('Profile created via server API:', result.message)
                 } else {
                   console.error('Server profile creation failed:', result.error)
                   console.error('Response status:', response.status)
                   console.error('Response status text:', response.statusText)
-                  
+
                   // Check for specific error types
                   if (result.error && result.error.includes('Auth session missing')) {
-                    console.error('Auth session missing detected - this suggests token verification issues')
+                    console.error(
+                      'Auth session missing detected - this suggests token verification issues'
+                    )
                     console.log('Possible causes:')
                     console.log('1. Token not propagated to server yet')
                     console.log('2. Token expired between client verification and server use')
                     console.log('3. Token format issues between client and server')
                   }
-                  
+
                   setError(`Profile creation error: ${result.error}`)
                   console.log('Continuing with login despite profile creation failure')
                 }
@@ -322,8 +332,10 @@ export default function LoginPage() {
         }
       } catch (profileError) {
         // Log with more detail
-        console.error('Profile check/create error:', 
-          typeof profileError === 'object' ? JSON.stringify(profileError, null, 2) : profileError)
+        console.error(
+          'Profile check/create error:',
+          typeof profileError === 'object' ? JSON.stringify(profileError, null, 2) : profileError
+        )
         console.log('Continuing without profile verification')
       }
 
@@ -334,7 +346,6 @@ export default function LoginPage() {
       // instead of requiring another verification that might fail
       console.log('Login successful, redirecting to dashboard...')
       router.push(redirectTo)
-      
     } catch (err) {
       console.error('Login process error:', err)
       setError(err instanceof Error ? err.message : 'Failed to sign in')
@@ -346,7 +357,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link href="/" className="block mx-auto text-center text-3xl font-bold text-indigo-600 hover:text-indigo-700 mb-2">
+        <Link
+          href="/"
+          className="block mx-auto text-center text-3xl font-bold text-indigo-600 hover:text-indigo-700 mb-2"
+        >
           FitnessTracker
         </Link>
         <h2 className="mt-1 text-center text-2xl font-semibold text-gray-800">
@@ -366,8 +380,8 @@ export default function LoginPage() {
             <div className="mb-6 p-4 bg-yellow-50 border border-yellow-300 rounded-md">
               <h3 className="text-yellow-700 font-medium">You're already logged in</h3>
               <p className="text-yellow-600 text-sm mt-1 mb-3">
-                You currently have an active session. Do you want to continue with your 
-                current session or sign in with a different account?
+                You currently have an active session. Do you want to continue with your current
+                session or sign in with a different account?
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
@@ -424,7 +438,7 @@ export default function LoginPage() {
                 <p className="text-red-700 text-sm">{error}</p>
               </div>
             )}
-            
+
             <div className="space-y-4">
               <div>
                 <Label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -463,11 +477,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full"
-            >
+            <Button type="submit" disabled={isLoading} className="w-full">
               {isLoading ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2"></div>
@@ -481,5 +491,31 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="block mx-auto text-center text-3xl font-bold text-indigo-600 mb-2">
+            FitnessTracker
+          </div>
+          <h2 className="mt-1 text-center text-2xl font-semibold text-gray-800">
+            Loading...
+          </h2>
+        </div>
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10 border border-gray-200">
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }

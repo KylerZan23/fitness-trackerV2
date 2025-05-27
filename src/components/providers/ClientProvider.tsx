@@ -8,4 +8,4 @@ interface ClientProviderProps {
 
 export function ClientProvider({ children }: ClientProviderProps) {
   return <>{children}</>
-} 
+}

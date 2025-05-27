@@ -2,7 +2,12 @@ import React from 'react'
 import { type TrainingPhase } from '@/lib/types/program'
 import { type CompletedDayIdentifier } from '@/app/_actions/aiProgramActions'
 import { ProgramWeekDisplay } from './ProgramWeekDisplay'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Target, FileText } from 'lucide-react'
@@ -13,7 +18,11 @@ interface ProgramPhaseDisplayProps {
   completedDays: CompletedDayIdentifier[]
 }
 
-export function ProgramPhaseDisplay({ phase, phaseIndex, completedDays }: ProgramPhaseDisplayProps) {
+export function ProgramPhaseDisplay({
+  phase,
+  phaseIndex,
+  completedDays,
+}: ProgramPhaseDisplayProps) {
   return (
     <Card className="mb-6">
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg border-b">
@@ -25,16 +34,12 @@ export function ProgramPhaseDisplay({ phase, phaseIndex, completedDays }: Progra
             <CardDescription className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <Calendar className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium">
-                  {phase.durationWeeks} weeks
-                </span>
+                <span className="text-sm font-medium">{phase.durationWeeks} weeks</span>
               </div>
               {phase.weeks.length > 0 && (
                 <div className="flex items-center space-x-2">
                   <FileText className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium">
-                    {phase.weeks.length} training weeks
-                  </span>
+                  <span className="text-sm font-medium">{phase.weeks.length} training weeks</span>
                 </div>
               )}
             </CardDescription>
@@ -73,9 +78,7 @@ export function ProgramPhaseDisplay({ phase, phaseIndex, completedDays }: Progra
         {/* Weeks Accordion */}
         <div className="p-6">
           <div className="mb-4">
-            <h4 className="text-lg font-semibold text-gray-900 mb-2">
-              Training Weeks
-            </h4>
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">Training Weeks</h4>
             <p className="text-sm text-gray-600">
               Expand each week to view detailed workout plans and exercises.
             </p>
@@ -83,8 +86,8 @@ export function ProgramPhaseDisplay({ phase, phaseIndex, completedDays }: Progra
 
           <Accordion type="single" collapsible className="space-y-4">
             {phase.weeks.map((week, weekIndex) => (
-              <AccordionItem 
-                key={`week-${week.weekNumber}-${weekIndex}`} 
+              <AccordionItem
+                key={`week-${week.weekNumber}-${weekIndex}`}
                 value={`week-${week.weekNumber}-${weekIndex}`}
                 className="border-2 border-gray-200 rounded-lg px-4 transition-colors hover:border-blue-300"
               >
@@ -106,11 +109,11 @@ export function ProgramPhaseDisplay({ phase, phaseIndex, completedDays }: Progra
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pt-4 pb-6">
-                  <ProgramWeekDisplay 
-                    week={week} 
-                    weekIndex={weekIndex} 
+                  <ProgramWeekDisplay
+                    week={week}
+                    weekIndex={weekIndex}
                     phaseIndex={phaseIndex}
-                    completedDays={completedDays} 
+                    completedDays={completedDays}
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -120,4 +123,4 @@ export function ProgramPhaseDisplay({ phase, phaseIndex, completedDays }: Progra
       </CardContent>
     </Card>
   )
-} 
+}

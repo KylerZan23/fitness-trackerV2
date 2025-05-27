@@ -27,7 +27,7 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - **Workout Entry Feature**: Added a new page for logging individual workouts with exercise details
 - **SSR Authentication Fix**: Updated Supabase client to use cookie-based authentication for SSR compatibility, fixing login redirection issues
 - **Authentication Flow Improvements**: Fixed issues with session persistence and navigation between dashboard and profile pages
-- **Dark Theme UI**: ~~Updated entire application with a consistent dark theme for better visual appeal~~ -> Clarified: Dark theme elements exist, but dashboard/core app uses a light theme.
+
 - **User Avatar Component**: Added personalized user avatars with initials and tooltips for better UX
 - **Error Handling**: Improved error handling for database operations to ensure a smoother user experience
 - **Added Run Logger Page**: New dedicated page for tracking running activities accessible from the dashboard
@@ -53,14 +53,14 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - Muscle heatmap visualization for tracking training balance
 - Run tracking with Strava integration and interactive maps
 - **Dashboard UI:** A modern, sidebar-based dashboard with a **light theme**, displaying:
-    *   Welcome banner (e.g., "Welcome back, {user}").
-    *   Today's Snapshot: Displays "Exercises", "Sets", "Total Duration (min)", and "Total Weight".
-    *   Workout trends chart (last 7 days).
-    *   Muscle group distribution chart.
-    *   Goals tracking section (e.g., weekly distance, workout days).
-    *   Recent activity section (e.g., runs).
-    *   AI Personal Coach section.
-    *   Prominent "Log a New Workout" button for quick access to logging.
+  - Welcome banner (e.g., "Welcome back, {user}").
+  - Today's Snapshot: Displays "Exercises", "Sets", "Total Duration (min)", and "Total Weight".
+  - Workout trends chart (last 7 days).
+  - Muscle group distribution chart.
+  - Goals tracking section (e.g., weekly distance, workout days).
+  - Recent activity section (e.g., runs).
+  - AI Personal Coach section.
+  - Prominent "Log a New Workout" button for quick access to logging.
 
 ## Profile Management
 
@@ -118,12 +118,13 @@ For specific help with "Auth session missing" errors, see [Auth Session Troubles
 
 ## Design
 
-The application features a modern, minimalist design inspired by high-end fitness applications:
+The application features a modern, minimalist design inspired by high-end fitness applications. The core application (Dashboard, Workout Logging, Profile, etc.) utilizes a clean, **light theme** (e.g., `bg-gray-100` for main layout backgrounds, white for cards) for optimal readability and a modern feel. Specific introductory pages like the landing page or authentication screens may employ darker backgrounds or vibrant gradients for visual impact during those initial user flows.
+
+Key design elements include:
 
 - Modern landing page with gradient background and device mockups
 - Intuitive form elements for collecting user preferences
-- **Core Application Theme:** Uses a clean, light theme (`bg-gray-100`) consistent across the dashboard and main features like workout logging, utilizing reusable UI components.
-- **Contrast Elements:** Some specific pages or elements (like the original landing page concept or auth pages) may use darker backgrounds or high-contrast imagery for visual distinction.
+- Consistent light theme across core application features
 - Full-screen hero sections
 - Clean typography with serif headings
 - Motivational imagery
@@ -153,14 +154,17 @@ For more information on run tracking features, see [Run Tracking Documentation](
 All images are sourced from Unsplash and are free to use under the Unsplash License:
 
 1. Hero Background: Photo by Victor Freitas
+
    - Dark gym equipment scene
    - Source: https://unsplash.com/photos/WvDYdXDzkhs
 
 2. Login Background: Photo by John Arano
+
    - Silhouette workout scene
    - Source: https://unsplash.com/photos/h4i9G-de7Po
 
 3. Signup Background: Photo by Anastase Maragos
+
    - Dynamic workout moment
    - Source: https://unsplash.com/photos/9dzWZQWZMdE
 
@@ -172,17 +176,21 @@ All images are sourced from Unsplash and are free to use under the Unsplash Lice
 
 1. Clone the repository
 2. Install dependencies:
+
    ```bash
    yarn install
    ```
 
 3. Set up environment variables:
+
    ```bash
    cp .env.example .env.local
    ```
+
    Then add your Supabase credentials to `.env.local`
 
 4. Start the development server:
+
    ```bash
    yarn dev
    ```
@@ -235,6 +243,7 @@ yarn add --dev husky lint-staged
 ```
 
 Then add to package.json:
+
 ```json
 {
   "husky": {

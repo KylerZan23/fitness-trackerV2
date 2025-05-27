@@ -4,7 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
-import { fetchActiveProgramAction, type CompletedDayIdentifier } from '@/app/_actions/aiProgramActions'
+import {
+  fetchActiveProgramAction,
+  type CompletedDayIdentifier,
+} from '@/app/_actions/aiProgramActions'
 import { type TrainingProgram } from '@/lib/types/program'
 import { Session } from '@supabase/supabase-js'
 import Link from 'next/link'
@@ -34,7 +37,10 @@ export default function ProgramPage() {
     setError(null)
 
     try {
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+      const {
+        data: { session: currentSession },
+        error: sessionError,
+      } = await supabase.auth.getSession()
 
       if (sessionError) {
         setError(`Session error: ${sessionError.message}`)
@@ -65,7 +71,10 @@ export default function ProgramPage() {
         // Create minimal profile if it doesn't exist
         const newProfile = {
           id: currentSession.user.id,
-          name: currentSession.user.user_metadata?.name || currentSession.user.email?.split('@')[0] || 'User',
+          name:
+            currentSession.user.user_metadata?.name ||
+            currentSession.user.email?.split('@')[0] ||
+            'User',
           email: currentSession.user.email || '',
         }
         setProfile(newProfile)
@@ -73,20 +82,19 @@ export default function ProgramPage() {
 
       // Fetch training program using server action
       const result = await fetchActiveProgramAction()
-      
+
       if (result.error) {
         setError(result.error)
       } else {
         setProgramData(result.program)
         setCompletedDays(result.completedDays || [])
-        
+
         // Console log the full program data as requested
         if (result.program) {
           console.log('Successfully fetched training program:', result.program)
           console.log('Completed workout days:', result.completedDays)
         }
       }
-
     } catch (err) {
       console.error('Error in fetchData:', err)
       setError('An unexpected error occurred. Please try again.')
@@ -133,7 +141,10 @@ export default function ProgramPage() {
           onLogout: handleLogout,
         }}
       >
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md relative mb-6" role="alert">
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md relative mb-6"
+          role="alert"
+        >
           {error}
         </div>
         <div className="text-center">
@@ -160,7 +171,8 @@ export default function ProgramPage() {
             <CardHeader>
               <CardTitle className="text-2xl">No Active Training Program</CardTitle>
               <CardDescription>
-                You don't have an active training program yet. Complete your onboarding to generate a personalized program.
+                You don't have an active training program yet. Complete your onboarding to generate
+                a personalized program.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -190,15 +202,11 @@ export default function ProgramPage() {
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold text-gray-900">
-                {programData.programName}
-              </h1>
-              <p className="text-lg text-gray-600 max-w-3xl">
-                {programData.description}
-              </p>
+              <h1 className="text-3xl font-bold text-gray-900">{programData.programName}</h1>
+              <p className="text-lg text-gray-600 max-w-3xl">{programData.description}</p>
             </div>
           </div>
-          
+
           {/* Program Overview Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
             <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
@@ -210,7 +218,7 @@ export default function ProgramPage() {
                 </p>
               </div>
             </div>
-            
+
             {programData.trainingFrequency && (
               <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg">
                 <Target className="h-8 w-8 text-green-600" />
@@ -222,15 +230,13 @@ export default function ProgramPage() {
                 </div>
               </div>
             )}
-            
+
             {programData.difficultyLevel && (
               <div className="flex items-center space-x-3 p-4 bg-purple-50 rounded-lg">
                 <Clock className="h-8 w-8 text-purple-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-500">Level</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {programData.difficultyLevel}
-                  </p>
+                  <p className="text-xl font-bold text-gray-900">{programData.difficultyLevel}</p>
                 </div>
               </div>
             )}
@@ -244,9 +250,7 @@ export default function ProgramPage() {
               <CardTitle>General Guidelines</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-700 whitespace-pre-line">
-                {programData.generalAdvice}
-              </p>
+              <p className="text-gray-700 whitespace-pre-line">{programData.generalAdvice}</p>
             </CardContent>
           </Card>
         )}
@@ -260,7 +264,7 @@ export default function ProgramPage() {
             <CardContent>
               <div className="flex flex-wrap gap-2">
                 {programData.requiredEquipment.map((equipment, index) => (
-                  <span 
+                  <span
                     key={index}
                     className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
                   >
@@ -275,18 +279,17 @@ export default function ProgramPage() {
         {/* Detailed Program Phases */}
         <div className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Training Program Details
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Training Program Details</h2>
             <p className="text-gray-600">
-              Your personalized training program is organized into phases. Click on each phase and week to explore detailed workouts and exercises.
+              Your personalized training program is organized into phases. Click on each phase and
+              week to explore detailed workouts and exercises.
             </p>
           </div>
-          
+
           {programData.phases.map((phase, phaseIndex) => (
-            <ProgramPhaseDisplay 
+            <ProgramPhaseDisplay
               key={`phase-${phaseIndex}`}
-              phase={phase} 
+              phase={phase}
               phaseIndex={phaseIndex}
               completedDays={completedDays}
             />
@@ -296,10 +299,12 @@ export default function ProgramPage() {
         {/* Development Note - Updated for Phase 3.2 */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <p className="text-green-800 text-sm">
-            ✅ <strong>Phase 3.2 Complete:</strong> Your training program is now fully detailed with expandable phases, weeks, and individual workout days. You can explore every exercise with complete instructions, sets, reps, and rest periods.
+            ✅ <strong>Phase 3.2 Complete:</strong> Your training program is now fully detailed with
+            expandable phases, weeks, and individual workout days. You can explore every exercise
+            with complete instructions, sets, reps, and rest periods.
           </p>
         </div>
       </div>
     </DashboardLayout>
   )
-} 
+}

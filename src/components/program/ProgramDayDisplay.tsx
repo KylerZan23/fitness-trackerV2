@@ -34,14 +34,18 @@ function formatDayOfWeek(dayOfWeek: DayOfWeek): string {
   }
 }
 
-export function ProgramDayDisplay({ day, completedDays, phaseIndex, weekIndex }: ProgramDayDisplayProps) {
+export function ProgramDayDisplay({
+  day,
+  completedDays,
+  phaseIndex,
+  weekIndex,
+}: ProgramDayDisplayProps) {
   const dayName = formatDayOfWeek(day.dayOfWeek)
 
   // Check if this day has been completed
   const isCompleted = completedDays.some(
-    cd => cd.phaseIndex === phaseIndex &&
-          cd.weekIndex === weekIndex &&
-          cd.dayOfWeek === day.dayOfWeek
+    cd =>
+      cd.phaseIndex === phaseIndex && cd.weekIndex === weekIndex && cd.dayOfWeek === day.dayOfWeek
   )
 
   return (
@@ -51,9 +55,7 @@ export function ProgramDayDisplay({ day, completedDays, phaseIndex, weekIndex }:
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center space-x-3">
             <Calendar className="h-5 w-5 text-blue-600" />
-            <h3 className="text-xl font-semibold text-gray-900">
-              {dayName}
-            </h3>
+            <h3 className="text-xl font-semibold text-gray-900">{dayName}</h3>
             {day.focus && (
               <Badge variant="outline" className="text-sm">
                 {day.focus}
@@ -69,13 +71,11 @@ export function ProgramDayDisplay({ day, completedDays, phaseIndex, weekIndex }:
               </div>
             )}
           </div>
-          
+
           {day.estimatedDurationMinutes && (
             <div className="flex items-center space-x-2 text-gray-600">
               <Clock className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                {day.estimatedDurationMinutes} minutes
-              </span>
+              <span className="text-sm font-medium">{day.estimatedDurationMinutes} minutes</span>
             </div>
           )}
         </div>
@@ -93,9 +93,7 @@ export function ProgramDayDisplay({ day, completedDays, phaseIndex, weekIndex }:
       {day.isRestDay ? (
         <div className="text-center py-8">
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-            <h4 className="text-lg font-semibold text-green-800 mb-2">
-              Rest Day
-            </h4>
+            <h4 className="text-lg font-semibold text-green-800 mb-2">Rest Day</h4>
             <p className="text-green-700">
               Take today to recover and prepare for your next workout.
             </p>
@@ -105,29 +103,20 @@ export function ProgramDayDisplay({ day, completedDays, phaseIndex, weekIndex }:
         <div className="space-y-4">
           {/* Warm-up */}
           {day.warmUp && day.warmUp.length > 0 && (
-            <ExerciseListDisplay 
-              exercises={day.warmUp} 
-              listTitle="🔥 Warm-up" 
-            />
+            <ExerciseListDisplay exercises={day.warmUp} listTitle="🔥 Warm-up" />
           )}
 
           {/* Main Exercises */}
           {day.exercises && day.exercises.length > 0 && (
-            <ExerciseListDisplay 
-              exercises={day.exercises} 
-              listTitle="💪 Main Workout" 
-            />
+            <ExerciseListDisplay exercises={day.exercises} listTitle="💪 Main Workout" />
           )}
 
           {/* Cool-down */}
           {day.coolDown && day.coolDown.length > 0 && (
-            <ExerciseListDisplay 
-              exercises={day.coolDown} 
-              listTitle="🧘 Cool-down" 
-            />
+            <ExerciseListDisplay exercises={day.coolDown} listTitle="🧘 Cool-down" />
           )}
         </div>
       )}
     </div>
   )
-} 
+}

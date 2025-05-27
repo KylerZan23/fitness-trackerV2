@@ -34,9 +34,9 @@ import {
   type SessionDuration,
   type EquipmentType,
 } from '@/lib/types/onboarding'
-import { 
-  finalizeOnboardingAndGenerateProgram, 
-  type FullOnboardingAnswers 
+import {
+  finalizeOnboardingAndGenerateProgram,
+  type FullOnboardingAnswers,
 } from '@/app/_actions/onboardingActions'
 
 // Constants for form options
@@ -93,8 +93,24 @@ const TRAINING_FREQUENCY_OPTIONS = [
 
 // Zod schemas for each step
 const step1Schema = z.object({
-  primaryGoal: z.enum(['Muscle Gain', 'Strength Gain', 'Fat Loss', 'General Fitness', 'Endurance Improvement', 'Sport-Specific']),
-  secondaryGoal: z.enum(['Muscle Gain', 'Strength Gain', 'Fat Loss', 'General Fitness', 'Endurance Improvement', 'Sport-Specific']).optional(),
+  primaryGoal: z.enum([
+    'Muscle Gain',
+    'Strength Gain',
+    'Fat Loss',
+    'General Fitness',
+    'Endurance Improvement',
+    'Sport-Specific',
+  ]),
+  secondaryGoal: z
+    .enum([
+      'Muscle Gain',
+      'Strength Gain',
+      'Fat Loss',
+      'General Fitness',
+      'Endurance Improvement',
+      'Sport-Specific',
+    ])
+    .optional(),
   sportSpecificDetails: z.string().optional(),
   primaryTrainingFocus: z.string().min(1, 'Please select your primary training focus'),
   experienceLevel: z.string().min(1, 'Please select your experience level'),
@@ -103,14 +119,18 @@ const step1Schema = z.object({
 const step2Schema = z.object({
   trainingFrequencyDays: z.number().min(2).max(7),
   sessionDuration: z.enum(['30-45 minutes', '45-60 minutes', '60-90 minutes', '90+ minutes']),
-  equipment: z.array(z.enum([
-    'Full Gym (Barbells, Racks, Machines)',
-    'Dumbbells',
-    'Kettlebells',
-    'Resistance Bands',
-    'Bodyweight Only',
-    'Cardio Machines (Treadmill, Bike, Rower, Elliptical)'
-  ])).min(1, 'Please select at least one equipment option'),
+  equipment: z
+    .array(
+      z.enum([
+        'Full Gym (Barbells, Racks, Machines)',
+        'Dumbbells',
+        'Kettlebells',
+        'Resistance Bands',
+        'Bodyweight Only',
+        'Cardio Machines (Treadmill, Bike, Rower, Elliptical)',
+      ])
+    )
+    .min(1, 'Please select at least one equipment option'),
 })
 
 const step3Schema = z.object({
@@ -149,7 +169,13 @@ export default function OnboardingPage() {
     },
   })
 
-  const { control, handleSubmit, trigger, watch, formState: { errors } } = form
+  const {
+    control,
+    handleSubmit,
+    trigger,
+    watch,
+    formState: { errors },
+  } = form
 
   // Watch specific fields for conditional rendering
   const primaryGoal = watch('primaryGoal')
@@ -161,8 +187,10 @@ export default function OnboardingPage() {
         setIsLoading(true)
         setError(null)
 
-        const { data: { session } } = await supabase.auth.getSession()
-        
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
         if (!session?.user) {
           console.log('No active session found, redirecting to signup')
           router.replace('/signup')
@@ -174,15 +202,15 @@ export default function OnboardingPage() {
         // Check for force reset parameter (for debugging)
         const urlParams = new URLSearchParams(window.location.search)
         const forceReset = urlParams.get('reset') === 'true'
-        
+
         if (forceReset) {
           console.log('Force reset requested, clearing onboarding status')
           try {
             await supabase
               .from('profiles')
-              .update({ 
+              .update({
                 onboarding_completed: false,
-                onboarding_responses: null 
+                onboarding_responses: null,
               })
               .eq('id', session.user.id)
             console.log('Onboarding status reset successfully')
@@ -200,14 +228,14 @@ export default function OnboardingPage() {
 
         if (profileError) {
           console.error('Error loading profile:', profileError)
-          
+
           // If profile doesn't exist, redirect to signup to create one
           if (profileError.code === 'PGRST116') {
             console.log('Profile not found, redirecting to signup')
             router.replace('/signup')
             return
           }
-          
+
           setError('Failed to load your profile. Please try again.')
           return
         }
@@ -227,17 +255,20 @@ export default function OnboardingPage() {
           const hasActiveProgram = !!trainingProgram
 
           if (hasActiveProgram) {
-            console.log('User has completed onboarding and has active program, redirecting to dashboard')
+            console.log(
+              'User has completed onboarding and has active program, redirecting to dashboard'
+            )
             router.replace('/dashboard')
             return
           } else {
-            console.log('User completed onboarding but no active program found, allowing re-onboarding')
+            console.log(
+              'User completed onboarding but no active program found, allowing re-onboarding'
+            )
             // Allow user to redo onboarding to generate new program
           }
         }
 
         console.log('User ready for onboarding')
-        
       } catch (err) {
         console.error('Error during auth check:', err)
         setError('An error occurred while loading your profile. Please try again.')
@@ -275,13 +306,12 @@ export default function OnboardingPage() {
 
       // Success! Show success message and redirect
       console.log('Onboarding completed successfully!')
-      
+
       // You could add a toast notification here in the future
       // toast.success('Welcome! Your personalized training program is being generated.')
-      
+
       // Redirect to dashboard or a success page
       router.push('/dashboard?onboarding=completed')
-      
     } catch (err) {
       console.error('Error submitting onboarding:', err)
       setError('An unexpected error occurred. Please try again.')
@@ -292,7 +322,7 @@ export default function OnboardingPage() {
 
   const nextStep = async () => {
     let isValid = false
-    
+
     switch (currentStep) {
       case 1:
         isValid = await trigger(['primaryGoal', 'primaryTrainingFocus', 'experienceLevel'])
@@ -333,7 +363,10 @@ export default function OnboardingPage() {
     return (
       <DashboardLayout sidebarProps={sidebarProps}>
         <div className="flex items-center justify-center h-[calc(100vh-theme(spacing.24))]">
-          <Icon name="loader" className="animate-spin h-16 w-16 border-b-2 border-gray-900 mx-auto"/>
+          <Icon
+            name="loader"
+            className="animate-spin h-16 w-16 border-b-2 border-gray-900 mx-auto"
+          />
         </div>
       </DashboardLayout>
     )
@@ -354,19 +387,15 @@ export default function OnboardingPage() {
       <div className="max-w-4xl mx-auto py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            AI Training Program Generator
-          </h1>
-          <p className="text-lg text-gray-600">
-            Let's create your personalized workout program
-          </p>
-          
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Training Program Generator</h1>
+          <p className="text-lg text-gray-600">Let's create your personalized workout program</p>
+
           {/* Show message if redoing onboarding */}
           {profile?.onboarding_completed && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-800 text-sm">
-                <strong>Note:</strong> We noticed you've completed onboarding before but don't have an active training program. 
-                Let's generate a new personalized program for you!
+                <strong>Note:</strong> We noticed you've completed onboarding before but don't have
+                an active training program. Let's generate a new personalized program for you!
               </p>
             </div>
           )}
@@ -375,11 +404,15 @@ export default function OnboardingPage() {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-gray-600">Step {currentStep} of {totalSteps}</span>
-            <span className="text-sm text-gray-600">{Math.round(getProgressPercentage())}% Complete</span>
+            <span className="text-sm text-gray-600">
+              Step {currentStep} of {totalSteps}
+            </span>
+            <span className="text-sm text-gray-600">
+              {Math.round(getProgressPercentage())}% Complete
+            </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
+            <div
               className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${getProgressPercentage()}%` }}
             />
@@ -409,7 +442,7 @@ export default function OnboardingPage() {
                           <SelectValue placeholder="Select your primary goal" />
                         </SelectTrigger>
                         <SelectContent>
-                          {FITNESS_GOALS.map((goal) => (
+                          {FITNESS_GOALS.map(goal => (
                             <SelectItem key={goal.value} value={goal.value}>
                               {goal.label}
                             </SelectItem>
@@ -448,7 +481,7 @@ export default function OnboardingPage() {
                           <SelectValue placeholder="Select a secondary goal (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          {FITNESS_GOALS.map((goal) => (
+                          {FITNESS_GOALS.map(goal => (
                             <SelectItem key={goal.value} value={goal.value}>
                               {goal.label}
                             </SelectItem>
@@ -484,7 +517,7 @@ export default function OnboardingPage() {
                           <SelectValue placeholder="Select your primary training focus" />
                         </SelectTrigger>
                         <SelectContent>
-                          {TRAINING_FOCUS_OPTIONS.map((option) => (
+                          {TRAINING_FOCUS_OPTIONS.map(option => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
                             </SelectItem>
@@ -510,7 +543,7 @@ export default function OnboardingPage() {
                           <SelectValue placeholder="Select your experience level" />
                         </SelectTrigger>
                         <SelectContent>
-                          {EXPERIENCE_LEVEL_OPTIONS.map((option) => (
+                          {EXPERIENCE_LEVEL_OPTIONS.map(option => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
                             </SelectItem>
@@ -544,12 +577,15 @@ export default function OnboardingPage() {
                     name="trainingFrequencyDays"
                     control={control}
                     render={({ field }) => (
-                      <Select onValueChange={(value) => field.onChange(Number(value))} value={field.value?.toString()}>
+                      <Select
+                        onValueChange={value => field.onChange(Number(value))}
+                        value={field.value?.toString()}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="How many days per week can you train?" />
                         </SelectTrigger>
                         <SelectContent>
-                          {TRAINING_FREQUENCY_OPTIONS.map((option) => (
+                          {TRAINING_FREQUENCY_OPTIONS.map(option => (
                             <SelectItem key={option.value} value={option.value.toString()}>
                               {option.label}
                             </SelectItem>
@@ -575,7 +611,7 @@ export default function OnboardingPage() {
                           <SelectValue placeholder="How long can you train per session?" />
                         </SelectTrigger>
                         <SelectContent>
-                          {SESSION_DURATIONS.map((duration) => (
+                          {SESSION_DURATIONS.map(duration => (
                             <SelectItem key={duration.value} value={duration.value}>
                               {duration.label}
                             </SelectItem>
@@ -597,7 +633,7 @@ export default function OnboardingPage() {
                     control={control}
                     render={({ field }) => (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {EQUIPMENT_OPTIONS.map((equipment) => (
+                        {EQUIPMENT_OPTIONS.map(equipment => (
                           <label
                             key={equipment.value}
                             className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50"
@@ -605,12 +641,14 @@ export default function OnboardingPage() {
                             <input
                               type="checkbox"
                               checked={field.value?.includes(equipment.value) || false}
-                              onChange={(e) => {
+                              onChange={e => {
                                 const currentValue = field.value || []
                                 if (e.target.checked) {
                                   field.onChange([...currentValue, equipment.value])
                                 } else {
-                                  field.onChange(currentValue.filter((item) => item !== equipment.value))
+                                  field.onChange(
+                                    currentValue.filter(item => item !== equipment.value)
+                                  )
                                 }
                               }}
                               className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
@@ -641,7 +679,9 @@ export default function OnboardingPage() {
               <CardContent className="space-y-6">
                 {/* Exercise Preferences */}
                 <div className="space-y-2">
-                  <Label htmlFor="exercisePreferences">Exercise Preferences/Dislikes (Optional)</Label>
+                  <Label htmlFor="exercisePreferences">
+                    Exercise Preferences/Dislikes (Optional)
+                  </Label>
                   <Controller
                     name="exercisePreferences"
                     control={control}
@@ -691,14 +731,10 @@ export default function OnboardingPage() {
             >
               Previous
             </Button>
-            
+
             <div className="flex space-x-3">
               {currentStep < totalSteps ? (
-                <Button
-                  type="button"
-                  onClick={nextStep}
-                  className="px-8"
-                >
+                <Button type="button" onClick={nextStep} className="px-8">
                   Next
                 </Button>
               ) : (
@@ -755,14 +791,14 @@ export default function OnboardingPage() {
                   if (!profile) return
                   console.log('=== DEBUG INFO ===')
                   console.log('Profile:', profile)
-                  
+
                   // Check training programs
                   const { data: programs, error } = await supabase
                     .from('training_programs')
                     .select('*')
                     .eq('user_id', profile.id)
                   console.log('Training programs:', programs, error)
-                  
+
                   alert('Debug info logged to console')
                 }}
                 className="text-xs ml-2"
@@ -776,7 +812,10 @@ export default function OnboardingPage() {
                     <li>onboarding_completed = {String(profile.onboarding_completed)}</li>
                     <li>has_onboarding_responses = {String(!!profile.onboarding_responses)}</li>
                     {profile.onboarding_responses && (
-                      <li>onboarding_response_keys = {Object.keys(profile.onboarding_responses).join(', ')}</li>
+                      <li>
+                        onboarding_response_keys ={' '}
+                        {Object.keys(profile.onboarding_responses).join(', ')}
+                      </li>
                     )}
                   </ul>
                 </div>
@@ -787,4 +826,4 @@ export default function OnboardingPage() {
       </div>
     </DashboardLayout>
   )
-} 
+}

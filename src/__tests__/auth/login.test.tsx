@@ -1,12 +1,43 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import LoginPage from '@/app/login/page'
 import { supabase } from '@/lib/supabase'
+
+// Mock Next.js navigation
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+  useSearchParams: () => ({
+    get: jest.fn(() => null),
+  }),
+}))
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     auth: {
       signInWithPassword: jest.fn(),
+      getSession: jest.fn(),
+      signOut: jest.fn(),
     },
+    from: jest.fn(() => ({
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          single: jest.fn(),
+        })),
+      })),
+      upsert: jest.fn(),
+    })),
+  },
+}))
+
+// Mock sonner toast
+jest.mock('sonner', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
   },
 }))
 
@@ -17,7 +48,7 @@ describe('LoginPage', () => {
 
   it('renders login form', () => {
     render(<LoginPage />)
-    
+
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
@@ -76,4 +107,4 @@ describe('LoginPage', () => {
       expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument()
     })
   })
-}) 
+})

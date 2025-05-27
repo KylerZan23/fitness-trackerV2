@@ -10,7 +10,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getWorkoutStats, getTodayWorkoutStats, getWorkoutTrends, type WorkoutStats, type WorkoutTrend, getWeeklyMuscleComparisonData, WeeklyMuscleComparisonItem } from '@/lib/db'
+import {
+  getWorkoutStats,
+  getTodayWorkoutStats,
+  getWorkoutTrends,
+  type WorkoutStats,
+  type WorkoutTrend,
+  getWeeklyMuscleComparisonData,
+  WeeklyMuscleComparisonItem,
+} from '@/lib/db'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { WorkoutChart } from '@/components/dashboard/WorkoutChart'
 import { Error } from '@/components/ui/error'
@@ -40,7 +48,7 @@ const mockStats: WorkoutStats = {
   totalSets: 45,
   totalReps: 540,
   averageWeight: 65,
-  averageDuration: 45
+  averageDuration: 45,
 }
 
 const mockTrends: WorkoutTrend[] = [
@@ -59,7 +67,7 @@ const emptyStats: WorkoutStats = {
   averageWeight: 0,
   averageDuration: 0,
   totalWeight: 0,
-  totalDuration: 0
+  totalDuration: 0,
 }
 
 const emptyTrends: WorkoutTrend[] = []
@@ -75,197 +83,210 @@ export default function DashboardPage() {
   const [trends, setTrends] = useState<WorkoutTrend[]>(emptyTrends)
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
   const [isMuscleChartCollapsed, setIsMuscleChartCollapsed] = useState(false)
-  const [userTimezone, setUserTimezone] = useState('UTC');
-  const [isCoachPopupOpen, setIsCoachPopupOpen] = useState(false);
-  const [isCoachTooltipVisible, setIsCoachTooltipVisible] = useState(false);
+  const [userTimezone, setUserTimezone] = useState('UTC')
+  const [isCoachPopupOpen, setIsCoachPopupOpen] = useState(false)
+  const [isCoachTooltipVisible, setIsCoachTooltipVisible] = useState(false)
 
-  const [weeklyComparisonData, setWeeklyComparisonData] = useState<WeeklyMuscleComparisonItem[] | null>(null);
-  const [isComparisonLoading, setIsComparisonLoading] = useState(true);
-  const [comparisonError, setComparisonError] = useState<string | null>(null);
-  const [comparisonWeekOffset, setComparisonWeekOffset] = useState(0);
+  const [weeklyComparisonData, setWeeklyComparisonData] = useState<
+    WeeklyMuscleComparisonItem[] | null
+  >(null)
+  const [isComparisonLoading, setIsComparisonLoading] = useState(true)
+  const [comparisonError, setComparisonError] = useState<string | null>(null)
+  const [comparisonWeekOffset, setComparisonWeekOffset] = useState(0)
 
-  const toggleCoachPopup = () => setIsCoachPopupOpen(prev => !prev);
+  const toggleCoachPopup = () => setIsCoachPopupOpen(prev => !prev)
 
   useEffect(() => {
-      // This effect runs only once on the client after hydration
-      try {
-        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        setUserTimezone(tz || 'UTC'); // Set the detected timezone or fallback
-        console.log("User timezone detected:", tz);
-      } catch (e) {
-          console.error("Error detecting timezone:", e);
-          setUserTimezone('UTC'); // Fallback on error
-      }
-  }, []); // Empty dependency array ensures it runs only once client-side
-
-  const fetchData = useCallback(async (isInitialLoad = false) => {
-    if (isInitialLoad) {
-      setIsLoading(true)
-    }
-    setError(null)
-    setIsComparisonLoading(true);
-    setComparisonError(null);
-
+    // This effect runs only once on the client after hydration
     try {
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+      setUserTimezone(tz || 'UTC') // Set the detected timezone or fallback
+      console.log('User timezone detected:', tz)
+    } catch (e) {
+      console.error('Error detecting timezone:', e)
+      setUserTimezone('UTC') // Fallback on error
+    }
+  }, []) // Empty dependency array ensures it runs only once client-side
 
-      if (sessionError) {
-        setError(`Session error: ${sessionError.message}`)
-        setSession(null)
-        return
+  const fetchData = useCallback(
+    async (isInitialLoad = false) => {
+      if (isInitialLoad) {
+        setIsLoading(true)
       }
+      setError(null)
+      setIsComparisonLoading(true)
+      setComparisonError(null)
 
-      if (!currentSession) {
-        if (isInitialLoad) {
-          router.push('/login')
-        }
-        setSession(null)
-        return
-      }
-
-      setSession(currentSession)
-
-      // Fetch profile (no change needed here)
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentSession.user.id)
-        .single()
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Detailed Profile fetch error:', JSON.stringify(profileError, null, 2));
-        console.error('profileError keys:', Object.keys(profileError));
-        console.error('profileError message:', profileError.message);
-        console.error('profileError code:', profileError.code);
-        console.error('profileError details:', profileError.details);
-        console.error('profileError hint:', profileError.hint);
-      }
-
-      if (profileData) {
-        setProfile(profileData)
-        if (profileData.weight_unit) {
-          setWeightUnit(profileData.weight_unit)
-        }
-      } else {
-        const newProfile = {
-          id: currentSession.user.id,
-          name: currentSession.user.user_metadata?.name || currentSession.user.email?.split('@')[0] || 'Fitness User',
-          email: currentSession.user.email || '',
-          age: currentSession.user.user_metadata?.age || 0,
-          fitness_goals: currentSession.user.user_metadata?.fitness_goals || 'Get fit',
-          weight_unit: 'kg' as 'kg' | 'lbs'
-        }
-        setProfile(newProfile)
-        const { error: createError } = await supabase.from('profiles').upsert(newProfile)
-        if (createError) console.error('Error creating profile:', createError)
-      }
-
-      // Fetch workout data, passing the detected userTimezone
       try {
-        console.log(`Fetching workout data with timezone: ${userTimezone}`);
-        const [userStats, todayUserStats, userTrends] = await Promise.all([
-          getWorkoutStats(), // General stats don't need timezone (yet)
-          getTodayWorkoutStats(userTimezone), // Pass timezone
-          // Fetch last 8 weeks of trends
-          getWorkoutTrends(8, userTimezone) 
-        ])
+        const {
+          data: { session: currentSession },
+          error: sessionError,
+        } = await supabase.auth.getSession()
 
-        setStats(userStats ?? emptyStats)
-        setTodayStats(todayUserStats ?? emptyStats)
-        setTrends(userTrends ?? emptyTrends)
-      } catch (dataError) {
-        console.error('Error fetching workout data:', dataError)
-        setError('Failed to load workout data.')
+        if (sessionError) {
+          setError(`Session error: ${sessionError.message}`)
+          setSession(null)
+          return
+        }
+
+        if (!currentSession) {
+          if (isInitialLoad) {
+            router.push('/login')
+          }
+          setSession(null)
+          return
+        }
+
+        setSession(currentSession)
+
+        // Fetch profile (no change needed here)
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentSession.user.id)
+          .single()
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Detailed Profile fetch error:', JSON.stringify(profileError, null, 2))
+          console.error('profileError keys:', Object.keys(profileError))
+          console.error('profileError message:', profileError.message)
+          console.error('profileError code:', profileError.code)
+          console.error('profileError details:', profileError.details)
+          console.error('profileError hint:', profileError.hint)
+        }
+
+        if (profileData) {
+          setProfile(profileData)
+          if (profileData.weight_unit) {
+            setWeightUnit(profileData.weight_unit)
+          }
+        } else {
+          const newProfile = {
+            id: currentSession.user.id,
+            name:
+              currentSession.user.user_metadata?.name ||
+              currentSession.user.email?.split('@')[0] ||
+              'Fitness User',
+            email: currentSession.user.email || '',
+            age: currentSession.user.user_metadata?.age || 0,
+            fitness_goals: currentSession.user.user_metadata?.fitness_goals || 'Get fit',
+            weight_unit: 'kg' as 'kg' | 'lbs',
+          }
+          setProfile(newProfile)
+          const { error: createError } = await supabase.from('profiles').upsert(newProfile)
+          if (createError) console.error('Error creating profile:', createError)
+        }
+
+        // Fetch workout data, passing the detected userTimezone
+        try {
+          console.log(`Fetching workout data with timezone: ${userTimezone}`)
+          const [userStats, todayUserStats, userTrends] = await Promise.all([
+            getWorkoutStats(), // General stats don't need timezone (yet)
+            getTodayWorkoutStats(userTimezone), // Pass timezone
+            // Fetch last 8 weeks of trends
+            getWorkoutTrends(8, userTimezone),
+          ])
+
+          setStats(userStats ?? emptyStats)
+          setTodayStats(todayUserStats ?? emptyStats)
+          setTrends(userTrends ?? emptyTrends)
+        } catch (dataError) {
+          console.error('Error fetching workout data:', dataError)
+          setError('Failed to load workout data.')
+          setStats(emptyStats)
+          setTodayStats(emptyStats)
+          setTrends(emptyTrends)
+        }
+
+        // Fetch weekly comparison data
+        if (currentSession) {
+          try {
+            const comparisonDataResult = await getWeeklyMuscleComparisonData(
+              currentSession.user.id,
+              userTimezone,
+              supabase,
+              comparisonWeekOffset
+            )
+            setWeeklyComparisonData(comparisonDataResult)
+          } catch (compError: any) {
+            console.error('Error fetching weekly comparison data:', compError)
+            setComparisonError(compError.message || 'Failed to load weekly comparison.')
+            setWeeklyComparisonData(null)
+          } finally {
+            setIsComparisonLoading(false)
+          }
+        }
+      } catch (err) {
+        console.error('Dashboard fetch data error:', err)
+        const errorMessage =
+          err && typeof err === 'object' && 'message' in err
+            ? String(err.message)
+            : 'An unexpected error occurred'
+        setError(errorMessage)
+        setSession(null)
+        setProfile(null)
         setStats(emptyStats)
         setTodayStats(emptyStats)
         setTrends(emptyTrends)
-      }
-
-      // Fetch weekly comparison data
-      if (currentSession) {
-        try {
-          const comparisonDataResult = await getWeeklyMuscleComparisonData(
-            currentSession.user.id, 
-            userTimezone, 
-            supabase, 
-            comparisonWeekOffset
-          );
-          setWeeklyComparisonData(comparisonDataResult);
-        } catch (compError: any) {
-          console.error('Error fetching weekly comparison data:', compError);
-          setComparisonError(compError.message || 'Failed to load weekly comparison.');
-          setWeeklyComparisonData(null);
-        } finally {
-          setIsComparisonLoading(false);
+        setWeeklyComparisonData(null)
+        setIsComparisonLoading(false)
+      } finally {
+        if (isInitialLoad) {
+          setIsLoading(false)
         }
       }
-
-    } catch (err) {
-      console.error('Dashboard fetch data error:', err)
-      const errorMessage = err && typeof err === 'object' && 'message' in err
-        ? String(err.message)
-        : 'An unexpected error occurred'
-      setError(errorMessage)
-      setSession(null)
-      setProfile(null)
-      setStats(emptyStats)
-      setTodayStats(emptyStats)
-      setTrends(emptyTrends)
-      setWeeklyComparisonData(null);
-      setIsComparisonLoading(false);
-    } finally {
-      if (isInitialLoad) {
-        setIsLoading(false)
-      }
-    }
-  }, [router, userTimezone, comparisonWeekOffset])
+    },
+    [router, userTimezone, comparisonWeekOffset]
+  )
 
   // Handlers for week navigation
   const handlePreviousComparisonWeek = () => {
-    setComparisonWeekOffset(prevOffset => prevOffset + 1);
-  };
+    setComparisonWeekOffset(prevOffset => prevOffset + 1)
+  }
 
   const handleNextComparisonWeek = () => {
-    setComparisonWeekOffset(prevOffset => Math.max(0, prevOffset - 1)); // Prevent going into the future (offset < 0)
-  };
+    setComparisonWeekOffset(prevOffset => Math.max(0, prevOffset - 1)) // Prevent going into the future (offset < 0)
+  }
 
   // Effect for initial data load and auth state changes
   useEffect(() => {
     // Initial fetch - fetchData will now use the timezone state
     fetchData(true)
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sessionData) => {
-      console.log('Auth State Change:', event, sessionData ? 'Got Session' : 'No Session');
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, sessionData) => {
+      console.log('Auth State Change:', event, sessionData ? 'Got Session' : 'No Session')
       if (event === 'SIGNED_OUT') {
         setSession(null)
         setProfile(null)
         router.push('/login')
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         if (sessionData) {
-            setSession(sessionData);
-            // Refetch data using the latest timezone
-            fetchData(false);
+          setSession(sessionData)
+          // Refetch data using the latest timezone
+          fetchData(false)
         } else {
-             setSession(null)
-             setProfile(null)
-             router.push('/login')
+          setSession(null)
+          setProfile(null)
+          router.push('/login')
         }
       } else if (sessionData) {
-         setSession(sessionData);
+        setSession(sessionData)
       }
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  // FetchData dependency already includes userTimezone
+    // FetchData dependency already includes userTimezone
   }, [router, fetchData])
 
   // Effect for refetching data on visibility change
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log("Page became visible, refetching data...");
+        console.log('Page became visible, refetching data...')
         // Refetch data using the latest timezone
         fetchData(false)
       }
@@ -276,7 +297,7 @@ export default function DashboardPage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  // FetchData dependency already includes userTimezone
+    // FetchData dependency already includes userTimezone
   }, [fetchData])
 
   const handleLogout = async () => {
@@ -316,17 +337,21 @@ export default function DashboardPage() {
           {/* Ensure Error component text is visible on light background */}
           <Error message={`Error: ${error}. Redirecting to login...`} className="text-red-600" />
           {/* Update text color */}
-          <p className="text-sm text-gray-500 mt-2">If you are not redirected, click <Link href="/login" className="underline text-blue-600 hover:text-blue-800">here</Link>.</p>
+          <p className="text-sm text-gray-500 mt-2">
+            If you are not redirected, click{' '}
+            <Link href="/login" className="underline text-blue-600 hover:text-blue-800">
+              here
+            </Link>
+            .
+          </p>
         </div>
       </DashboardLayout>
-    );
+    )
   }
 
   // Render dashboard content within the layout
   return (
-    <DashboardLayout
-      sidebarProps={sidebarProps}
-    >
+    <DashboardLayout sidebarProps={sidebarProps}>
       {session && profile && (
         <>
           {/* Welcome Message - Modified gradient */}
@@ -344,8 +369,14 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatsCard title="Exercises" value={todayStats.totalWorkouts.toString()} />
               <StatsCard title="Sets" value={todayStats.totalSets.toString()} />
-              <StatsCard title="Duration" value={`${Math.round(todayStats.totalDuration || 0)} min`} />
-              <StatsCard title="Total Weight" value={`${Math.round(todayStats.totalWeight || 0)} ${weightUnit}`} />
+              <StatsCard
+                title="Duration"
+                value={`${Math.round(todayStats.totalDuration || 0)} min`}
+              />
+              <StatsCard
+                title="Total Weight"
+                value={`${Math.round(todayStats.totalWeight || 0)} ${weightUnit}`}
+              />
             </div>
           </div>
 
@@ -355,11 +386,13 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold text-gray-700">Workout Trends (Last 8 Weeks)</h2>
               {/* Metric selection buttons REMOVED from here */}
             </div>
-            {trends.length > 0 
-              ? <WorkoutChart data={trends} weightUnit={weightUnit} /> // Pass only data and weightUnit
-              : <p className="text-sm text-gray-500">No workout data available for trends.</p>}
+            {trends.length > 0 ? (
+              <WorkoutChart data={trends} weightUnit={weightUnit} /> // Pass only data and weightUnit
+            ) : (
+              <p className="text-sm text-gray-500">No workout data available for trends.</p>
+            )}
           </div>
-          
+
           {/* AI Coach Section - REMOVED STATIC PLACEMENT */}
           {/* 
           <div className="lg:col-span-2 mb-6">
@@ -370,43 +403,50 @@ export default function DashboardPage() {
           {/* Section for Charts (Muscle Distribution & Goals) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Muscle Distribution Chart Container */}
-            <div className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all duration-300 ease-in-out ${isMuscleChartCollapsed ? 'max-h-16 overflow-hidden' : 'max-h-none'}`}>
+            <div
+              className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all duration-300 ease-in-out ${isMuscleChartCollapsed ? 'max-h-16 overflow-hidden' : 'max-h-none'}`}
+            >
               <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-semibold text-gray-700">Muscle Distribution (By Week)</h3>
-                <button 
+                <h3 className="text-lg font-semibold text-gray-700">
+                  Muscle Distribution (By Week)
+                </h3>
+                <button
                   onClick={() => setIsMuscleChartCollapsed(!isMuscleChartCollapsed)}
                   className="text-sm text-primary hover:text-primary/80"
                 >
                   {isMuscleChartCollapsed ? 'Expand' : 'Collapse'}
                 </button>
               </div>
-              {!isMuscleChartCollapsed && (
-                trends.length > 0 
-                  ? <MuscleDistributionChart userId={session?.user?.id} weightUnit={weightUnit} />
-                  : <p className="text-sm text-gray-500">No workout data yet to show muscle distribution.</p>
-              )}
+              {!isMuscleChartCollapsed &&
+                (trends.length > 0 ? (
+                  <MuscleDistributionChart userId={session?.user?.id} weightUnit={weightUnit} />
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    No workout data yet to show muscle distribution.
+                  </p>
+                ))}
             </div>
 
             {/* Goals Card Container */}
-            <GoalsCard /> 
+            <GoalsCard />
           </div>
-          
+
           {/* Weekly Comparison Section - Use the actual component now */}
           <div className="mb-6">
-            <WeeklyComparison 
-              data={weeklyComparisonData} 
-              isLoading={isComparisonLoading} 
-              error={comparisonError} 
+            <WeeklyComparison
+              data={weeklyComparisonData}
+              isLoading={isComparisonLoading}
+              error={comparisonError}
               weekOffset={comparisonWeekOffset}
               userTimezone={userTimezone}
               onPreviousWeek={handlePreviousComparisonWeek}
               onNextWeek={handleNextComparisonWeek}
             />
           </div>
-          
+
           {/* Recent Run Card */}
           <RecentRun userId={session!.user!.id} />
-          
+
           {/* Floating AI Coach Toggle Button */}
           <button
             onClick={toggleCoachPopup}
@@ -415,7 +455,24 @@ export default function DashboardPage() {
             className="fixed bottom-8 right-8 z-50 bg-primary text-primary-foreground p-4 rounded-full shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-transform hover:scale-110"
             aria-label="Toggle AI Personal Coach"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 8v4"/><path d="M12 16v4"/><path d="M16 12h4M8 12H4M17 9l2-2M7 9l-2-2m12 8 2 2M7 17l-2 2m7-5a1 1 0 0 0-2 0v1a1 1 0 0 0 2 0Z"/><path d="M12 12a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 8V4H8" />
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+              <path d="M12 8v4" />
+              <path d="M12 16v4" />
+              <path d="M16 12h4M8 12H4M17 9l2-2M7 9l-2-2m12 8 2 2M7 17l-2 2m7-5a1 1 0 0 0-2 0v1a1 1 0 0 0 2 0Z" />
+              <path d="M12 12a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z" />
+            </svg>
           </button>
           {isCoachTooltipVisible && (
             <div
@@ -437,20 +494,40 @@ export default function DashboardPage() {
                   className="text-muted-foreground hover:text-foreground"
                   aria-label="Close AI Coach"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
                 </button>
               </div>
               {/* AICoachCard Content Area */}
               <div className="p-3 max-h-[70vh] overflow-y-auto">
-                   <AICoachCard />
+                <AICoachCard />
               </div>
             </div>
           )}
 
           {/* Add Log New Workout Button Section */}
-          <div className="mt-8 mb-24 flex justify-center"> {/* Added mb-24 for spacing from bottom if content is short */}
+          <div className="mt-8 mb-24 flex justify-center">
+            {' '}
+            {/* Added mb-24 for spacing from bottom if content is short */}
             <Link href="/workout/new" passHref>
-              <Button size="lg" className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 ease-in-out transform hover:scale-105"> {/* Changed to purple */}
+              <Button
+                size="lg"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 ease-in-out transform hover:scale-105"
+              >
+                {' '}
+                {/* Changed to purple */}
                 Log a New Workout
               </Button>
             </Link>
@@ -459,4 +536,4 @@ export default function DashboardPage() {
       )}
     </DashboardLayout>
   )
-} 
+}

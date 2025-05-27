@@ -18,21 +18,25 @@ Users of the FitnessTracker application want to track and log their running acti
 We will implement a Strava API integration with the following components:
 
 1. **OAuth 2.0 Authentication Flow**:
+
    - Implement the authorization code flow for secure authentication
    - Store access and refresh tokens securely in the user's profile in Supabase
    - Handle token refresh automatically when tokens expire
 
 2. **Modular API Client**:
+
    - Create a dedicated Strava API client module
    - Implement functions for authentication, activity retrieval, and activity creation
    - Handle API errors gracefully and provide meaningful feedback to users
 
 3. **UI Components**:
+
    - Create a "Connect to Strava" component for OAuth authorization
    - Build a run list component to display activities from Strava
    - Develop a manual run logger component for logging runs to Strava
 
 4. **Token Management**:
+
    - Store tokens securely in both localStorage (for immediate use) and database (for persistence)
    - Implement token refresh logic to maintain API access
    - Allow users to disconnect their Strava account when desired
@@ -86,4 +90,4 @@ We will implement a Strava API integration with the following components:
 1. [Strava API Documentation](https://developers.strava.com/docs/reference/)
 2. [OAuth 2.0 Authorization Framework](https://tools.ietf.org/html/rfc6749)
 3. [Next.js API Routes Documentation](https://nextjs.org/docs/api-routes/introduction)
-4. [Supabase Documentation](https://supabase.io/docs) 
+4. [Supabase Documentation](https://supabase.io/docs)

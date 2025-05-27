@@ -1,10 +1,10 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { getAICoachRecommendation } from '@/app/_actions/aiCoachActions';
-import type { AICoachRecommendation as AICoachRecommendationType } from '@/app/_actions/aiCoachActions';
-import { Button } from '@/components/ui/button';
-import { Error as ErrorComponent } from '@/components/ui/error'; // Renamed to avoid conflict
+import React, { useState, useEffect, useCallback } from 'react'
+import { getAICoachRecommendation } from '@/app/_actions/aiCoachActions'
+import type { AICoachRecommendation as AICoachRecommendationType } from '@/app/_actions/aiCoachActions'
+import { Button } from '@/components/ui/button'
+import { Error as ErrorComponent } from '@/components/ui/error' // Renamed to avoid conflict
 // Assuming Icon component exists and has a 'loader' or similar, or we use text
 // For now, using text for loading state. If an Icon component with a loader is available:
 // import { Icon } from '@/components/ui/Icon';
@@ -13,33 +13,33 @@ import { Error as ErrorComponent } from '@/components/ui/error'; // Renamed to a
 interface AICoachRecommendation extends AICoachRecommendationType {}
 
 export function AICoachCard() {
-  const [recommendations, setRecommendations] = useState<AICoachRecommendation | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start loading true to fetch on mount
-  const [error, setError] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<AICoachRecommendation | null>(null)
+  const [isLoading, setIsLoading] = useState(true) // Start loading true to fetch on mount
+  const [error, setError] = useState<string | null>(null)
 
   const fetchRecommendations = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
     try {
-      const result = await getAICoachRecommendation();
+      const result = await getAICoachRecommendation()
       if ('error' in result) {
-        setError(result.error);
-        setRecommendations(null);
+        setError(result.error)
+        setRecommendations(null)
       } else {
-        setRecommendations(result);
+        setRecommendations(result)
       }
     } catch (e) {
-      console.error("Failed to fetch AI coach recommendations:", e);
-      setError(e instanceof Error ? e.message : 'An unexpected error occurred.');
-      setRecommendations(null);
+      console.error('Failed to fetch AI coach recommendations:', e)
+      setError(e instanceof Error ? e.message : 'An unexpected error occurred.')
+      setRecommendations(null)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
-    fetchRecommendations();
-  }, [fetchRecommendations]);
+    fetchRecommendations()
+  }, [fetchRecommendations])
 
   const renderRecommendationBlock = (
     title: string,
@@ -47,7 +47,7 @@ export function AICoachCard() {
     icon: string,
     suggestedExercises?: string[]
   ) => {
-    if (!details) return null;
+    if (!details) return null
 
     return (
       // Removed outer card styling from this block, keeping internal padding/styling for individual recs
@@ -61,14 +61,16 @@ export function AICoachCard() {
             <p className="text-xs font-medium text-slate-500">Suggested Exercises:</p>
             <ul className="list-disc list-inside pl-2">
               {suggestedExercises.map((ex, index) => (
-                <li key={index} className="text-sm text-slate-600">{ex}</li>
+                <li key={index} className="text-sm text-slate-600">
+                  {ex}
+                </li>
               ))}
             </ul>
           </div>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   // Main component return - remove outer div with card styling
   return (
@@ -88,36 +90,39 @@ export function AICoachCard() {
       )}
 
       {!isLoading && !error && recommendations && (
-        <div className="space-y-3"> {/* Added space-y-3 for consistency if multiple blocks */}
+        <div className="space-y-3">
+          {' '}
+          {/* Added space-y-3 for consistency if multiple blocks */}
           {renderRecommendationBlock(
             recommendations.workoutRecommendation.title,
             recommendations.workoutRecommendation.details,
             '🏋️', // Dumbbell emoji for workout
             recommendations.workoutRecommendation.suggestedExercises
           )}
-
-          {recommendations.runRecommendation && renderRecommendationBlock(
-            recommendations.runRecommendation.title,
-            recommendations.runRecommendation.details,
-            '🏃' // Runner emoji for run
-          )}
-
+          {recommendations.runRecommendation &&
+            renderRecommendationBlock(
+              recommendations.runRecommendation.title,
+              recommendations.runRecommendation.details,
+              '🏃' // Runner emoji for run
+            )}
           {renderRecommendationBlock(
             recommendations.generalInsight.title,
             recommendations.generalInsight.details,
             '💡' // Lightbulb emoji for insight
           )}
-
-          {recommendations.focusAreaSuggestion && renderRecommendationBlock(
-            recommendations.focusAreaSuggestion.title,
-            recommendations.focusAreaSuggestion.details,
-            '🎯' // Target emoji for focus area
-          )}
+          {recommendations.focusAreaSuggestion &&
+            renderRecommendationBlock(
+              recommendations.focusAreaSuggestion.title,
+              recommendations.focusAreaSuggestion.details,
+              '🎯' // Target emoji for focus area
+            )}
         </div>
       )}
-      
+
       {!isLoading && !error && !recommendations && (
-        <p className="text-sm text-gray-500 py-4 text-center">No recommendations available at the moment. Try refreshing.</p>
+        <p className="text-sm text-gray-500 py-4 text-center">
+          No recommendations available at the moment. Try refreshing.
+        </p>
       )}
 
       {/* "Get New Advice" button moved here, styled as primary action within content area */}
@@ -125,5 +130,5 @@ export function AICoachCard() {
         {isLoading ? 'Refreshing...' : 'Get New Advice'}
       </Button>
     </>
-  );
-} 
+  )
+}

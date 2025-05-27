@@ -1,6 +1,15 @@
 import { supabase as browserSupabaseClient } from './supabase'
 import { WorkoutFormData, WorkoutGroupData, WorkoutExerciseData } from './schemas'
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, startOfDay, endOfDay, subWeeks } from 'date-fns'
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  addDays,
+  startOfDay,
+  endOfDay,
+  subWeeks,
+} from 'date-fns'
 import { toZonedTime, fromZonedTime, format as formatTz } from 'date-fns-tz'
 import { MuscleGroup, findMuscleGroupForExercise } from './types'
 import { SupabaseClient } from '@supabase/supabase-js'
@@ -51,26 +60,26 @@ export interface WorkoutTrend {
 
 // Define a simpler type for the historical workout view
 export interface HistoricalWorkout {
-  id: string;
-  created_at: string; // ISO string
-  duration: number; // minutes
-  exerciseName: string;
-  type?: 'lift' | 'run' | 'other'; // Add this
-  distance?: number; // in meters for runs
+  id: string
+  created_at: string // ISO string
+  duration: number // minutes
+  exerciseName: string
+  type?: 'lift' | 'run' | 'other' // Add this
+  distance?: number // in meters for runs
 }
 
 // New Interfaces for Weekly Muscle Comparison
 export interface MuscleGroupWeeklySnapshot {
-  muscleGroup: string;
-  totalSets: number;
+  muscleGroup: string
+  totalSets: number
 }
 
 export interface WeeklyMuscleComparisonItem {
-  muscleGroup: MuscleGroup; // Changed from string to MuscleGroup
-  currentWeekSets: number;
-  previousWeekSets: number;
-  changeInSets: number;
-  percentageChange: number;
+  muscleGroup: MuscleGroup // Changed from string to MuscleGroup
+  currentWeekSets: number
+  previousWeekSets: number
+  changeInSets: number
+  percentageChange: number
 }
 
 /**
@@ -81,8 +90,10 @@ export interface WeeklyMuscleComparisonItem {
 export async function logWorkout(workout: WorkoutFormData): Promise<Workout | null> {
   try {
     console.log('Logging workout, checking for active session...')
-    const { data: { session } } = await browserSupabaseClient.auth.getSession()
-    
+    const {
+      data: { session },
+    } = await browserSupabaseClient.auth.getSession()
+
     if (!session?.user) {
       console.log('No active session found when logging workout')
       return null
@@ -90,14 +101,16 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
 
     // Convert weight to a decimal format to match database expectations
     const formattedWeight = parseFloat(workout.weight.toString()).toFixed(2)
-    
+
     // Note: The muscle_group column doesn't exist in the database yet
     // This is just for logging purposes
     const muscleGroup = findMuscleGroupForExercise(workout.exerciseName)
-    console.log(`Determined muscle group for "${workout.exerciseName}": ${muscleGroup} (for reference only)`)
-    
+    console.log(
+      `Determined muscle group for "${workout.exerciseName}": ${muscleGroup} (for reference only)`
+    )
+
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
-    
+
     // Determine the created_at timestamp
     let createdAt: Date
     let createdAtISO: string
@@ -107,13 +120,13 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
       // The workoutDate is 'YYYY-MM-DD'. Create Date object.
       // IMPORTANT: new Date('YYYY-MM-DD') can be problematic as it assumes UTC midnight.
       // Better: Split and construct to avoid timezone pitfalls during Date creation from string.
-      const [year, month, day] = workout.workoutDate.split('-').map(Number);
+      const [year, month, day] = workout.workoutDate.split('-').map(Number)
       // Create date representing noon in the *local* timezone of the server running this code.
       // This is still not perfect, but better than UTC midnight interpretation.
       // Ideally, we'd get the *user's* timezone here too, but logWorkout doesn't have it yet.
       // We set it to noon to avoid most date boundary issues when converting to ISOString.
-      createdAt = new Date(year, month - 1, day, 12, 0, 0);
-      createdAtISO = createdAt.toISOString(); // Convert to UTC ISO string for DB storage
+      createdAt = new Date(year, month - 1, day, 12, 0, 0)
+      createdAtISO = createdAt.toISOString() // Convert to UTC ISO string for DB storage
       console.log(`Using provided date ${workout.workoutDate}, stored as UTC: ${createdAtISO}`)
     } else {
       // If no date provided, use current time (which will be UTC)
@@ -121,7 +134,7 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
       createdAtISO = createdAt.toISOString()
       console.log(`No date provided, using current time, stored as UTC: ${createdAtISO}`)
     }
-    
+
     // Create the workout data object
     const workoutData = {
       user_id: session.user.id,
@@ -131,12 +144,12 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
       weight: formattedWeight,
       duration: workout.duration,
       notes: workout.notes || null,
-      created_at: createdAtISO // Store the UTC timestamp
+      created_at: createdAtISO, // Store the UTC timestamp
       // Note: muscle_group column doesn't exist in the database yet
     }
-    
+
     console.log('Attempting to insert workout with data:', workoutData)
-    
+
     try {
       const { data, error } = await browserSupabaseClient
         .from('workouts')
@@ -149,7 +162,7 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
         console.error('Error code:', error.code)
         console.error('Error message:', error.message)
         console.error('Error details:', error.details)
-        
+
         // Check for specific error types
         if (error.code === '23502') {
           console.error('NOT NULL constraint violation - a required field is missing')
@@ -162,7 +175,7 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
         } else if (error.code === '42501') {
           console.error('Permission denied - RLS policy violation')
         }
-        
+
         throw error
       }
 
@@ -179,11 +192,11 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
         notes: data.notes,
         created_at: data.created_at,
         muscleGroup: data.muscle_group,
-        workoutDate: workout.workoutDate // Pass back the original date string if provided
+        workoutDate: workout.workoutDate, // Pass back the original date string if provided
       }
     } catch (insertError) {
-      console.error('Error during database insert operation:', insertError);
-      throw insertError;
+      console.error('Error during database insert operation:', insertError)
+      throw insertError
     }
   } catch (error) {
     console.error('Error logging workout:', error)
@@ -206,29 +219,26 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
 export async function getWorkouts(limit = 10, muscleGroup?: MuscleGroup): Promise<Workout[]> {
   try {
     console.log('Getting workouts, checking for active session...')
-    const { data: { session } } = await browserSupabaseClient.auth.getSession()
+    const {
+      data: { session },
+    } = await browserSupabaseClient.auth.getSession()
     if (!session?.user) {
       console.log('No active session found when fetching workouts')
       return []
     }
 
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
-    
+
     // Build query
-    let query = browserSupabaseClient
-      .from('workouts')
-      .select('*')
-      .eq('user_id', session.user.id)
-      
+    let query = browserSupabaseClient.from('workouts').select('*').eq('user_id', session.user.id)
+
     // Add muscle group filter if provided
     if (muscleGroup) {
       query = query.eq('muscle_group', muscleGroup)
     }
-    
+
     // Complete the query
-    const { data, error } = await query
-      .order('created_at', { ascending: false })
-      .limit(limit)
+    const { data, error } = await query.order('created_at', { ascending: false }).limit(limit)
 
     if (error) {
       console.log('Error fetching workouts:', error.message)
@@ -246,7 +256,7 @@ export async function getWorkouts(limit = 10, muscleGroup?: MuscleGroup): Promis
       duration: workout.duration,
       notes: workout.notes,
       created_at: workout.created_at, // Return ISO string
-      muscleGroup: workout.muscle_group
+      muscleGroup: workout.muscle_group,
     }))
   } catch (error) {
     console.error('Error fetching workouts:', error)
@@ -262,8 +272,10 @@ export async function getWorkouts(limit = 10, muscleGroup?: MuscleGroup): Promis
 export async function getWorkoutStats(muscleGroup?: MuscleGroup): Promise<WorkoutStats | null> {
   try {
     console.log('Getting workout stats, checking for active session...')
-    const { data: { session } } = await browserSupabaseClient.auth.getSession()
-    
+    const {
+      data: { session },
+    } = await browserSupabaseClient.auth.getSession()
+
     if (!session?.user) {
       console.log('No active session found when fetching workout stats')
       return {
@@ -276,18 +288,18 @@ export async function getWorkoutStats(muscleGroup?: MuscleGroup): Promise<Workou
     }
 
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
-    
+
     // Build query
     let query = browserSupabaseClient
       .from('workouts')
       .select('sets, reps, weight, duration')
       .eq('user_id', session.user.id)
-      
+
     // Add muscle group filter if provided
     if (muscleGroup) {
       query = query.eq('muscle_group', muscleGroup)
     }
-    
+
     // Complete the query
     const { data, error } = await query
 
@@ -314,19 +326,22 @@ export async function getWorkoutStats(muscleGroup?: MuscleGroup): Promise<Workou
     }
 
     console.log(`Found stats data for ${data.length} workouts`)
-    const stats = data.reduce((acc, workout) => ({
-      totalWorkouts: acc.totalWorkouts + 1,
-      totalSets: acc.totalSets + workout.sets,
-      totalReps: acc.totalReps + (workout.sets * workout.reps),
-      totalWeight: acc.totalWeight + workout.weight,
-      totalDuration: acc.totalDuration + workout.duration,
-    }), {
-      totalWorkouts: 0,
-      totalSets: 0,
-      totalReps: 0,
-      totalWeight: 0,
-      totalDuration: 0,
-    })
+    const stats = data.reduce(
+      (acc, workout) => ({
+        totalWorkouts: acc.totalWorkouts + 1,
+        totalSets: acc.totalSets + workout.sets,
+        totalReps: acc.totalReps + workout.sets * workout.reps,
+        totalWeight: acc.totalWeight + workout.weight,
+        totalDuration: acc.totalDuration + workout.duration,
+      }),
+      {
+        totalWorkouts: 0,
+        totalSets: 0,
+        totalReps: 0,
+        totalWeight: 0,
+        totalDuration: 0,
+      }
+    )
 
     return {
       ...stats,
@@ -352,12 +367,16 @@ export async function getWorkoutTrends(
   userTimezone = 'UTC' // Default to UTC if not provided
 ): Promise<WorkoutTrend[]> {
   try {
-    const { data: { session } } = await browserSupabaseClient.auth.getSession()
+    const {
+      data: { session },
+    } = await browserSupabaseClient.auth.getSession()
     if (!session?.user) {
       console.log('No active session found when fetching workout trends')
       return []
     }
-    console.log(`Fetching trends for user ${session.user.id.substring(0, 6)}... Timezone: ${userTimezone}, Weeks: ${numberOfWeeks}`) 
+    console.log(
+      `Fetching trends for user ${session.user.id.substring(0, 6)}... Timezone: ${userTimezone}, Weeks: ${numberOfWeeks}`
+    )
 
     // 1. Determine Date Range in User's Timezone
     const nowInUserTz = toZonedTime(new Date(), userTimezone)
@@ -372,7 +391,7 @@ export async function getWorkoutTrends(
     const startDateUTC = fromZonedTime(startOfPeriod, userTimezone).toISOString()
     const endDateUTC = fromZonedTime(endOfCurrentWeek, userTimezone).toISOString()
 
-    console.log(`Querying workouts from ${startDateUTC} to ${endDateUTC} (UTC)`) 
+    console.log(`Querying workouts from ${startDateUTC} to ${endDateUTC} (UTC)`)
 
     // 3. Fetch Raw Workout Data within the UTC date range
     const { data: workouts, error } = await browserSupabaseClient
@@ -391,28 +410,27 @@ export async function getWorkoutTrends(
       console.log('No workouts found within the date range for trends.')
       return []
     }
-    console.log(`Fetched ${workouts.length} raw workouts for trend aggregation.`) 
+    console.log(`Fetched ${workouts.length} raw workouts for trend aggregation.`)
 
     // 4. Aggregate Data by Day (in User's Timezone)
     const trendsMap = new Map<string, WorkoutTrend>()
 
     // Fetch associated workout group names if needed (optimization: fetch once)
-    const groupIds = workouts.map(w => w.workout_group_id).filter((id): id is string => !!id);
-    let groupNamesMap = new Map<string, string>();
+    const groupIds = workouts.map(w => w.workout_group_id).filter((id): id is string => !!id)
+    let groupNamesMap = new Map<string, string>()
     if (groupIds.length > 0) {
-        const { data: groups, error: groupError } = await browserSupabaseClient
-            .from('workout_groups')
-            .select('id, name')
-            .in('id', Array.from(new Set(groupIds)));
-        if (groupError) {
-            console.error('Error fetching workout group names:', groupError);
-            // Proceed without group names if error occurs
-        } else if (groups) {
-            groups.forEach(group => groupNamesMap.set(group.id, group.name));
-            console.log(`Fetched ${groupNamesMap.size} workout group names.`);
-        }
+      const { data: groups, error: groupError } = await browserSupabaseClient
+        .from('workout_groups')
+        .select('id, name')
+        .in('id', Array.from(new Set(groupIds)))
+      if (groupError) {
+        console.error('Error fetching workout group names:', groupError)
+        // Proceed without group names if error occurs
+      } else if (groups) {
+        groups.forEach(group => groupNamesMap.set(group.id, group.name))
+        console.log(`Fetched ${groupNamesMap.size} workout group names.`)
+      }
     }
-
 
     workouts.forEach(workout => {
       // Convert the UTC timestamp from DB back to user's timezone
@@ -420,7 +438,9 @@ export async function getWorkoutTrends(
       // Format date as YYYY-MM-DD based on user's timezone
       const dateString = formatTz(createdAtUserTz, 'yyyy-MM-dd', { timeZone: userTimezone })
 
-      const workoutGroupName = workout.workout_group_id ? groupNamesMap.get(workout.workout_group_id) : undefined;
+      const workoutGroupName = workout.workout_group_id
+        ? groupNamesMap.get(workout.workout_group_id)
+        : undefined
 
       if (trendsMap.has(dateString)) {
         const existing = trendsMap.get(dateString)!
@@ -429,14 +449,14 @@ export async function getWorkoutTrends(
         existing.totalWeight += workout.weight ?? 0
         existing.totalSets += workout.sets ?? 0 // Added aggregation for sets
         if (workout.exercise_name) {
-             existing.exerciseNames = [...(existing.exerciseNames ?? []), workout.exercise_name];
+          existing.exerciseNames = [...(existing.exerciseNames ?? []), workout.exercise_name]
         }
-         if (workout.notes) {
-             existing.notes = [...(existing.notes ?? []), workout.notes];
-         }
-         if (workoutGroupName) {
-             existing.workoutNames = [...(existing.workoutNames ?? []), workoutGroupName];
-         }
+        if (workout.notes) {
+          existing.notes = [...(existing.notes ?? []), workout.notes]
+        }
+        if (workoutGroupName) {
+          existing.workoutNames = [...(existing.workoutNames ?? []), workoutGroupName]
+        }
       } else {
         trendsMap.set(dateString, {
           date: dateString,
@@ -456,9 +476,8 @@ export async function getWorkoutTrends(
     // Sort by date just in case (though fetch order should handle it)
     trendsArray.sort((a, b) => a.date.localeCompare(b.date))
 
-    console.log(`Aggregated trends for ${trendsArray.length} days.`) 
+    console.log(`Aggregated trends for ${trendsArray.length} days.`)
     return trendsArray
-
   } catch (error) {
     console.error('Error in getWorkoutTrends:', error)
     return []
@@ -472,57 +491,66 @@ export async function getWorkoutTrends(
  * @returns The user profile or null if not found or error.
  */
 export async function getUserProfile(client?: SupabaseClient) {
-  const supabaseInstance = client || browserSupabaseClient;
+  const supabaseInstance = client || browserSupabaseClient
 
   try {
-    console.log('Getting user profile, checking for active session via supabaseInstance...');
+    console.log('Getting user profile, checking for active session via supabaseInstance...')
     // Use supabaseInstance for auth check
-    const { data: { session }, error: sessionError } = await supabaseInstance.auth.getSession();
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabaseInstance.auth.getSession()
 
     if (sessionError) {
-      console.error('Error getting session for profile:', sessionError.message);
-      return null;
+      console.error('Error getting session for profile:', sessionError.message)
+      return null
     }
 
     if (!session?.user) {
-      console.log('No active session found when fetching user profile.');
-      return null;
+      console.log('No active session found when fetching user profile.')
+      return null
     }
 
-    console.log(`Found active session for user ${session.user.id.substring(0, 6)}..., fetching profile...`);
+    console.log(
+      `Found active session for user ${session.user.id.substring(0, 6)}..., fetching profile...`
+    )
 
     // Use supabaseInstance for data fetching
     const { data: profileData, error: profileError } = await supabaseInstance
       .from('profiles')
       .select('*')
       .eq('id', session.user.id)
-      .single();
+      .single()
 
     if (profileError) {
-      console.error('Error fetching profile:', profileError.message);
+      console.error('Error fetching profile:', profileError.message)
       // Differentiate common errors if helpful for debugging
-      if (profileError.code === 'PGRST116') { // " esattamente uma linha esperada, mas 0 linhas foram encontradas"
-        console.warn('Profile not found for user:', session.user.id);
-        return null; // Profile doesn't exist, which is a valid state
+      if (profileError.code === 'PGRST116') {
+        // " esattamente uma linha esperada, mas 0 linhas foram encontradas"
+        console.warn('Profile not found for user:', session.user.id)
+        return null // Profile doesn't exist, which is a valid state
       }
-      return null; // Other errors
+      return null // Other errors
     }
 
     if (!profileData) {
-      console.warn('Profile data is null for user:', session.user.id, '(Should have been caught by PGRST116 if not found)');
-      return null;
+      console.warn(
+        'Profile data is null for user:',
+        session.user.id,
+        '(Should have been caught by PGRST116 if not found)'
+      )
+      return null
     }
 
-    console.log('User profile fetched successfully:', profileData);
-    return profileData;
-
+    console.log('User profile fetched successfully:', profileData)
+    return profileData
   } catch (error) {
-    console.error('Unexpected error in getUserProfile:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in getUserProfile:', error)
+    const message = error instanceof Error ? error.message : 'Unknown error'
     // Depending on desired behavior, might rethrow or return null/specific error shape
     // For now, logging and returning null to match existing patterns if errors occur.
-    console.error(`getUserProfile failed: ${message}`);
-    return null;
+    console.error(`getUserProfile failed: ${message}`)
+    return null
   }
 }
 
@@ -531,29 +559,35 @@ export async function getUserProfile(client?: SupabaseClient) {
  * @param workoutGroup - The workout group data containing multiple exercises
  * @returns The newly created workout group or null if there's an error
  */
-export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<WorkoutGroup | null> {
+export async function logWorkoutGroup(
+  workoutGroup: WorkoutGroupData
+): Promise<WorkoutGroup | null> {
   try {
     console.log('Logging workout group, checking for active session...')
-    const { data: { session } } = await browserSupabaseClient.auth.getSession()
-    
+    const {
+      data: { session },
+    } = await browserSupabaseClient.auth.getSession()
+
     if (!session?.user) {
       console.log('No active session found when logging workout group')
       return null
     }
-    
+
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
     console.log('Workout group exercises count:', workoutGroup.exercises.length)
-    
+
     // Determine the created_at timestamp (similar logic to logWorkout)
     let createdAt: Date
     let createdAtISO: string
 
     if (workoutGroup.workoutDate) {
-      const [year, month, day] = workoutGroup.workoutDate.split('-').map(Number);
+      const [year, month, day] = workoutGroup.workoutDate.split('-').map(Number)
       // Create date representing noon in the *local* timezone of the server
-      createdAt = new Date(year, month - 1, day, 12, 0, 0);
-      createdAtISO = createdAt.toISOString();
-      console.log(`Using provided date ${workoutGroup.workoutDate} for group, stored as UTC: ${createdAtISO}`)
+      createdAt = new Date(year, month - 1, day, 12, 0, 0)
+      createdAtISO = createdAt.toISOString()
+      console.log(
+        `Using provided date ${workoutGroup.workoutDate} for group, stored as UTC: ${createdAtISO}`
+      )
     } else {
       createdAt = new Date()
       createdAtISO = createdAt.toISOString()
@@ -571,10 +605,10 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
       linked_program_phase_index: workoutGroup.linked_program_phase_index ?? null,
       linked_program_week_index: workoutGroup.linked_program_week_index ?? null,
       linked_program_day_of_week: workoutGroup.linked_program_day_of_week ?? null,
-    };
-    
-    console.log('Creating workout group with data:', workoutGroupData);
-    
+    }
+
+    console.log('Creating workout group with data:', workoutGroupData)
+
     // Start a transaction by creating the workout group first
     try {
       const { data: groupData, error: groupError } = await browserSupabaseClient
@@ -582,14 +616,14 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
         .insert(workoutGroupData)
         .select()
         .single()
-      
+
       if (groupError || !groupData) {
         console.error('Error creating workout group:', groupError)
         return null
       }
-      
+
       console.log('Created workout group:', groupData)
-      
+
       // Now add all the individual exercises linked to this group
       const exercisesData = workoutGroup.exercises.map(exercise => ({
         user_id: session.user.id,
@@ -600,25 +634,25 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
         duration: Math.floor(workoutGroup.duration / workoutGroup.exercises.length), // Split duration evenly
         notes: null, // Individual exercise notes not currently captured in group mode form
         workout_group_id: groupData.id,
-        created_at: createdAtISO // Use the *same UTC timestamp* as the workout group
+        created_at: createdAtISO, // Use the *same UTC timestamp* as the workout group
       }))
-      
-      console.log('Creating workout exercises:', exercisesData);
-      
+
+      console.log('Creating workout exercises:', exercisesData)
+
       const { data: exercisesResult, error: exercisesError } = await browserSupabaseClient
         .from('workouts')
         .insert(exercisesData)
         .select()
-      
+
       if (exercisesError) {
         console.error('Error creating workout exercises:', exercisesError)
         // Attempt to delete the workout group since the exercises failed
         await browserSupabaseClient.from('workout_groups').delete().eq('id', groupData.id)
         return null
       }
-      
+
       console.log('Created workout exercises:', exercisesResult)
-      
+
       // Return the complete workout group with exercises
       return {
         id: groupData.id,
@@ -627,7 +661,10 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
         duration: groupData.duration,
         notes: groupData.notes,
         created_at: groupData.created_at, // Return ISO string
-        exercises: exercisesResult.map(ex => ({ ...ex, exerciseName: ex.exercise_name })) as Workout[], // Map db columns
+        exercises: exercisesResult.map(ex => ({
+          ...ex,
+          exerciseName: ex.exercise_name,
+        })) as Workout[], // Map db columns
         // Program linking fields (optional)
         linked_program_id: groupData.linked_program_id,
         linked_program_phase_index: groupData.linked_program_phase_index,
@@ -635,8 +672,8 @@ export async function logWorkoutGroup(workoutGroup: WorkoutGroupData): Promise<W
         linked_program_day_of_week: groupData.linked_program_day_of_week,
       }
     } catch (dbError) {
-      console.error('Database error in logWorkoutGroup:', dbError);
-      throw dbError;
+      console.error('Database error in logWorkoutGroup:', dbError)
+      throw dbError
     }
   } catch (err) {
     console.error('Error in logWorkoutGroup:', err)
@@ -656,26 +693,36 @@ export async function getTodayWorkoutStats(
 ): Promise<WorkoutStats | null> {
   try {
     console.log(`Getting today's workout stats (tz: ${userTimezone})...`)
-    const { data: { session } } = await browserSupabaseClient.auth.getSession()
+    const {
+      data: { session },
+    } = await browserSupabaseClient.auth.getSession()
 
     if (!session?.user) {
       console.log('No active session found')
       // Return empty stats object matching the expected structure
-      return { totalWorkouts: 0, totalSets: 0, totalReps: 0, averageWeight: 0, averageDuration: 0, totalWeight: 0, totalDuration: 0 }
+      return {
+        totalWorkouts: 0,
+        totalSets: 0,
+        totalReps: 0,
+        averageWeight: 0,
+        averageDuration: 0,
+        totalWeight: 0,
+        totalDuration: 0,
+      }
     }
 
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
 
     // --- Timezone Calculation ---
-    const now = new Date(); // Current time in UTC
+    const now = new Date() // Current time in UTC
     // Get the start of the user's local day
-    const startOfUserDay = startOfDay(toZonedTime(now, userTimezone));
+    const startOfUserDay = startOfDay(toZonedTime(now, userTimezone))
     // Get the end of the user's local day (start of next day)
-    const startOfUserNextDay = addDays(startOfUserDay, 1);
+    const startOfUserNextDay = addDays(startOfUserDay, 1)
 
     // Convert these user-local start/end times back to UTC ISO strings for the query
-    const startUtcISO = fromZonedTime(startOfUserDay, userTimezone).toISOString();
-    const endUtcISO = fromZonedTime(startOfUserNextDay, userTimezone).toISOString();
+    const startUtcISO = fromZonedTime(startOfUserDay, userTimezone).toISOString()
+    const endUtcISO = fromZonedTime(startOfUserNextDay, userTimezone).toISOString()
 
     console.log(`Querying today's stats between UTC: ${startUtcISO} and ${endUtcISO}`)
     // --- End Timezone Calculation ---
@@ -686,7 +733,7 @@ export async function getTodayWorkoutStats(
       .select('sets, reps, weight, duration')
       .eq('user_id', session.user.id)
       .gte('created_at', startUtcISO) // Use calculated UTC start
-      .lt('created_at', endUtcISO)    // Use calculated UTC end (exclusive)
+      .lt('created_at', endUtcISO) // Use calculated UTC end (exclusive)
 
     // Add muscle group filter if provided
     if (muscleGroup) {
@@ -698,41 +745,48 @@ export async function getTodayWorkoutStats(
 
     // Define the empty stats object once
     const emptyReturnStats: WorkoutStats = {
-        totalWorkouts: 0, totalSets: 0, totalReps: 0, averageWeight: 0,
-        averageDuration: 0, totalWeight: 0, totalDuration: 0
-    };
-
+      totalWorkouts: 0,
+      totalSets: 0,
+      totalReps: 0,
+      averageWeight: 0,
+      averageDuration: 0,
+      totalWeight: 0,
+      totalDuration: 0,
+    }
 
     if (error) {
       console.error(`Error fetching today's workout stats (tz: ${userTimezone}):`, error)
-      return emptyReturnStats;
+      return emptyReturnStats
     }
 
     if (data.length === 0) {
       console.log(`No workout data found for user today (tz: ${userTimezone})`)
-      return emptyReturnStats;
+      return emptyReturnStats
     }
 
     console.log(`Found stats data for ${data.length} workouts today (tz: ${userTimezone})`)
-    const stats = data.reduce((acc, workout) => ({
-      // Ensure weight is parsed as float for correct summing
-      totalWeight: acc.totalWeight + parseFloat(workout.weight?.toString() || '0'),
-      totalDuration: acc.totalDuration + (workout.duration || 0),
-      totalSets: acc.totalSets + (workout.sets || 0),
-      // Calculate total reps correctly
-      totalReps: acc.totalReps + ((workout.sets || 0) * (workout.reps || 0)),
-      // Count actual workout entries returned
-      totalWorkouts: acc.totalWorkouts + 1, // Correctly increment workout count
-    }), {
-      totalWorkouts: 0, // Start count from 0
-      totalSets: 0,
-      totalReps: 0,
-      totalWeight: 0,
-      totalDuration: 0,
-    })
+    const stats = data.reduce(
+      (acc, workout) => ({
+        // Ensure weight is parsed as float for correct summing
+        totalWeight: acc.totalWeight + parseFloat(workout.weight?.toString() || '0'),
+        totalDuration: acc.totalDuration + (workout.duration || 0),
+        totalSets: acc.totalSets + (workout.sets || 0),
+        // Calculate total reps correctly
+        totalReps: acc.totalReps + (workout.sets || 0) * (workout.reps || 0),
+        // Count actual workout entries returned
+        totalWorkouts: acc.totalWorkouts + 1, // Correctly increment workout count
+      }),
+      {
+        totalWorkouts: 0, // Start count from 0
+        totalSets: 0,
+        totalReps: 0,
+        totalWeight: 0,
+        totalDuration: 0,
+      }
+    )
 
     // Avoid division by zero if somehow stats.totalWorkouts is 0 despite data.length > 0
-    const numWorkouts = stats.totalWorkouts || 1; // Use 1 to prevent NaN if 0
+    const numWorkouts = stats.totalWorkouts || 1 // Use 1 to prevent NaN if 0
 
     return {
       totalWorkouts: stats.totalWorkouts,
@@ -743,12 +797,20 @@ export async function getTodayWorkoutStats(
       averageDuration: Math.round(stats.totalDuration / numWorkouts),
       // Return the calculated totals
       totalWeight: Math.round(stats.totalWeight),
-      totalDuration: stats.totalDuration
+      totalDuration: stats.totalDuration,
     }
   } catch (error) {
     console.error(`Error calculating today's workout stats (tz: ${userTimezone}):`, error)
     // Return consistent empty object on catch
-    return { totalWorkouts: 0, totalSets: 0, totalReps: 0, averageWeight: 0, averageDuration: 0, totalWeight: 0, totalDuration: 0 };
+    return {
+      totalWorkouts: 0,
+      totalSets: 0,
+      totalReps: 0,
+      averageWeight: 0,
+      averageDuration: 0,
+      totalWeight: 0,
+      totalDuration: 0,
+    }
   }
 }
 
@@ -759,46 +821,49 @@ export async function getTodayWorkoutStats(
  */
 export async function getAllWorkouts(): Promise<HistoricalWorkout[]> {
   try {
-    console.log('Getting all workouts, checking for active session...');
-    const { data: { session } } = await browserSupabaseClient.auth.getSession();
+    console.log('Getting all workouts, checking for active session...')
+    const {
+      data: { session },
+    } = await browserSupabaseClient.auth.getSession()
 
     if (!session?.user) {
-      console.log('No active session found when fetching all workouts');
-      return [];
+      console.log('No active session found when fetching all workouts')
+      return []
     }
 
-    console.log(`Found active session for user ${session.user.id.substring(0, 6)}... Fetching all workouts.`);
+    console.log(
+      `Found active session for user ${session.user.id.substring(0, 6)}... Fetching all workouts.`
+    )
 
     // Select only necessary fields and order by date
     const { data, error } = await browserSupabaseClient
       .from('workouts')
       .select('id, created_at, duration, exercise_name')
       .eq('user_id', session.user.id)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
 
     if (error) {
-      console.error('Error fetching all workouts:', error);
-      return [];
+      console.error('Error fetching all workouts:', error)
+      return []
     }
 
     if (!data) {
-        console.log('No workout data found for user.');
-        return [];
+      console.log('No workout data found for user.')
+      return []
     }
 
-    console.log(`Found ${data.length} total workouts for user.`);
+    console.log(`Found ${data.length} total workouts for user.`)
 
     // Map database fields to our simpler interface
     return data.map(workout => ({
       id: workout.id,
       created_at: workout.created_at,
       duration: workout.duration ?? 0, // Handle potential null duration
-      exerciseName: workout.exercise_name ?? 'Unknown Exercise' // Handle potential null name
-    }));
-
+      exerciseName: workout.exercise_name ?? 'Unknown Exercise', // Handle potential null name
+    }))
   } catch (error) {
-    console.error('Error in getAllWorkouts:', error);
-    return [];
+    console.error('Error in getAllWorkouts:', error)
+    return []
   }
 }
 
@@ -808,27 +873,36 @@ export async function getAllWorkouts(): Promise<HistoricalWorkout[]> {
  * @param monthIndex The month index (0 for January, 11 for December)
  * @returns Array of HistoricalWorkout for the specified month or empty array.
  */
-export async function getWorkoutsForMonth(year: number, monthIndex: number): Promise<HistoricalWorkout[]> {
+export async function getWorkoutsForMonth(
+  year: number,
+  monthIndex: number
+): Promise<HistoricalWorkout[]> {
   if (monthIndex < 0 || monthIndex > 11) {
-    console.error('Invalid month index provided:', monthIndex);
-    return [];
+    console.error('Invalid month index provided:', monthIndex)
+    return []
   }
 
   try {
-    console.log(`Getting combined workouts for ${year}-${monthIndex + 1}, checking session...`);
-    const { data: { session } } = await browserSupabaseClient.auth.getSession();
+    console.log(`Getting combined workouts for ${year}-${monthIndex + 1}, checking session...`)
+    const {
+      data: { session },
+    } = await browserSupabaseClient.auth.getSession()
 
     if (!session?.user) {
-      console.log('No active session found when fetching monthly workouts');
-      return [];
+      console.log('No active session found when fetching monthly workouts')
+      return []
     }
-    const userId = session.user.id;
-    console.log(`Found active session for user ${userId.substring(0, 6)}... Fetching workouts for ${year}-${monthIndex + 1}.`);
+    const userId = session.user.id
+    console.log(
+      `Found active session for user ${userId.substring(0, 6)}... Fetching workouts for ${year}-${monthIndex + 1}.`
+    )
 
-    const startDateUTC = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0));
-    const endDateUTC = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0)); // Exclusive end date (start of next month)
+    const startDateUTC = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0))
+    const endDateUTC = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0)) // Exclusive end date (start of next month)
 
-    console.log(`Querying monthly lifting workouts between UTC: ${startDateUTC.toISOString()} and ${endDateUTC.toISOString()}`);
+    console.log(
+      `Querying monthly lifting workouts between UTC: ${startDateUTC.toISOString()} and ${endDateUTC.toISOString()}`
+    )
 
     // 1. Fetch Lifting Workouts
     const { data: liftingData, error: liftingError } = await browserSupabaseClient
@@ -836,11 +910,11 @@ export async function getWorkoutsForMonth(year: number, monthIndex: number): Pro
       .select('id, created_at, duration, exercise_name')
       .eq('user_id', userId)
       .gte('created_at', startDateUTC.toISOString())
-      .lt('created_at', endDateUTC.toISOString());
-      // No sort here, will sort combined array later
+      .lt('created_at', endDateUTC.toISOString())
+    // No sort here, will sort combined array later
 
     if (liftingError) {
-      console.error(`Error fetching lifting workouts for ${year}-${monthIndex + 1}:`, liftingError);
+      console.error(`Error fetching lifting workouts for ${year}-${monthIndex + 1}:`, liftingError)
       // Continue to try fetching runs even if lifts fail for now, or return []
     }
 
@@ -850,25 +924,27 @@ export async function getWorkoutsForMonth(year: number, monthIndex: number): Pro
       duration: workout.duration ?? 0,
       exerciseName: workout.exercise_name ?? 'Unknown Exercise',
       type: 'lift' as const, // Assign type
-    }));
-    console.log(`Found ${liftingWorkouts.length} lifting workouts for ${year}-${monthIndex + 1}.`);
+    }))
+    console.log(`Found ${liftingWorkouts.length} lifting workouts for ${year}-${monthIndex + 1}.`)
 
     // 2. Fetch Strava Runs
-    console.log(`Querying monthly Strava runs between UTC: ${startDateUTC.toISOString()} and ${endDateUTC.toISOString()}`);
+    console.log(
+      `Querying monthly Strava runs between UTC: ${startDateUTC.toISOString()} and ${endDateUTC.toISOString()}`
+    )
     const { data: runData, error: runError } = await browserSupabaseClient
       .from('user_strava_activities')
       .select('id, strava_activity_id, name, start_date, moving_time, distance') // Added distance
       .eq('user_id', userId)
       .eq('type', 'Run')
       .gte('start_date', startDateUTC.toISOString())
-      .lt('start_date', endDateUTC.toISOString());
-      // No sort here, will sort combined array later
+      .lt('start_date', endDateUTC.toISOString())
+    // No sort here, will sort combined array later
 
     if (runError) {
-      console.error(`Error fetching Strava runs for ${year}-${monthIndex + 1}:`, runError);
+      console.error(`Error fetching Strava runs for ${year}-${monthIndex + 1}:`, runError)
       // Continue if runs fail for now
     }
-    
+
     const stravaRuns: HistoricalWorkout[] = (runData || []).map(activity => ({
       id: String(activity.strava_activity_id),
       created_at: activity.start_date,
@@ -876,19 +952,20 @@ export async function getWorkoutsForMonth(year: number, monthIndex: number): Pro
       exerciseName: activity.name ?? 'Strava Run',
       type: 'run' as const,
       distance: activity.distance ?? 0, // Added distance, default to 0 if null
-    }));
-    console.log(`Found ${stravaRuns.length} Strava runs for ${year}-${monthIndex + 1}.`);
+    }))
+    console.log(`Found ${stravaRuns.length} Strava runs for ${year}-${monthIndex + 1}.`)
 
     // 3. Combine and Sort
-    const combinedWorkouts = [...liftingWorkouts, ...stravaRuns];
-    combinedWorkouts.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    
-    console.log(`Total combined workouts for ${year}-${monthIndex + 1}: ${combinedWorkouts.length}`);
-    return combinedWorkouts;
+    const combinedWorkouts = [...liftingWorkouts, ...stravaRuns]
+    combinedWorkouts.sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
 
+    console.log(`Total combined workouts for ${year}-${monthIndex + 1}: ${combinedWorkouts.length}`)
+    return combinedWorkouts
   } catch (error) {
-    console.error(`Error in getWorkoutsForMonth (${year}-${monthIndex + 1}):`, error);
-    return [];
+    console.error(`Error in getWorkoutsForMonth (${year}-${monthIndex + 1}):`, error)
+    return []
   }
 }
 
@@ -898,12 +975,15 @@ export async function getWorkoutsForMonth(year: number, monthIndex: number): Pro
  * @param year The full year (e.g., 2024).
  * @returns Array of HistoricalWorkout for the specified year or empty array.
  */
-export async function getLocalStravaRunsForYear(userId: string, year: number): Promise<HistoricalWorkout[]> {
+export async function getLocalStravaRunsForYear(
+  userId: string,
+  year: number
+): Promise<HistoricalWorkout[]> {
   if (!userId) {
-    console.warn('getLocalStravaRunsForYear: No userId provided.');
-    return [];
+    console.warn('getLocalStravaRunsForYear: No userId provided.')
+    return []
   }
-  console.log(`Fetching local Strava runs for user ${userId.substring(0,6)}... for year ${year}`);
+  console.log(`Fetching local Strava runs for user ${userId.substring(0, 6)}... for year ${year}`)
 
   try {
     const { data, error } = await browserSupabaseClient
@@ -913,19 +993,24 @@ export async function getLocalStravaRunsForYear(userId: string, year: number): P
       .eq('type', 'Run') // Ensure we only get runs
       .gte('start_date', `${year}-01-01T00:00:00.000Z`) // Activities on or after Jan 1st of the year (UTC)
       .lt('start_date', `${year + 1}-01-01T00:00:00.000Z`) // Activities before Jan 1st of the next year (UTC)
-      .order('start_date', { ascending: true });
+      .order('start_date', { ascending: true })
 
     if (error) {
-      console.error(`Error fetching local Strava runs for user ${userId.substring(0,6)} year ${year}:`, error);
-      return [];
+      console.error(
+        `Error fetching local Strava runs for user ${userId.substring(0, 6)} year ${year}:`,
+        error
+      )
+      return []
     }
 
     if (!data) {
-      console.log(`No local Strava run data found for user ${userId.substring(0,6)} year ${year}.`);
-      return [];
+      console.log(`No local Strava run data found for user ${userId.substring(0, 6)} year ${year}.`)
+      return []
     }
 
-    console.log(`Found ${data.length} local Strava runs for user ${userId.substring(0,6)} year ${year}.`);
+    console.log(
+      `Found ${data.length} local Strava runs for user ${userId.substring(0, 6)} year ${year}.`
+    )
 
     return data.map(activity => ({
       id: String(activity.strava_activity_id), // Use Strava's activity ID for keying, but could be our own `id` too
@@ -933,11 +1018,13 @@ export async function getLocalStravaRunsForYear(userId: string, year: number): P
       duration: Math.round((activity.moving_time ?? 0) / 60), // Convert seconds to minutes, handle null
       exerciseName: activity.name ?? 'Strava Run', // Use activity name or default
       type: 'run' as const, // Explicitly type as 'run'
-    }));
-
+    }))
   } catch (err) {
-    console.error(`Exception in getLocalStravaRunsForYear for user ${userId.substring(0,6)} year ${year}:`, err);
-    return [];
+    console.error(
+      `Exception in getLocalStravaRunsForYear for user ${userId.substring(0, 6)} year ${year}:`,
+      err
+    )
+    return []
   }
 }
 
@@ -949,22 +1036,35 @@ export async function getWeeklyMuscleComparisonData(
   weekOffset: number = 0 // 0 for current week vs prev, 1 for last week vs week before, etc.
 ): Promise<WeeklyMuscleComparisonItem[]> {
   // Determine the base date for comparison by applying the offset
-  const baseDateForComparison = subWeeks(new Date(), weekOffset);
-  const baseDateInUserTz = toZonedTime(baseDateForComparison, userTimezone);
+  const baseDateForComparison = subWeeks(new Date(), weekOffset)
+  const baseDateInUserTz = toZonedTime(baseDateForComparison, userTimezone)
 
   // "Current" week for comparison (which could be a past week if offset > 0)
-  const currentComparisonWeekStartUserTz = startOfWeek(baseDateInUserTz, { weekStartsOn: 1 });
-  const currentComparisonWeekEndUserTz = endOfWeek(baseDateInUserTz, { weekStartsOn: 1 });
-  const currentComparisonWeekStartUtc = fromZonedTime(currentComparisonWeekStartUserTz, userTimezone);
-  const currentComparisonWeekEndUtc = fromZonedTime(currentComparisonWeekEndUserTz, userTimezone);
+  const currentComparisonWeekStartUserTz = startOfWeek(baseDateInUserTz, { weekStartsOn: 1 })
+  const currentComparisonWeekEndUserTz = endOfWeek(baseDateInUserTz, { weekStartsOn: 1 })
+  const currentComparisonWeekStartUtc = fromZonedTime(
+    currentComparisonWeekStartUserTz,
+    userTimezone
+  )
+  const currentComparisonWeekEndUtc = fromZonedTime(currentComparisonWeekEndUserTz, userTimezone)
 
   // "Previous" week relative to the "current" comparison week
-  const previousComparisonWeekBaseDate = subWeeks(baseDateForComparison, 1);
-  const previousComparisonWeekBaseDateInUserTz = toZonedTime(previousComparisonWeekBaseDate, userTimezone);
-  const previousComparisonWeekStartUserTz = startOfWeek(previousComparisonWeekBaseDateInUserTz, { weekStartsOn: 1 });
-  const previousComparisonWeekEndUserTz = endOfWeek(previousComparisonWeekBaseDateInUserTz, { weekStartsOn: 1 });
-  const previousComparisonWeekStartUtc = fromZonedTime(previousComparisonWeekStartUserTz, userTimezone);
-  const previousComparisonWeekEndUtc = fromZonedTime(previousComparisonWeekEndUserTz, userTimezone);
+  const previousComparisonWeekBaseDate = subWeeks(baseDateForComparison, 1)
+  const previousComparisonWeekBaseDateInUserTz = toZonedTime(
+    previousComparisonWeekBaseDate,
+    userTimezone
+  )
+  const previousComparisonWeekStartUserTz = startOfWeek(previousComparisonWeekBaseDateInUserTz, {
+    weekStartsOn: 1,
+  })
+  const previousComparisonWeekEndUserTz = endOfWeek(previousComparisonWeekBaseDateInUserTz, {
+    weekStartsOn: 1,
+  })
+  const previousComparisonWeekStartUtc = fromZonedTime(
+    previousComparisonWeekStartUserTz,
+    userTimezone
+  )
+  const previousComparisonWeekEndUtc = fromZonedTime(previousComparisonWeekEndUserTz, userTimezone)
 
   try {
     // Fetch workouts for current and previous comparison weeks in parallel
@@ -980,47 +1080,51 @@ export async function getWeeklyMuscleComparisonData(
         .select('exercise_name, sets')
         .eq('user_id', userId)
         .gte('created_at', previousComparisonWeekStartUtc.toISOString())
-        .lte('created_at', previousComparisonWeekEndUtc.toISOString())
-    ]);
+        .lte('created_at', previousComparisonWeekEndUtc.toISOString()),
+    ])
 
-    if (currentWeekWorkoutsResponse.error) throw currentWeekWorkoutsResponse.error;
-    if (previousWeekWorkoutsResponse.error) throw previousWeekWorkoutsResponse.error;
+    if (currentWeekWorkoutsResponse.error) throw currentWeekWorkoutsResponse.error
+    if (previousWeekWorkoutsResponse.error) throw previousWeekWorkoutsResponse.error
 
     // Explicitly type the data after fetching
-    const currentWeekRawData: { exercise_name: string; sets: number }[] = currentWeekWorkoutsResponse.data || [];
-    const previousWeekRawData: { exercise_name: string; sets: number }[] = previousWeekWorkoutsResponse.data || [];
+    const currentWeekRawData: { exercise_name: string; sets: number }[] =
+      currentWeekWorkoutsResponse.data || []
+    const previousWeekRawData: { exercise_name: string; sets: number }[] =
+      previousWeekWorkoutsResponse.data || []
 
     // Aggregate data by muscle group
-    const aggregateSetsByMuscleGroup = (workouts: { exercise_name: string; sets: number }[]): Map<MuscleGroup, number> => {
-      const aggregation = new Map<MuscleGroup, number>();
+    const aggregateSetsByMuscleGroup = (
+      workouts: { exercise_name: string; sets: number }[]
+    ): Map<MuscleGroup, number> => {
+      const aggregation = new Map<MuscleGroup, number>()
       workouts.forEach(workout => {
-        const muscleGroup = findMuscleGroupForExercise(workout.exercise_name);
-        aggregation.set(muscleGroup, (aggregation.get(muscleGroup) || 0) + (workout.sets || 0));
-      });
-      return aggregation;
-    };
+        const muscleGroup = findMuscleGroupForExercise(workout.exercise_name)
+        aggregation.set(muscleGroup, (aggregation.get(muscleGroup) || 0) + (workout.sets || 0))
+      })
+      return aggregation
+    }
 
-    const currentWeekAggregated = aggregateSetsByMuscleGroup(currentWeekRawData);
-    const previousWeekAggregated = aggregateSetsByMuscleGroup(previousWeekRawData);
+    const currentWeekAggregated = aggregateSetsByMuscleGroup(currentWeekRawData)
+    const previousWeekAggregated = aggregateSetsByMuscleGroup(previousWeekRawData)
 
     // Get all unique muscle groups involved
     const allMuscleGroups = new Set<MuscleGroup>([
       ...Array.from(currentWeekAggregated.keys()),
-      ...Array.from(previousWeekAggregated.keys())
-    ]);
+      ...Array.from(previousWeekAggregated.keys()),
+    ])
 
-    const comparisonData: WeeklyMuscleComparisonItem[] = [];
+    const comparisonData: WeeklyMuscleComparisonItem[] = []
 
     allMuscleGroups.forEach(muscleGroup => {
-      const currentWeekSets = currentWeekAggregated.get(muscleGroup) || 0;
-      const previousWeekSets = previousWeekAggregated.get(muscleGroup) || 0;
-      const changeInSets = currentWeekSets - previousWeekSets;
-      let percentageChange = 0;
+      const currentWeekSets = currentWeekAggregated.get(muscleGroup) || 0
+      const previousWeekSets = previousWeekAggregated.get(muscleGroup) || 0
+      const changeInSets = currentWeekSets - previousWeekSets
+      let percentageChange = 0
 
       if (previousWeekSets > 0) {
-        percentageChange = (changeInSets / previousWeekSets); // Store as fraction, format later
+        percentageChange = changeInSets / previousWeekSets // Store as fraction, format later
       } else if (currentWeekSets > 0) {
-        percentageChange = Infinity; // Indicates new activity
+        percentageChange = Infinity // Indicates new activity
       }
       // If both are 0, percentageChange remains 0.
 
@@ -1030,14 +1134,13 @@ export async function getWeeklyMuscleComparisonData(
         previousWeekSets,
         changeInSets,
         percentageChange,
-      });
-    });
+      })
+    })
 
-    return comparisonData;
-
+    return comparisonData
   } catch (error) {
-    console.error('Error fetching weekly muscle comparison data:', error);
+    console.error('Error fetching weekly muscle comparison data:', error)
     // Optionally, rethrow or return an empty array/specific error structure
-    throw error; // Rethrow to be caught by the caller in dashboard page
+    throw error // Rethrow to be caught by the caller in dashboard page
   }
-} 
+}

@@ -16,7 +16,7 @@ This error means the database schema cache does not recognize the `profile_pictu
 
 ### Using the UI Fix Button
 
-The latest version of the app includes a "Fix Database" button that will appear automatically when schema issues are detected. 
+The latest version of the app includes a "Fix Database" button that will appear automatically when schema issues are detected.
 
 1. Simply click the "Fix Database" button that appears below the profile picture upload area
 2. The app will attempt to fix the database schema by:
@@ -58,8 +58,8 @@ CREATE OR REPLACE FUNCTION update_profile_picture(
 ) RETURNS VOID AS $$
 BEGIN
   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;
-  UPDATE profiles 
-  SET profile_picture_url = picture_url 
+  UPDATE profiles
+  SET profile_picture_url = picture_url
   WHERE id = user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -74,10 +74,12 @@ GRANT EXECUTE ON FUNCTION update_profile_picture TO service_role;
 The app currently uses data URIs to store profile pictures directly in the database. This approach has:
 
 **Benefits:**
+
 - Works immediately without requiring storage bucket setup
 - No additional configuration needed
 
 **Drawbacks:**
+
 - Increases database size
 - May impact performance with large images
 - Not ideal for production use with many users
@@ -88,16 +90,18 @@ For a production environment, it's recommended to set up a proper storage bucket
 
 1. Go to your Supabase project dashboard
 2. Navigate to Storage → Buckets
-3. Create a new bucket named `avatars` 
+3. Create a new bucket named `avatars`
 4. Set access control to "Public"
 5. Create policies to allow authenticated users to upload files:
 
 **Upload Policy:**
-- Name: "Avatar Upload Policy" 
+
+- Name: "Avatar Upload Policy"
 - Allowed operation: INSERT
 - For authenticated users: `(auth.uid() IS NOT NULL)`
 
 **Read Policy:**
+
 - Name: "Public Read Policy"
 - Allowed operation: SELECT
 - For all users: `true`
@@ -129,8 +133,8 @@ CREATE OR REPLACE FUNCTION update_profile_picture(
 ) RETURNS VOID AS $$
 BEGIN
   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;
-  UPDATE profiles 
-  SET profile_picture_url = picture_url 
+  UPDATE profiles
+  SET profile_picture_url = picture_url
   WHERE id = user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -138,4 +142,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION update_profile_picture TO authenticated;
 GRANT EXECUTE ON FUNCTION update_profile_picture TO anon;
 GRANT EXECUTE ON FUNCTION update_profile_picture TO service_role;
-``` 
+```

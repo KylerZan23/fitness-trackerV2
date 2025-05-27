@@ -4,135 +4,137 @@
  * This component displays runs fetched from Strava as Strava-like cards
  */
 
-import { useState, useEffect } from 'react';
-import { getStravaActivities, getStravaActivityWithPolyline } from '@/lib/strava';
-import { getTokensFromDatabase } from '@/lib/strava-token-store';
-import { RunCard } from './RunCard';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect } from 'react'
+import { getStravaActivities, getStravaActivityWithPolyline } from '@/lib/strava'
+import { getTokensFromDatabase } from '@/lib/strava-token-store'
+import { RunCard } from './RunCard'
+import { supabase } from '@/lib/supabase'
 
 interface StravaRunListProps {
-  userId: string;
-  isConnected: boolean;
+  userId: string
+  isConnected: boolean
 }
 
 interface Run {
-  id: number;
-  name: string;
-  distance: number; // in meters
-  moving_time: number; // in seconds
-  elapsed_time: number; // in seconds
-  total_elevation_gain: number; // in meters
-  start_date: string;
-  start_date_local: string;
-  type: string;
-  average_speed: number; // meters/second
-  max_speed: number; // meters/second
+  id: number
+  name: string
+  distance: number // in meters
+  moving_time: number // in seconds
+  elapsed_time: number // in seconds
+  total_elevation_gain: number // in meters
+  start_date: string
+  start_date_local: string
+  type: string
+  average_speed: number // meters/second
+  max_speed: number // meters/second
   map?: {
-    id: string;
-    summary_polyline: string;
-  };
+    id: string
+    summary_polyline: string
+  }
   segment_efforts?: Array<{
-    id: number;
-    name: string;
-    elapsed_time: number;
-    achievement_count?: number;
-    pr_rank?: number | null;
-  }>;
+    id: number
+    name: string
+    elapsed_time: number
+    achievement_count?: number
+    pr_rank?: number | null
+  }>
 }
 
 export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
-  const [runs, setRuns] = useState<Run[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
-  const [selectedRun, setSelectedRun] = useState<Run | null>(null);
-  
+  const [runs, setRuns] = useState<Run[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
+  const [selectedRun, setSelectedRun] = useState<Run | null>(null)
+
   // Get user info from local storage or hardcode for demo
   const userInfo = {
     name: 'Kyler Zanuck',
-    location: 'Los Angeles, California'
-  };
-  
+    location: 'Los Angeles, California',
+  }
+
   useEffect(() => {
     async function fetchRuns() {
-      if (!isConnected || !userId) return;
-      
+      if (!isConnected || !userId) return
+
       try {
-        setIsLoading(true);
-        setError(null);
-        
+        setIsLoading(true)
+        setError(null)
+
         // Get tokens from database
-        const tokens = await getTokensFromDatabase(supabase, userId);
-        
+        const tokens = await getTokensFromDatabase(supabase, userId)
+
         if (!tokens) {
-          setError('No Strava tokens found. Please reconnect your account.');
-          return;
+          setError('No Strava tokens found. Please reconnect your account.')
+          return
         }
-        
+
         // Fetch activities (only runs)
-        const activities = await getStravaActivities(tokens);
-        const runActivities = activities.filter(activity => activity.type === 'Run');
-        
-        setRuns(runActivities);
+        const activities = await getStravaActivities(tokens)
+        const runActivities = activities.filter(activity => activity.type === 'Run')
+
+        setRuns(runActivities)
       } catch (err) {
-        console.error('Error fetching runs:', err);
-        const errorMessage = err && typeof err === 'object' && 'message' in err 
-          ? String(err.message) 
-          : 'An error occurred while fetching runs from Strava';
-        setError(errorMessage);
+        console.error('Error fetching runs:', err)
+        const errorMessage =
+          err && typeof err === 'object' && 'message' in err
+            ? String(err.message)
+            : 'An error occurred while fetching runs from Strava'
+        setError(errorMessage)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
     }
-    
-    fetchRuns();
-  }, [userId, isConnected]);
-  
+
+    fetchRuns()
+  }, [userId, isConnected])
+
   // Fetch detailed run data when selectedRunId changes
   useEffect(() => {
     async function fetchDetailedRun() {
-      if (!selectedRunId || !isConnected || !userId) return;
-      
+      if (!selectedRunId || !isConnected || !userId) return
+
       try {
-        setIsLoading(true);
-        
+        setIsLoading(true)
+
         // Get tokens from database
-        const tokens = await getTokensFromDatabase(supabase, userId);
-        
+        const tokens = await getTokensFromDatabase(supabase, userId)
+
         if (!tokens) {
-          setError('No Strava tokens found. Please reconnect your account.');
-          return;
+          setError('No Strava tokens found. Please reconnect your account.')
+          return
         }
-        
+
         // Fetch detailed activity with polyline
-        const detailedRun = await getStravaActivityWithPolyline(tokens, selectedRunId);
-        setSelectedRun(detailedRun);
+        const detailedRun = await getStravaActivityWithPolyline(tokens, selectedRunId)
+        setSelectedRun(detailedRun)
       } catch (err) {
-        console.error('Error fetching detailed run:', err);
-        const errorMessage = err && typeof err === 'object' && 'message' in err 
-          ? String(err.message) 
-          : 'An error occurred while fetching detailed run data';
-        setError(errorMessage);
+        console.error('Error fetching detailed run:', err)
+        const errorMessage =
+          err && typeof err === 'object' && 'message' in err
+            ? String(err.message)
+            : 'An error occurred while fetching detailed run data'
+        setError(errorMessage)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
     }
-    
-    fetchDetailedRun();
-  }, [selectedRunId, userId, isConnected]);
-  
+
+    fetchDetailedRun()
+  }, [selectedRunId, userId, isConnected])
+
   // Check URL for runId query parameter
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const runId = params.get('runId');
-      
+      const params = new URLSearchParams(window.location.search)
+      const runId = params.get('runId')
+
       if (runId) {
-        setSelectedRunId(parseInt(runId, 10));
+        setSelectedRunId(parseInt(runId, 10))
       }
     }
-  }, []);
-  
+  }, [])
+
   if (!isConnected) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
@@ -140,9 +142,9 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
           Connect your Strava account to see your runs here.
         </p>
       </div>
-    );
+    )
   }
-  
+
   if (isLoading && !runs.length) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
@@ -151,30 +153,34 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
           <span className="ml-3 text-gray-700">Loading your runs...</span>
         </div>
       </div>
-    );
+    )
   }
-  
+
   if (error) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md relative" role="alert">
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md relative"
+          role="alert"
+        >
           <strong className="font-bold">Error:</strong>
           <span className="block sm:inline">{error}</span>
         </div>
       </div>
-    );
+    )
   }
-  
+
   if (runs.length === 0) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
         <p className="text-gray-500 text-center py-6">
-          No runs found in your Strava account. Go for a run and sync with Strava, or log a run manually.
+          No runs found in your Strava account. Go for a run and sync with Strava, or log a run
+          manually.
         </p>
       </div>
-    );
+    )
   }
-  
+
   // If a specific run is selected, show only that run with details
   if (selectedRun) {
     return (
@@ -183,14 +189,14 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
           <h3 className="text-xl font-semibold text-gray-800">Run Details</h3>
           <button
             onClick={() => {
-              setSelectedRunId(null);
-              setSelectedRun(null);
-              
+              setSelectedRunId(null)
+              setSelectedRun(null)
+
               // Update URL to remove runId parameter
               if (typeof window !== 'undefined') {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('runId');
-                window.history.pushState({}, '', url);
+                const url = new URL(window.location.href)
+                url.searchParams.delete('runId')
+                window.history.pushState({}, '', url)
               }
             }}
             className="text-sm text-primary hover:text-primary/80"
@@ -198,8 +204,8 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
             Back to all runs
           </button>
         </div>
-        
-        <RunCard 
+
+        <RunCard
           id={selectedRun.id}
           name={selectedRun.name}
           distance={selectedRun.distance}
@@ -213,14 +219,14 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
           user={userInfo}
         />
       </div>
-    );
+    )
   }
-  
+
   // Show list of runs
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 space-y-6">
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Your Recent Runs</h3>
-      
+
       {runs.map(run => (
         <RunCard
           key={run.id}
@@ -237,7 +243,7 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
           className="mb-6"
         />
       ))}
-      
+
       {isLoading && (
         <div className="flex items-center justify-center py-4">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -245,5 +251,5 @@ export function StravaRunList({ userId, isConnected }: StravaRunListProps) {
         </div>
       )}
     </div>
-  );
-} 
+  )
+}

@@ -6,13 +6,10 @@ export async function POST(request: NextRequest) {
     const { access_token, refresh_token } = await request.json()
 
     // Create response
-    let response = new NextResponse(
-      JSON.stringify({ message: 'Processing request' }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    )
+    let response = new NextResponse(JSON.stringify({ message: 'Processing request' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
 
     // Create server-side Supabase client
     const supabase = createServerClient(
@@ -51,19 +48,15 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error refreshing session:', error)
-      return NextResponse.json(
-        { error: 'Failed to refresh session' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Failed to refresh session' }, { status: 401 })
     }
 
     // Verify the session was set
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) {
-      return NextResponse.json(
-        { error: 'Session verification failed' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Session verification failed' }, { status: 401 })
     }
 
     // Create success response with cookies
@@ -80,9 +73,6 @@ export async function POST(request: NextRequest) {
     return response
   } catch (error) {
     console.error('Session refresh error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-} 
+}

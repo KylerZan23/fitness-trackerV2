@@ -4,11 +4,13 @@ This directory contains the SQL schema for the FitnessTracker application. Follo
 
 ## Setting Up Your Database Schema
 
-1. **Open Supabase Dashboard**: 
+1. **Open Supabase Dashboard**:
+
    - Go to [app.supabase.com](https://app.supabase.com/)
    - Navigate to your project
 
 2. **Access SQL Editor**:
+
    - Click on "SQL Editor" in the left sidebar
    - Click "New Query"
 
@@ -22,6 +24,7 @@ This directory contains the SQL schema for the FitnessTracker application. Follo
 The schema defines two main tables:
 
 1. **profiles** - Stores user profile information
+
    - Linked to Supabase auth users
    - Contains name, email, age, fitness goals
 
@@ -51,4 +54,4 @@ If successful, your database is set up correctly!
 
 ## Schema Updates
 
-If the schema changes, look for migration files in this directory that need to be run to update your database structure. 
+If the schema changes, look for migration files in this directory that need to be run to update your database structure.

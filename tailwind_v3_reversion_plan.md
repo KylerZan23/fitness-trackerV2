@@ -6,10 +6,10 @@ This document outlines the steps to revert the project from Tailwind CSS v4 alph
 
 The following dependencies will be modified:
 
--   **`tailwindcss`**: Change from `^4.1.7` to `^3.4.3`.
--   **`@tailwindcss/postcss`**: This package will be removed from `devDependencies` as it's specific to Tailwind CSS v4 and not typically required for v3 when `tailwindcss` is correctly configured in `postcss.config.js`.
--   **`autoprefixer`**: Ensure `^10.4.14` (or latest v10.x) is present. (Already correct)
--   **`postcss`**: Ensure `^8.4.24` (or latest v8.x) is present. (Already correct)
+- **`tailwindcss`**: Change from `^4.1.7` to `^3.4.3`.
+- **`@tailwindcss/postcss`**: This package will be removed from `devDependencies` as it's specific to Tailwind CSS v4 and not typically required for v3 when `tailwindcss` is correctly configured in `postcss.config.js`.
+- **`autoprefixer`**: Ensure `^10.4.14` (or latest v10.x) is present. (Already correct)
+- **`postcss`**: Ensure `^8.4.24` (or latest v8.x) is present. (Already correct)
 
 **Action:**
 Modify `dependencies` and `devDependencies` in `package.json`.
@@ -19,6 +19,7 @@ Modify `dependencies` and `devDependencies` in `package.json`.
 The PostCSS configuration needs to be updated to use the standard Tailwind CSS v3 plugin.
 
 **Current `postcss.config.js`:**
+
 ```javascript
 module.exports = {
   plugins: {
@@ -29,6 +30,7 @@ module.exports = {
 ```
 
 **New `postcss.config.js`:**
+
 ```javascript
 module.exports = {
   plugins: {
@@ -37,6 +39,7 @@ module.exports = {
   },
 }
 ```
+
 **Action:**
 Replace the content of `postcss.config.js`.
 
@@ -44,10 +47,11 @@ Replace the content of `postcss.config.js`.
 
 The `tailwind.config.ts` file requires two main adjustments:
 
--   **Content Paths**: The `content` array needs to be updated to correctly point to source files, primarily within the `src` directory.
--   **Keyframes Syntax**: The `height: 0` in `keyframes` should be `height: "0"`.
+- **Content Paths**: The `content` array needs to be updated to correctly point to source files, primarily within the `src` directory.
+- **Keyframes Syntax**: The `height: 0` in `keyframes` should be `height: "0"`.
 
 **Current relevant `content` array snippet:**
+
 ```typescript
   content: [
     "./pages/**/*.{ts,tsx}",       // Likely incorrect if using src/app
@@ -59,6 +63,7 @@ The `tailwind.config.ts` file requires two main adjustments:
 ```
 
 **Proposed `content` array:**
+
 ```typescript
   content: [
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
@@ -68,9 +73,11 @@ The `tailwind.config.ts` file requires two main adjustments:
     // "./src/layouts/**/*.{js,ts,jsx,tsx,mdx}",
   ],
 ```
-*Note: The user query specified "./src/app/**" and "./src/components/**". If a `./src/pages` directory exists and is used, it should also be included. Will stick to user-provided paths initially.*
+
+_Note: The user query specified "./src/app/**" and "./src/components/**". If a `./src/pages` directory exists and is used, it should also be included. Will stick to user-provided paths initially._
 
 **Current `keyframes`:**
+
 ```typescript
       keyframes: {
         "accordion-down": {
@@ -85,6 +92,7 @@ The `tailwind.config.ts` file requires two main adjustments:
 ```
 
 **New `keyframes`:**
+
 ```typescript
       keyframes: {
         "accordion-down": {
@@ -97,6 +105,7 @@ The `tailwind.config.ts` file requires two main adjustments:
         },
       },
 ```
+
 **Action:**
 Modify the `content` array and `keyframes` in `tailwind.config.ts`.
 
@@ -118,8 +127,9 @@ An ADR will be created to document the rationale for reverting Tailwind CSS to v
 ## 6. (Optional but Recommended) Downgrade Other Pre-release Packages
 
 Consider downgrading Next.js and React to more stable versions if issues persist or for better project stability:
--   **Next.js**: `^15.2.0` (Pre-release) -> `^14.x.x` (e.g., `^14.2.3`)
--   **React**: `^19.0.0` (Recent Stable/RC) -> `^18.x.x` (e.g., `^18.3.1`)
-This step is not part of the immediate changes but should be considered.
 
-This plan addresses the critical Tailwind CSS issues. 
+- **Next.js**: `^15.2.0` (Pre-release) -> `^14.x.x` (e.g., `^14.2.3`)
+- **React**: `^19.0.0` (Recent Stable/RC) -> `^18.x.x` (e.g., `^18.3.1`)
+  This step is not part of the immediate changes but should be considered.
+
+This plan addresses the critical Tailwind CSS issues.

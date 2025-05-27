@@ -26,32 +26,22 @@ export const workoutSchema = z.object({
     .string()
     .min(2, 'Exercise name must be at least 2 characters')
     .max(50, 'Exercise name must be less than 50 characters'),
-  sets: z
-    .number()
-    .min(1, 'Must have at least 1 set')
-    .max(20, 'Maximum 20 sets allowed'),
-  reps: z
-    .number()
-    .min(1, 'Must have at least 1 rep')
-    .max(100, 'Maximum 100 reps allowed'),
-  weight: z
-    .number()
-    .min(0, 'Weight cannot be negative')
-    .max(1000, 'Maximum weight 1000 kg/lbs'),
+  sets: z.number().min(1, 'Must have at least 1 set').max(20, 'Maximum 20 sets allowed'),
+  reps: z.number().min(1, 'Must have at least 1 rep').max(100, 'Maximum 100 reps allowed'),
+  weight: z.number().min(0, 'Weight cannot be negative').max(1000, 'Maximum weight 1000 kg/lbs'),
   duration: z
     .number()
     .min(0, 'Duration cannot be negative')
     .max(360, 'Maximum duration 360 minutes'),
-  notes: z
-    .string()
-    .max(500, 'Notes must be less than 500 characters')
-    .optional(),
-  workoutDate: z
-    .string()
-    .optional(),
+  notes: z.string().max(500, 'Notes must be less than 500 characters').optional(),
+  workoutDate: z.string().optional(),
 })
 
-export const workoutExerciseSchema = workoutSchema.omit({ duration: true, notes: true, workoutDate: true })
+export const workoutExerciseSchema = workoutSchema.omit({
+  duration: true,
+  notes: true,
+  workoutDate: true,
+})
 
 export const workoutGroupSchema = z.object({
   name: z
@@ -66,26 +56,12 @@ export const workoutGroupSchema = z.object({
     .number()
     .min(0, 'Duration cannot be negative')
     .max(360, 'Maximum duration 360 minutes'),
-  notes: z
-    .string()
-    .max(500, 'Notes must be less than 500 characters')
-    .optional(),
-  workoutDate: z
-    .string()
-    .optional(),
+  notes: z.string().max(500, 'Notes must be less than 500 characters').optional(),
+  workoutDate: z.string().optional(),
   // Program linking fields (optional)
-  linked_program_id: z
-    .string()
-    .uuid('Invalid program ID format')
-    .optional(),
-  linked_program_phase_index: z
-    .number()
-    .min(0, 'Phase index must be non-negative')
-    .optional(),
-  linked_program_week_index: z
-    .number()
-    .min(0, 'Week index must be non-negative')
-    .optional(),
+  linked_program_id: z.string().uuid('Invalid program ID format').optional(),
+  linked_program_phase_index: z.number().min(0, 'Phase index must be non-negative').optional(),
+  linked_program_week_index: z.number().min(0, 'Week index must be non-negative').optional(),
   linked_program_day_of_week: z
     .number()
     .min(1, 'Day of week must be between 1-7')
@@ -98,4 +74,4 @@ export type MinimalSignupFormData = z.infer<typeof minimalSignupSchema>
 export type SignupFormData = z.infer<typeof signupSchema>
 export type WorkoutFormData = z.infer<typeof workoutSchema>
 export type WorkoutExerciseData = z.infer<typeof workoutExerciseSchema>
-export type WorkoutGroupData = z.infer<typeof workoutGroupSchema> 
+export type WorkoutGroupData = z.infer<typeof workoutGroupSchema>

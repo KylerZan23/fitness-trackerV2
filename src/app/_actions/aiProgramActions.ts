@@ -5,14 +5,15 @@ import { z } from 'zod'
 import fs from 'fs/promises'
 import path from 'path'
 import { type OnboardingData } from '@/lib/types/onboarding'
-import { 
-  type TrainingProgram, 
-  type TrainingPhase, 
-  type TrainingWeek, 
-  type WorkoutDay, 
+import { callLLM } from '@/lib/llmService'
+import {
+  type TrainingProgram,
+  type TrainingPhase,
+  type TrainingWeek,
+  type WorkoutDay,
   type ExerciseDetail,
   DayOfWeek,
-  type WorkoutFocus
+  type WorkoutFocus,
 } from '@/lib/types/program'
 
 /**
@@ -27,30 +28,34 @@ const ExerciseDetailSchema = z.object({
   rpe: z.number().optional(),
   notes: z.string().optional(),
   weight: z.string().optional(),
-  category: z.enum(["Compound", "Isolation", "Cardio", "Mobility", "Core", "Warm-up", "Cool-down"]).optional(),
+  category: z
+    .enum(['Compound', 'Isolation', 'Cardio', 'Mobility', 'Core', 'Warm-up', 'Cool-down'])
+    .optional(),
 })
 
 const WorkoutDaySchema = z.object({
   dayOfWeek: z.nativeEnum(DayOfWeek),
-  focus: z.enum([
-    "Upper Body",
-    "Lower Body", 
-    "Push",
-    "Pull",
-    "Legs",
-    "Full Body",
-    "Cardio",
-    "Core",
-    "Arms",
-    "Back",
-    "Chest",
-    "Shoulders",
-    "Glutes",
-    "Recovery/Mobility",
-    "Sport-Specific",
-    "Rest Day",
-    "Lower Body Endurance"
-  ]).optional(),
+  focus: z
+    .enum([
+      'Upper Body',
+      'Lower Body',
+      'Push',
+      'Pull',
+      'Legs',
+      'Full Body',
+      'Cardio',
+      'Core',
+      'Arms',
+      'Back',
+      'Chest',
+      'Shoulders',
+      'Glutes',
+      'Recovery/Mobility',
+      'Sport-Specific',
+      'Rest Day',
+      'Lower Body Endurance',
+    ])
+    .optional(),
   exercises: z.array(ExerciseDetailSchema),
   warmUp: z.array(ExerciseDetailSchema).optional(),
   coolDown: z.array(ExerciseDetailSchema).optional(),
@@ -84,7 +89,7 @@ const TrainingProgramSchema = z.object({
   generalAdvice: z.string().optional(),
   generatedAt: z.union([z.date(), z.string()]),
   aiModelUsed: z.string().optional(),
-  difficultyLevel: z.enum(["Beginner", "Intermediate", "Advanced"]).optional(),
+  difficultyLevel: z.enum(['Beginner', 'Intermediate', 'Advanced']).optional(),
   trainingFrequency: z.number().optional(),
   requiredEquipment: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
@@ -94,7 +99,7 @@ const TrainingProgramSchema = z.object({
 /**
  * Server action response type for program generation
  */
-type ProgramGenerationResponse = 
+type ProgramGenerationResponse =
   | { program: TrainingProgram; success: true }
   | { error: string; success: false }
 
@@ -181,7 +186,7 @@ interface TrainingProgram {
   tags?: string[];
   version?: string;
 }
-`;
+`
 }
 
 /**
@@ -189,13 +194,13 @@ interface TrainingProgram {
  */
 function constructLLMPrompt(profile: UserProfileForGeneration): string {
   const onboarding = profile.onboarding_responses
-  
+
   if (!onboarding) {
     throw new Error('User has not completed onboarding')
   }
 
   const typeDefinitions = getTypeScriptInterfaceDefinitions()
-  
+
   const userDataSection = `
 USER PROFILE:
 - Name: ${profile.name}
@@ -212,7 +217,7 @@ USER GOALS & PREFERENCES:
 - Available Equipment: ${onboarding.equipment.join(', ')}
 - Exercise Preferences: ${onboarding.exercisePreferences || 'None specified'}
 - Injuries/Limitations: ${onboarding.injuriesLimitations || 'None specified'}
-`;
+`
 
   const instructions = `
 PROGRAM GENERATION INSTRUCTIONS:
@@ -235,7 +240,7 @@ CRITICAL FOCUS FIELD REQUIREMENT:
 For the focus field in WorkoutDay objects, you MUST strictly use one of the following predefined values: "Upper Body", "Lower Body", "Push", "Pull", "Legs", "Full Body", "Cardio", "Core", "Arms", "Back", "Chest", "Shoulders", "Glutes", "Recovery/Mobility", "Sport-Specific", "Rest Day", or "Lower Body Endurance". Do not combine terms or create new focus categories. If more specificity is needed, use the notes field of the WorkoutDay.
 
 IMPORTANT: Return ONLY valid JSON matching the TrainingProgram interface. No additional text or markdown.
-`;
+`
 
   return `You are an expert strength and conditioning coach tasked with creating a personalized training program. Generate a JSON object matching the following TypeScript interface structure:
 
@@ -243,7 +248,7 @@ ${typeDefinitions}
 
 ${userDataSection}
 
-${instructions}`;
+${instructions}`
 }
 
 /**
@@ -251,7 +256,7 @@ ${instructions}`;
  */
 function getDurationBasedOnGoals(onboarding: OnboardingData): number {
   const { primaryGoal } = onboarding
-  
+
   // Adjust duration based on goals (shortened to 4-6 weeks to manage token limits)
   if (primaryGoal === 'General Fitness') return 4
   if (primaryGoal === 'Fat Loss') return 6
@@ -259,7 +264,7 @@ function getDurationBasedOnGoals(onboarding: OnboardingData): number {
   if (primaryGoal === 'Strength Gain') return 6
   if (primaryGoal === 'Endurance Improvement') return 5
   if (primaryGoal === 'Sport-Specific') return 6
-  
+
   return 6 // Default
 }
 
@@ -268,93 +273,42 @@ function getDurationBasedOnGoals(onboarding: OnboardingData): number {
  */
 async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: string }> {
   try {
-    const apiKey = process.env.LLM_API_KEY
-    // Use environment variable if set, otherwise default to standard OpenAI chat completions endpoint
-    const apiEndpoint = process.env.LLM_API_ENDPOINT || 'https://api.openai.com/v1/chat/completions'
-    
-    if (!apiKey) { // Only check for API key now
-      console.error('Missing LLM API Key configuration')
-      return { error: 'LLM API Key not configured. Please contact support.' }
-    }
+    console.log('Calling shared LLM service for program generation...')
 
-    console.log('Calling LLM API for program generation...')
-    
-    const response = await fetch(apiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.7,
-        max_tokens: 16000,
-      }),
+    const parsedProgram = await callLLM(prompt, 'user', {
+      response_format: { type: 'json_object' },
+      max_tokens: 16000, // Ensure this is appropriate for your program size
+      model: 'gpt-4o-mini', // Model specified for program generation
     })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('LLM API error:', response.status, errorText)
-      return { error: `LLM API error: ${response.status}` }
-    }
-
-    const data = await response.json()
-    
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error('Invalid LLM API response structure:', data)
-      return { error: 'Invalid response from LLM API' }
-    }
-
-    const programJson = data.choices[0].message.content
-    console.log('Raw LLM JSON Response length:', programJson.length)
-    
     // Write full response to temporary file for debugging
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const filePath = path.join(process.cwd(), `.tmp/llm_response_${timestamp}.json`)
       // Ensure .tmp directory exists
       await fs.mkdir(path.dirname(filePath), { recursive: true })
-      await fs.writeFile(filePath, programJson, 'utf8')
+      await fs.writeFile(filePath, JSON.stringify(parsedProgram, null, 2), 'utf8')
       console.log(`Full LLM response saved to: ${filePath}`)
     } catch (fileError) {
       console.error('Failed to save LLM response to file:', fileError)
     }
-    
-    let cleanedJsonString = programJson;
-    if (cleanedJsonString.startsWith('```json')) {
-      cleanedJsonString = cleanedJsonString.substring(7); // Remove ```json
-    }
-    if (cleanedJsonString.endsWith('```')) {
-      cleanedJsonString = cleanedJsonString.substring(0, cleanedJsonString.length - 3); // Remove ```
-    }
-    cleanedJsonString = cleanedJsonString.trim(); // Trim whitespace
-    
-    try {
-      console.log('Raw LLM JSON Response:', programJson)
-      const parsedProgram = JSON.parse(cleanedJsonString)
-      return { program: parsedProgram }
-    } catch (parseError) {
-      console.error('Failed to parse LLM JSON response:', parseError)
-      return { error: 'LLM returned invalid JSON' }
-    }
 
-  } catch (error) {
-    console.error('Error calling LLM API:', error)
-    return { error: 'Failed to communicate with AI service' }
+    return { program: parsedProgram }
+  } catch (error: any) {
+    console.error('Error calling shared LLM service for program generation:', error)
+    // Ensure the error message is propagated in the expected format
+    return {
+      error: error.message || 'Failed to communicate with AI service for program generation',
+    }
   }
 }
 
 /**
  * Generate a personalized training program for a user
  */
-export async function generateTrainingProgram(userIdToGenerateFor?: string): Promise<ProgramGenerationResponse> {
+export async function generateTrainingProgram(
+  userIdToGenerateFor?: string
+): Promise<ProgramGenerationResponse> {
   try {
     const supabase = await createClient()
 
@@ -363,7 +317,10 @@ export async function generateTrainingProgram(userIdToGenerateFor?: string): Pro
     if (userIdToGenerateFor) {
       userId = userIdToGenerateFor
     } else {
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser()
       if (authError || !user) {
         console.error('Authentication error in generateTrainingProgram:', authError)
         return { error: 'Authentication required', success: false }
@@ -392,10 +349,10 @@ export async function generateTrainingProgram(userIdToGenerateFor?: string): Pro
 
     // Construct LLM prompt
     const prompt = constructLLMPrompt(profile as UserProfileForGeneration)
-    
+
     // Call LLM API
     const llmResult = await callLLMAPI(prompt)
-    
+
     if (llmResult.error) {
       return { error: llmResult.error, success: false }
     }
@@ -407,9 +364,9 @@ export async function generateTrainingProgram(userIdToGenerateFor?: string): Pro
       const programData = {
         ...llmResult.program,
         generatedAt: llmResult.program.generatedAt || new Date().toISOString(),
-        aiModelUsed: llmResult.program.aiModelUsed || 'gpt-4o-mini'
+        aiModelUsed: llmResult.program.aiModelUsed || 'gpt-4o-mini',
       }
-      
+
       validatedProgram = TrainingProgramSchema.parse(programData)
       console.log('Program validation successful')
     } catch (validationError) {
@@ -435,17 +392,16 @@ export async function generateTrainingProgram(userIdToGenerateFor?: string): Pro
     }
 
     console.log('Training program generated and saved successfully:', savedProgram.id)
-    
-    return { 
-      program: validatedProgram, 
-      success: true 
-    }
 
+    return {
+      program: validatedProgram,
+      success: true,
+    }
   } catch (error) {
     console.error('Unexpected error in generateTrainingProgram:', error)
-    return { 
-      error: 'An unexpected error occurred while generating your program', 
-      success: false 
+    return {
+      error: 'An unexpected error occurred while generating your program',
+      success: false,
     }
   }
 }
@@ -453,7 +409,9 @@ export async function generateTrainingProgram(userIdToGenerateFor?: string): Pro
 /**
  * Get a user's current active training program
  */
-export async function getCurrentTrainingProgram(userId?: string): Promise<{ program?: any; error?: string }> {
+export async function getCurrentTrainingProgram(
+  userId?: string
+): Promise<{ program?: any; error?: string }> {
   try {
     const supabase = await createClient()
 
@@ -461,7 +419,10 @@ export async function getCurrentTrainingProgram(userId?: string): Promise<{ prog
     if (userId) {
       targetUserId = userId
     } else {
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser()
       if (authError || !user) {
         return { error: 'Authentication required' }
       }
@@ -487,7 +448,6 @@ export async function getCurrentTrainingProgram(userId?: string): Promise<{ prog
     }
 
     return { program }
-
   } catch (error) {
     console.error('Unexpected error in getCurrentTrainingProgram:', error)
     return { error: 'An unexpected error occurred' }
@@ -506,20 +466,24 @@ export async function updateTrainingProgram(userId: string, updates: any) {
  * Server action to fetch the active training program for client components
  * @returns Promise<{ program: TrainingProgramWithId | null; completedDays: CompletedDayIdentifier[]; error?: string }>
  */
-export async function fetchActiveProgramAction(): Promise<{ program: any | null; completedDays: CompletedDayIdentifier[]; error?: string }> {
+export async function fetchActiveProgramAction(): Promise<{
+  program: any | null
+  completedDays: CompletedDayIdentifier[]
+  error?: string
+}> {
   try {
     // Import here to avoid circular dependencies
     const { getActiveTrainingProgram } = await import('@/lib/programDb')
-    
+
     const program = await getActiveTrainingProgram()
-    
+
     if (!program) {
       return { program: null, completedDays: [] }
     }
 
     // Fetch completed workout days for this program
     const supabase = await createClient()
-    
+
     const { data: completedWorkouts, error: completedError } = await supabase
       .from('workout_groups')
       .select('linked_program_phase_index, linked_program_week_index, linked_program_day_of_week')
@@ -538,18 +502,18 @@ export async function fetchActiveProgramAction(): Promise<{ program: any | null;
     const completedDays: CompletedDayIdentifier[] = (completedWorkouts || []).map(workout => ({
       phaseIndex: workout.linked_program_phase_index,
       weekIndex: workout.linked_program_week_index,
-      dayOfWeek: workout.linked_program_day_of_week
+      dayOfWeek: workout.linked_program_day_of_week,
     }))
 
     console.log(`Found ${completedDays.length} completed workout days for program ${program.id}`)
-    
+
     return { program, completedDays }
   } catch (error) {
     console.error('Error in fetchActiveProgramAction:', error)
-    return { 
-      program: null, 
+    return {
+      program: null,
       completedDays: [],
-      error: 'Failed to fetch your training program. Please try again.' 
+      error: 'Failed to fetch your training program. Please try again.',
     }
   }
 }
@@ -561,4 +525,4 @@ export interface CompletedDayIdentifier {
   phaseIndex: number
   weekIndex: number // Index of the week within that phase (0-based)
   dayOfWeek: number // 1-7, matching DayOfWeek enum
-} 
+}

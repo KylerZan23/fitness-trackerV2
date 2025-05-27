@@ -19,55 +19,55 @@ export enum DayOfWeek {
 /**
  * Common workout focus areas
  */
-export type WorkoutFocus = 
-  | "Upper Body"
-  | "Lower Body" 
-  | "Push"
-  | "Pull"
-  | "Legs"
-  | "Full Body"
-  | "Cardio"
-  | "Core"
-  | "Arms"
-  | "Back"
-  | "Chest"
-  | "Shoulders"
-  | "Glutes"
-  | "Recovery/Mobility"
-  | "Sport-Specific"
-  | "Rest Day"
-  | "Lower Body Endurance";
+export type WorkoutFocus =
+  | 'Upper Body'
+  | 'Lower Body'
+  | 'Push'
+  | 'Pull'
+  | 'Legs'
+  | 'Full Body'
+  | 'Cardio'
+  | 'Core'
+  | 'Arms'
+  | 'Back'
+  | 'Chest'
+  | 'Shoulders'
+  | 'Glutes'
+  | 'Recovery/Mobility'
+  | 'Sport-Specific'
+  | 'Rest Day'
+  | 'Lower Body Endurance'
 
 /**
  * Individual exercise detail within a workout
  */
 export interface ExerciseDetail {
   /** Name of the exercise */
-  name: string;
-  
+  name: string
+
   /** Number of sets to perform */
-  sets: number;
-  
+  sets: number
+
   /** Number of repetitions (can be a range like "8-12" or specific number) */
-  reps: string | number;
-  
+  reps: string | number
+
   /** Rest period between sets (e.g., "60-90 seconds", "2-3 minutes") */
-  rest: string;
-  
+  rest: string
+
   /** Optional tempo prescription (e.g., "3-1-2-1" for eccentric-pause-concentric-pause) */
-  tempo?: string;
-  
+  tempo?: string
+
   /** Optional Rate of Perceived Exertion (1-10 scale) */
-  rpe?: number;
-  
+  rpe?: number
+
   /** Optional exercise-specific notes or form cues */
-  notes?: string;
-  
+  notes?: string
+
   /** Optional weight/load specification */
-  weight?: string;
-  
+  weight?: string
+
   /** Optional exercise category for organization */
-  category?: "Compound" | "Isolation" | "Cardio" | "Mobility" | "Core" | "Warm-up" | "Cool-down";
+  category?: 'Compound' | 'Isolation' | 'Cardio' | 'Mobility' | 'Core' | 'Warm-up' | 'Cool-down'
 }
 
 /**
@@ -75,28 +75,28 @@ export interface ExerciseDetail {
  */
 export interface WorkoutDay {
   /** Day of the week (1-7, Monday = 1) */
-  dayOfWeek: DayOfWeek;
-  
+  dayOfWeek: DayOfWeek
+
   /** Optional workout focus/theme */
-  focus?: WorkoutFocus;
-  
+  focus?: WorkoutFocus
+
   /** Main exercises for the workout */
-  exercises: ExerciseDetail[];
-  
+  exercises: ExerciseDetail[]
+
   /** Optional warm-up exercises */
-  warmUp?: ExerciseDetail[];
-  
+  warmUp?: ExerciseDetail[]
+
   /** Optional cool-down exercises */
-  coolDown?: ExerciseDetail[];
-  
+  coolDown?: ExerciseDetail[]
+
   /** Optional day-specific notes or instructions */
-  notes?: string;
-  
+  notes?: string
+
   /** Estimated workout duration in minutes */
-  estimatedDurationMinutes?: number;
-  
+  estimatedDurationMinutes?: number
+
   /** Whether this is a rest day */
-  isRestDay?: boolean;
+  isRestDay?: boolean
 }
 
 /**
@@ -104,19 +104,19 @@ export interface WorkoutDay {
  */
 export interface TrainingWeek {
   /** Week number within the overall program */
-  weekNumber: number;
-  
+  weekNumber: number
+
   /** Array of workout days for this week */
-  days: WorkoutDay[];
-  
+  days: WorkoutDay[]
+
   /** Optional week-specific notes or focus */
-  notes?: string;
-  
+  notes?: string
+
   /** Week number within the current phase */
-  weekInPhase?: number;
-  
+  weekInPhase?: number
+
   /** Optional weekly goals or targets */
-  weeklyGoals?: string[];
+  weeklyGoals?: string[]
 }
 
 /**
@@ -124,22 +124,22 @@ export interface TrainingWeek {
  */
 export interface TrainingPhase {
   /** Name/title of the phase */
-  phaseName: string;
-  
+  phaseName: string
+
   /** Duration of this phase in weeks */
-  durationWeeks: number;
-  
+  durationWeeks: number
+
   /** Array of training weeks in this phase */
-  weeks: TrainingWeek[];
-  
+  weeks: TrainingWeek[]
+
   /** Optional phase-specific notes or objectives */
-  notes?: string;
-  
+  notes?: string
+
   /** Phase objectives or goals */
-  objectives?: string[];
-  
+  objectives?: string[]
+
   /** Phase number within the overall program */
-  phaseNumber?: number;
+  phaseNumber?: number
 }
 
 /**
@@ -147,40 +147,40 @@ export interface TrainingPhase {
  */
 export interface TrainingProgram {
   /** Program name/title */
-  programName: string;
-  
+  programName: string
+
   /** Detailed program description */
-  description: string;
-  
+  description: string
+
   /** Total duration of the program in weeks */
-  durationWeeksTotal: number;
-  
+  durationWeeksTotal: number
+
   /** Array of training phases */
-  phases: TrainingPhase[];
-  
+  phases: TrainingPhase[]
+
   /** Optional general advice and guidelines */
-  generalAdvice?: string;
-  
+  generalAdvice?: string
+
   /** When the program was generated */
-  generatedAt: Date | string;
-  
+  generatedAt: Date | string
+
   /** AI model used for generation */
-  aiModelUsed?: string;
-  
+  aiModelUsed?: string
+
   /** Program difficulty level */
-  difficultyLevel?: "Beginner" | "Intermediate" | "Advanced";
-  
+  difficultyLevel?: 'Beginner' | 'Intermediate' | 'Advanced'
+
   /** Target training frequency per week */
-  trainingFrequency?: number;
-  
+  trainingFrequency?: number
+
   /** Required equipment */
-  requiredEquipment?: string[];
-  
+  requiredEquipment?: string[]
+
   /** Program tags for categorization */
-  tags?: string[];
-  
+  tags?: string[]
+
   /** Version number for program updates */
-  version?: string;
+  version?: string
 }
 
 /**
@@ -189,28 +189,28 @@ export interface TrainingProgram {
  */
 export interface StoredTrainingProgram extends TrainingProgram {
   /** Database ID */
-  id: string;
-  
+  id: string
+
   /** User ID who owns this program */
-  userId: string;
-  
+  userId: string
+
   /** Database created timestamp */
-  createdAt: Date | string;
-  
+  createdAt: Date | string
+
   /** Database updated timestamp */
-  updatedAt: Date | string;
-  
+  updatedAt: Date | string
+
   /** Whether this program is currently active for the user */
-  isActive: boolean;
-  
+  isActive: boolean
+
   /** Program status */
-  status: "draft" | "active" | "completed" | "paused" | "archived";
-  
+  status: 'draft' | 'active' | 'completed' | 'paused' | 'archived'
+
   /** User's progress through the program */
-  currentWeek?: number;
-  
+  currentWeek?: number
+
   /** User's progress through the current phase */
-  currentPhase?: number;
+  currentPhase?: number
 }
 
 /**
@@ -218,34 +218,34 @@ export interface StoredTrainingProgram extends TrainingProgram {
  */
 export interface WorkoutCompletion {
   /** Database ID */
-  id: string;
-  
+  id: string
+
   /** User ID */
-  userId: string;
-  
+  userId: string
+
   /** Program ID this workout belongs to */
-  programId: string;
-  
+  programId: string
+
   /** Week number */
-  weekNumber: number;
-  
+  weekNumber: number
+
   /** Day of week */
-  dayOfWeek: DayOfWeek;
-  
+  dayOfWeek: DayOfWeek
+
   /** Date the workout was completed */
-  completedAt: Date | string;
-  
+  completedAt: Date | string
+
   /** Exercises completed with actual performance */
-  exercisesCompleted: ExerciseCompletion[];
-  
+  exercisesCompleted: ExerciseCompletion[]
+
   /** User notes about the workout */
-  notes?: string;
-  
+  notes?: string
+
   /** Overall workout rating (1-10) */
-  rating?: number;
-  
+  rating?: number
+
   /** Duration of actual workout in minutes */
-  actualDurationMinutes?: number;
+  actualDurationMinutes?: number
 }
 
 /**
@@ -253,20 +253,20 @@ export interface WorkoutCompletion {
  */
 export interface ExerciseCompletion {
   /** Exercise name */
-  exerciseName: string;
-  
+  exerciseName: string
+
   /** Actual sets completed */
-  setsCompleted: number;
-  
+  setsCompleted: number
+
   /** Actual reps per set */
-  repsCompleted: (number | string)[];
-  
+  repsCompleted: (number | string)[]
+
   /** Actual weight used */
-  weightUsed?: string[];
-  
+  weightUsed?: string[]
+
   /** User notes for this exercise */
-  notes?: string;
-  
+  notes?: string
+
   /** Whether the exercise was completed as prescribed */
-  completedAsPrescribed: boolean;
-} 
+  completedAsPrescribed: boolean
+}

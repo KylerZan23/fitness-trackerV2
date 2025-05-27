@@ -34,4 +34,4 @@ The issue was resolved by:
 
 1. Ensure that any testing or development flows properly create user accounts before attempting to create profiles
 2. When manually testing, always use real UUIDs from the `auth.users` table
-3. Consider adding more detailed error messages in the profile creation process to help diagnose similar issues 
+3. Consider adding more detailed error messages in the profile creation process to help diagnose similar issues

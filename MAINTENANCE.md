@@ -11,6 +11,7 @@ This document provides maintenance guidelines for the authentication system in t
 We've implemented detailed logging throughout the authentication flow:
 
 - **Client-side (Login Page):**
+
   - Session verification before API calls
   - Token availability and format logging
   - Detailed error handling for profile creation failures
@@ -44,12 +45,14 @@ To enhance token verification:
 ### "Auth session missing!" Error
 
 **Common Causes:**
+
 1. Token verification timing issues
 2. Environment variable misconfiguration
 3. Supabase service role key issues
 4. Client/server token format inconsistencies
 
 **Resolution Steps:**
+
 1. Use the `scripts/test-token.js` tool to verify tokens independently
 2. Check environment variables are correctly set and accessible
 3. Increase token propagation delay if needed
@@ -62,6 +65,7 @@ To enhance token verification:
 When users report authentication issues:
 
 1. Check server logs for:
+
    - "API - Profile Creation: setSession Error"
    - "API - Profile Creation: Complete error object"
    - "User ID mismatch" messages
@@ -85,11 +89,13 @@ After any changes to the authentication system:
 Consider implementing these enhancements:
 
 1. **JWT Decode Fallback**
+
    - Implement lightweight JWT decoding as a fallback when Supabase auth fails
    - Add npm package: `jsonwebtoken`
    - Create utility function for token decoding
 
 2. **Session Persistence Enhancement**
+
    - Improve cookie handling for session persistence
    - Consider using localStorage backup for session information
 
@@ -111,4 +117,4 @@ Keep these documents updated when making authentication changes:
 For complex authentication issues, contact:
 
 - Supabase Support: [https://supabase.com/support](https://supabase.com/support)
-- Next.js Auth Documentation: [https://nextjs.org/docs/authentication](https://nextjs.org/docs/authentication) 
+- Next.js Auth Documentation: [https://nextjs.org/docs/authentication](https://nextjs.org/docs/authentication)

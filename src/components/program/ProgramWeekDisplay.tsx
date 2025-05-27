@@ -2,7 +2,12 @@ import React from 'react'
 import { type TrainingWeek, DayOfWeek } from '@/lib/types/program'
 import { type CompletedDayIdentifier } from '@/app/_actions/aiProgramActions'
 import { ProgramDayDisplay } from './ProgramDayDisplay'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Calendar, Target } from 'lucide-react'
@@ -18,19 +23,24 @@ interface ProgramWeekDisplayProps {
 function getDayDisplayName(dayOfWeek: DayOfWeek, focus?: string): string {
   const dayNames = {
     [DayOfWeek.MONDAY]: 'Monday',
-    [DayOfWeek.TUESDAY]: 'Tuesday', 
+    [DayOfWeek.TUESDAY]: 'Tuesday',
     [DayOfWeek.WEDNESDAY]: 'Wednesday',
     [DayOfWeek.THURSDAY]: 'Thursday',
     [DayOfWeek.FRIDAY]: 'Friday',
     [DayOfWeek.SATURDAY]: 'Saturday',
-    [DayOfWeek.SUNDAY]: 'Sunday'
+    [DayOfWeek.SUNDAY]: 'Sunday',
   }
-  
+
   const dayName = dayNames[dayOfWeek] || 'Unknown'
   return focus ? `${dayName}: ${focus}` : dayName
 }
 
-export function ProgramWeekDisplay({ week, weekIndex, phaseIndex, completedDays }: ProgramWeekDisplayProps) {
+export function ProgramWeekDisplay({
+  week,
+  weekIndex,
+  phaseIndex,
+  completedDays,
+}: ProgramWeekDisplayProps) {
   return (
     <div className="space-y-4">
       {/* Week Header */}
@@ -42,7 +52,8 @@ export function ProgramWeekDisplay({ week, weekIndex, phaseIndex, completedDays 
               Week {week.weekNumber}
               {week.weekInPhase && (
                 <span className="text-gray-600 font-normal">
-                  {' '}(Week {week.weekInPhase} in phase)
+                  {' '}
+                  (Week {week.weekInPhase} in phase)
                 </span>
               )}
             </h4>
@@ -79,15 +90,13 @@ export function ProgramWeekDisplay({ week, weekIndex, phaseIndex, completedDays 
       {/* Days Accordion */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-medium text-gray-800">
-            Workout Days
-          </CardTitle>
+          <CardTitle className="text-base font-medium text-gray-800">Workout Days</CardTitle>
         </CardHeader>
         <CardContent>
           <Accordion type="single" collapsible className="space-y-2">
             {week.days.map((day, dayIndex) => (
-              <AccordionItem 
-                key={`day-${day.dayOfWeek}-${dayIndex}`} 
+              <AccordionItem
+                key={`day-${day.dayOfWeek}-${dayIndex}`}
                 value={`day-${day.dayOfWeek}-${dayIndex}`}
                 className="border rounded-lg px-3"
               >
@@ -111,8 +120,8 @@ export function ProgramWeekDisplay({ week, weekIndex, phaseIndex, completedDays 
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pt-2 pb-4">
-                  <ProgramDayDisplay 
-                    day={day} 
+                  <ProgramDayDisplay
+                    day={day}
                     completedDays={completedDays}
                     phaseIndex={phaseIndex}
                     weekIndex={weekIndex}
@@ -125,4 +134,4 @@ export function ProgramWeekDisplay({ week, weekIndex, phaseIndex, completedDays 
       </Card>
     </div>
   )
-} 
+}

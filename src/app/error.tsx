@@ -18,8 +18,8 @@ export default function ErrorPage({
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="max-w-md w-full p-6">
         <h2 className="text-2xl font-bold text-primary mb-4">Something went wrong!</h2>
-        <Error 
-          message={error.message || 'An unexpected error occurred. Please try again later.'} 
+        <Error
+          message={error.message || 'An unexpected error occurred. Please try again later.'}
           className="mb-6"
         />
         <button
@@ -31,4 +31,4 @@ export default function ErrorPage({
       </div>
     </div>
   )
-} 
+}

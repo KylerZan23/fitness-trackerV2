@@ -1,7 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { format, subDays, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
+import {
+  format,
+  subDays,
+  addDays,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+} from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { MuscleGroup, findMuscleGroupForExercise } from '@/lib/types'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, Title } from 'chart.js'
@@ -25,17 +33,20 @@ interface MuscleDistributionChartProps {
 
 // Define a color palette for the pie chart slices
 const PIE_CHART_COLORS = [
-  'rgba(255, 99, 132, 0.8)',  // Pink
-  'rgba(54, 162, 235, 0.8)',  // Blue
-  'rgba(255, 206, 86, 0.8)',  // Yellow
-  'rgba(75, 192, 192, 0.8)',  // Green
+  'rgba(255, 99, 132, 0.8)', // Pink
+  'rgba(54, 162, 235, 0.8)', // Blue
+  'rgba(255, 206, 86, 0.8)', // Yellow
+  'rgba(75, 192, 192, 0.8)', // Green
   'rgba(153, 102, 255, 0.8)', // Purple
-  'rgba(255, 159, 64, 0.8)',  // Orange
-  'rgba(101, 143, 72, 0.8)',  // Dark Green
-  'rgba(201, 203, 207, 0.8)'  // Grey
+  'rgba(255, 159, 64, 0.8)', // Orange
+  'rgba(101, 143, 72, 0.8)', // Dark Green
+  'rgba(201, 203, 207, 0.8)', // Grey
 ]
 
-export function MuscleDistributionChart({ userId, weightUnit = 'kg' }: MuscleDistributionChartProps) {
+export function MuscleDistributionChart({
+  userId,
+  weightUnit = 'kg',
+}: MuscleDistributionChartProps) {
   const [period, setPeriod] = useState<'week' | 'month'>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [muscleData, setMuscleData] = useState<Record<string, MuscleData>>({})
@@ -47,12 +58,12 @@ export function MuscleDistributionChart({ userId, weightUnit = 'kg' }: MuscleDis
     if (period === 'week') {
       return {
         start: startOfWeek(currentDate, { weekStartsOn: 1 }),
-        end: endOfWeek(currentDate, { weekStartsOn: 1 })
+        end: endOfWeek(currentDate, { weekStartsOn: 1 }),
       }
     } else {
       return {
         start: startOfMonth(currentDate),
-        end: endOfMonth(currentDate)
+        end: endOfMonth(currentDate),
       }
     }
   }, [currentDate, period])
@@ -89,15 +100,17 @@ export function MuscleDistributionChart({ userId, weightUnit = 'kg' }: MuscleDis
 
       try {
         const { start, end } = getDateRange() // Call the memoized function
-        
+
         let currentUserId = userId
-        
+
         if (!currentUserId) {
           const { data: sessionData } = await supabase.auth.getSession()
           currentUserId = sessionData.session?.user.id
-          
+
           if (!currentUserId) {
-            setError('Authentication required. Please log in to view your muscle distribution chart.')
+            setError(
+              'Authentication required. Please log in to view your muscle distribution chart.'
+            )
             setLoading(false)
             return
           }
@@ -111,29 +124,29 @@ export function MuscleDistributionChart({ userId, weightUnit = 'kg' }: MuscleDis
           .eq('user_id', currentUserId)
           .gte('created_at', start.toISOString())
           .lte('created_at', end.toISOString())
-        
+
         if (fetchError) {
           // console.error('Supabase query error:', fetchError)
           throw fetchError
         }
-        
+
         // console.log('Fetched workout data:', data ? `${data.length} records` : 'No data')
-        
+
         const aggregatedData: Record<string, MuscleData> = {}
-        
+
         if (data && data.length > 0) {
           data.forEach(workout => {
             const muscleGroup = findMuscleGroupForExercise(workout.exercise_name)
-            
+
             if (!aggregatedData[muscleGroup]) {
               aggregatedData[muscleGroup] = {
                 muscleGroup,
                 sets: 0,
                 reps: 0,
-                weight: 0
+                weight: 0,
               }
             }
-            
+
             aggregatedData[muscleGroup].sets += workout.sets ?? 0
             aggregatedData[muscleGroup].reps += (workout.sets ?? 0) * (workout.reps ?? 0)
             aggregatedData[muscleGroup].weight += workout.weight ?? 0
@@ -141,7 +154,7 @@ export function MuscleDistributionChart({ userId, weightUnit = 'kg' }: MuscleDis
         } else {
           // console.log('No workout data found for the selected period')
         }
-        
+
         setMuscleData(aggregatedData)
       } catch (err) {
         // console.error('Error fetching muscle data:', err)
@@ -163,55 +176,61 @@ export function MuscleDistributionChart({ userId, weightUnit = 'kg' }: MuscleDis
     .filter(data => data.sets > 0) // Filter out groups with 0 sets for the pie chart
     .sort((a, b) => b.sets - a.sets)
 
-  const totalSetsAllGroups = sortedMuscleGroups.reduce((sum, group) => sum + group.sets, 0);
-  
+  const totalSetsAllGroups = sortedMuscleGroups.reduce((sum, group) => sum + group.sets, 0)
+
   const pieChartData = {
     labels: sortedMuscleGroups.map(data => data.muscleGroup),
     datasets: [
       {
         label: '# of Sets',
         data: sortedMuscleGroups.map(data => data.sets),
-        backgroundColor: sortedMuscleGroups.map((_, index) => PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]),
-        borderColor: sortedMuscleGroups.map((_, index) => PIE_CHART_COLORS[index % PIE_CHART_COLORS.length].replace('0.8', '1')),
+        backgroundColor: sortedMuscleGroups.map(
+          (_, index) => PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]
+        ),
+        borderColor: sortedMuscleGroups.map((_, index) =>
+          PIE_CHART_COLORS[index % PIE_CHART_COLORS.length].replace('0.8', '1')
+        ),
         borderWidth: 1,
       },
     ],
-  };
+  }
 
   const pieChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false // Disable the external legend
+        display: false, // Disable the external legend
       },
       tooltip: {
         callbacks: {
-          label: function(context: any) {
-            const currentMuscleGroupData = sortedMuscleGroups[context.dataIndex];
-            if (!currentMuscleGroupData) return '';
+          label: function (context: any) {
+            const currentMuscleGroupData = sortedMuscleGroups[context.dataIndex]
+            if (!currentMuscleGroupData) return ''
 
-            const muscleGroup = currentMuscleGroupData.muscleGroup;
-            const sets = currentMuscleGroupData.sets;
-            const reps = currentMuscleGroupData.reps;
-            const weight = currentMuscleGroupData.weight;
-            
-            const percentage = totalSetsAllGroups > 0 ? (sets / totalSetsAllGroups * 100).toFixed(1) : 0;
+            const muscleGroup = currentMuscleGroupData.muscleGroup
+            const sets = currentMuscleGroupData.sets
+            const reps = currentMuscleGroupData.reps
+            const weight = currentMuscleGroupData.weight
 
-            let labelText = `${muscleGroup}: ${sets} sets (${percentage}%)`; // Renamed from label to avoid conflict
-            const details = [];
-            details.push(`Total Reps: ${reps}`);
-            details.push(`Total Weight: ${Math.round(weight)} ${weightUnit}`);
-            return [labelText, ...details];
-          }
-        }
+            const percentage =
+              totalSetsAllGroups > 0 ? ((sets / totalSetsAllGroups) * 100).toFixed(1) : 0
+
+            let labelText = `${muscleGroup}: ${sets} sets (${percentage}%)` // Renamed from label to avoid conflict
+            const details = []
+            details.push(`Total Reps: ${reps}`)
+            details.push(`Total Weight: ${Math.round(weight)} ${weightUnit}`)
+            return [labelText, ...details]
+          },
+        },
       },
       title: {
         display: false,
       },
-      datalabels: { // Configuration for chartjs-plugin-datalabels
+      datalabels: {
+        // Configuration for chartjs-plugin-datalabels
         formatter: (value: any, context: any) => {
-          return context.chart.data.labels[context.dataIndex];
+          return context.chart.data.labels[context.dataIndex]
         },
         color: '#fff',
         font: {
@@ -228,48 +247,66 @@ export function MuscleDistributionChart({ userId, weightUnit = 'kg' }: MuscleDis
         // },
         // borderRadius: 4,
         // padding: 6,
-      }
+      },
     },
-  };
+  }
 
   return (
     <div className="w-full">
       {/* Period selector and navigation */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
         <div className="flex space-x-2 mb-4 sm:mb-0">
-          <button 
+          <button
             className={`px-3 py-1 rounded-lg text-sm ${period === 'week' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
             onClick={() => setPeriod('week')}
           >
             Week
           </button>
-          <button 
+          <button
             className={`px-3 py-1 rounded-lg text-sm ${period === 'month' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
             onClick={() => setPeriod('month')}
           >
             Month
           </button>
         </div>
-        
+
         <div className="flex items-center space-x-4">
-          <button 
+          <button
             onClick={goToPreviousPeriod}
             className="p-1 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
             </svg>
           </button>
-          
+
           <span className="text-sm font-medium">{formatDateRange()}</span>
-          
-          <button 
+
+          <button
             onClick={goToNextPeriod}
             className="p-1 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
             // Add disabled logic if needed (e.g., not going into the future)
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                clipRule="evenodd"
+              />
             </svg>
           </button>
         </div>
@@ -293,19 +330,25 @@ export function MuscleDistributionChart({ userId, weightUnit = 'kg' }: MuscleDis
       {!loading && !error && sortedMuscleGroups.length === 0 && (
         <div className="text-center py-8 bg-white/5 rounded-lg border border-white/10">
           <p className="text-gray-400 mb-2">No workout data available for this period</p>
-          <p className="text-sm text-gray-500">Try selecting a different time period or log new workouts.</p>
+          <p className="text-sm text-gray-500">
+            Try selecting a different time period or log new workouts.
+          </p>
         </div>
       )}
 
       {/* Chart */}
       {!loading && !error && sortedMuscleGroups.length > 0 && (
-        <div> {/* Wrapper for text and chart */}
-          <p className="text-center text-xs text-gray-500 dark:text-gray-400 mb-2">Distribution by # of Sets</p>
-          <div className="relative mx-auto" style={{ height: '300px', maxWidth: '400px' }}> 
+        <div>
+          {' '}
+          {/* Wrapper for text and chart */}
+          <p className="text-center text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Distribution by # of Sets
+          </p>
+          <div className="relative mx-auto" style={{ height: '300px', maxWidth: '400px' }}>
             <Pie data={pieChartData} options={pieChartOptions} />
           </div>
         </div>
       )}
     </div>
   )
-} 
+}

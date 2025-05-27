@@ -1,163 +1,196 @@
-"use server";
+'use server'
 
-import { cookies } from 'next/headers';
-import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
-import { getUserProfile } from "@/lib/db";
-import { fetchCurrentWeekGoalsWithProgress } from "@/lib/goalsDb";
-import type { GoalWithProgress } from "@/lib/types";
+import { cookies } from 'next/headers'
+import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
+import { getUserProfile } from '@/lib/db'
+import { fetchCurrentWeekGoalsWithProgress } from '@/lib/goalsDb'
+import type { GoalWithProgress } from '@/lib/types'
+import { callLLM } from '@/lib/llmService'
 // Assuming OpenAI client might be needed, or similar for LLM interaction
 // import OpenAI from 'openai';
 
-const AI_COACH_CACHE_DURATION_MINUTES = 30;
+const AI_COACH_CACHE_DURATION_MINUTES = 30
 
 // Define the structure for the AI Coach's recommendation
 export interface AICoachRecommendation {
   workoutRecommendation: {
-    title: string;
-    details: string;
-    suggestedExercises: string[];
-  };
+    title: string
+    details: string
+    suggestedExercises: string[]
+  }
   runRecommendation: {
-    title: string;
-    details: string;
-  } | null;
+    title: string
+    details: string
+  } | null
   generalInsight: {
-    title: string;
-    details: string;
-  };
+    title: string
+    details: string
+  }
   focusAreaSuggestion?: {
-    title: string;
-    details: string;
-  } | null;
+    title: string
+    details: string
+  } | null
 }
 
 interface MuscleExerciseVolume {
-  exercise_name: string;
-  exercise_volume: number;
+  exercise_name: string
+  exercise_volume: number
 }
 
 interface MuscleGroupDetail {
-  total_sets: number;
-  last_trained_date: string | null;
-  total_volume: number;
-  distinct_exercises_count: number;
-  top_3_exercises_by_volume: MuscleExerciseVolume[];
+  total_sets: number
+  last_trained_date: string | null
+  total_volume: number
+  distinct_exercises_count: number
+  top_3_exercises_by_volume: MuscleExerciseVolume[]
 }
 
 interface ExerciseSession {
-  date: string;
-  performance: string;
-  notes: string | null;
+  date: string
+  performance: string
+  notes: string | null
 }
 
 interface ExerciseProgressionDetail {
-  exercise_name: string;
-  frequency_rank: number;
-  last_sessions: ExerciseSession[];
-  trend: string;
+  exercise_name: string
+  frequency_rank: number
+  last_sessions: ExerciseSession[]
+  trend: string
 }
 
 interface RunDetail {
-  run_date: string;
-  name: string | null;
-  distance_km: number;
-  duration_min: number;
-  avg_pace_min_km: string;
-  elevation_gain_m: number;
-  run_type: string;
+  run_date: string
+  name: string | null
+  distance_km: number
+  duration_min: number
+  avg_pace_min_km: string
+  elevation_gain_m: number
+  run_type: string
 }
 
 interface UserActivitySummary {
-  total_workout_sessions: number;
-  total_run_sessions: number;
-  avg_workout_duration_minutes: number | null;
-  avg_run_distance_meters: number;
-  avg_run_duration_seconds: number;
+  total_workout_sessions: number
+  total_run_sessions: number
+  avg_workout_duration_minutes: number | null
+  avg_run_distance_meters: number
+  avg_run_duration_seconds: number
   muscle_group_summary: {
-    [group: string]: MuscleGroupDetail | undefined;
-  };
-  dynamic_exercise_progression: ExerciseProgressionDetail[];
-  last_3_runs: RunDetail[];
-  recent_run_pace_trend: string;
-  workout_days_this_week: number;
-  workout_days_last_week: number;
+    [group: string]: MuscleGroupDetail | undefined
+  }
+  dynamic_exercise_progression: ExerciseProgressionDetail[]
+  last_3_runs: RunDetail[]
+  recent_run_pace_trend: string
+  workout_days_this_week: number
+  workout_days_last_week: number
 }
 
 interface UserProfile {
-  id: string;
-  age: number | null;
-  fitness_goals: string | null;
-  weight_unit: string | null;
-  strava_connected: boolean | null;
-  primary_training_focus?: string | null;
-  experience_level?: string | null;
+  id: string
+  age: number | null
+  fitness_goals: string | null
+  weight_unit: string | null
+  strava_connected: boolean | null
+  primary_training_focus?: string | null
+  experience_level?: string | null
   // other profile fields
 }
 
 // Placeholder for actual OpenAI or LLM client initialization if needed globally
 // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export async function getAICoachRecommendation(): Promise<AICoachRecommendation | { error: string }> {
-  const cookieStore = await cookies();
+export async function getAICoachRecommendation(): Promise<
+  AICoachRecommendation | { error: string }
+> {
+  const cookieStore = await cookies()
   // Debug log for cookies from next/headers
-  console.log('AI Coach Action: All cookies from next/headers:', JSON.stringify(cookieStore.getAll(), null, 2));
+  console.log(
+    'AI Coach Action: All cookies from next/headers:',
+    JSON.stringify(cookieStore.getAll(), null, 2)
+  )
 
-  const supabase = await createSupabaseServerClient(cookieStore);
+  const supabase = await createSupabaseServerClient(cookieStore)
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
   // Debug log for user and authError
-  console.log('AI Coach Action: User from supabase.auth.getUser():', user ? user.id : 'null', 'Auth Error:', authError ? authError.message : 'null'); 
+  console.log(
+    'AI Coach Action: User from supabase.auth.getUser():',
+    user ? user.id : 'null',
+    'Auth Error:',
+    authError ? authError.message : 'null'
+  )
 
   // Simplified and corrected authentication check
-  if (authError || !user?.id) { 
-    console.error("AI Coach Action: User not authenticated or error fetching user.", authError ? authError.message : 'User ID is missing.');
+  if (authError || !user?.id) {
+    console.error(
+      'AI Coach Action: User not authenticated or error fetching user.',
+      authError ? authError.message : 'User ID is missing.'
+    )
     // Return a generic error or specific based on authError
     if (authError) {
-        return { error: `Authentication error: ${authError.message}` };
+      return { error: `Authentication error: ${authError.message}` }
     }
-    return { error: "User not authenticated." }; // Covers !user?.id case
+    return { error: 'User not authenticated.' } // Covers !user?.id case
   }
 
   // If we reach here, user and user.id are valid
-  const userId = user.id;
+  const userId = user.id
 
-  let profile: UserProfile | null = null;
-  let goals: GoalWithProgress[] = [];
-  let summary: UserActivitySummary | null = null;
+  let profile: UserProfile | null = null
+  let goals: GoalWithProgress[] = []
+  let summary: UserActivitySummary | null = null
 
   try {
-    profile = await getUserProfile(supabase) as UserProfile | null;
+    profile = (await getUserProfile(supabase)) as UserProfile | null
 
     try {
-      goals = await fetchCurrentWeekGoalsWithProgress(supabase);
+      goals = await fetchCurrentWeekGoalsWithProgress(supabase)
     } catch (goalFetchError) {
-      console.warn(`getAICoachRecommendation: Error fetching goals for user ${userId}`, goalFetchError);
+      console.warn(
+        `getAICoachRecommendation: Error fetching goals for user ${userId}`,
+        goalFetchError
+      )
     }
 
     const { data: summaryData, error: summaryError } = await supabase.rpc(
       'get_user_activity_summary',
       { user_id_param: userId, period_days_param: 30 }
-    );
+    )
 
     if (summaryError) {
-      console.error(`getAICoachRecommendation: Error fetching activity summary for user ${userId}`, summaryError);
-      return { error: `Failed to fetch activity summary: ${summaryError.message}` };
+      console.error(
+        `getAICoachRecommendation: Error fetching activity summary for user ${userId}`,
+        summaryError
+      )
+      return { error: `Failed to fetch activity summary: ${summaryError.message}` }
     }
-    summary = summaryData as UserActivitySummary;
+    summary = summaryData as UserActivitySummary
 
     if (!summary) {
-      console.error(`getAICoachRecommendation: No activity summary returned for user ${userId}`);
-      return { error: "Failed to retrieve user activity summary." };
+      console.error(`getAICoachRecommendation: No activity summary returned for user ${userId}`)
+      return { error: 'Failed to retrieve user activity summary.' }
     }
   } catch (e) {
-    console.error(`getAICoachRecommendation: Unexpected error during data fetching for user ${userId}`, e);
-    const message = e instanceof Error ? e.message : "An unexpected error occurred during data retrieval.";
-    return { error: message };
+    console.error(
+      `getAICoachRecommendation: Unexpected error during data fetching for user ${userId}`,
+      e
+    )
+    const message =
+      e instanceof Error ? e.message : 'An unexpected error occurred during data retrieval.'
+    return { error: message }
   }
-    
-  const goalsString = goals.length > 0 
-    ? goals.map(g => `- ${g.label || g.metric_type}: Target ${g.target_value} ${g.target_unit || ''}, Current ${(g.current_value ?? 0).toFixed(1)}`).join('\\n') 
-    : 'No active goals set for this week.';
+
+  const goalsString =
+    goals.length > 0
+      ? goals
+          .map(
+            g =>
+              `- ${g.label || g.metric_type}: Target ${g.target_value} ${g.target_unit || ''}, Current ${(g.current_value ?? 0).toFixed(1)}`
+          )
+          .join('\\n')
+      : 'No active goals set for this week.'
 
   let dataSignatureObject = {
     profileFitnessGoals: profile?.fitness_goals || null,
@@ -166,95 +199,115 @@ export async function getAICoachRecommendation(): Promise<AICoachRecommendation 
     totalRuns: summary?.total_run_sessions || 0,
     workoutsThisWeek: summary?.workout_days_this_week || 0,
     topExerciseTrend: summary?.dynamic_exercise_progression?.[0]?.trend || null,
-    activeGoals: goalsString || "",
+    activeGoals: goalsString || '',
     profileTrainingFocus: profile?.primary_training_focus || null,
     profileExperienceLevel: profile?.experience_level || null,
-  };
+  }
 
   // Refactored to fix linter error - using Record<string, any> for intermediate object
-  const sortedKeys = Object.keys(dataSignatureObject).sort(); // Keys are strings
-  const sortedObjectForStringify: Record<string, any> = {};
+  const sortedKeys = Object.keys(dataSignatureObject).sort() // Keys are strings
+  const sortedObjectForStringify: Record<string, any> = {}
   for (const key of sortedKeys) {
     // Accessing dataSignatureObject with a string key might require a cast if it were strictly typed
     // but here dataSignatureObject can be treated as Record<string,any> for this purpose too.
-    sortedObjectForStringify[key] = (dataSignatureObject as Record<string, any>)[key];
+    sortedObjectForStringify[key] = (dataSignatureObject as Record<string, any>)[key]
   }
-  const stableSignatureString = JSON.stringify(sortedObjectForStringify);
+  const stableSignatureString = JSON.stringify(sortedObjectForStringify)
 
-  const hashedDataInput = Buffer.from(stableSignatureString).toString('base64');
-  const cacheKey = `aiCoach:u${userId}:d${hashedDataInput}`;
+  const hashedDataInput = Buffer.from(stableSignatureString).toString('base64')
+  const cacheKey = `aiCoach:u${userId}:d${hashedDataInput}`
 
-  console.log(`AI Coach: Checking cache for key: ${cacheKey}`);
+  console.log(`AI Coach: Checking cache for key: ${cacheKey}`)
   const { data: cachedEntry, error: cacheSelectError } = await supabase
     .from('ai_coach_cache')
     .select('recommendation, expires_at')
     .eq('cache_key', cacheKey)
-    .single();
+    .single()
 
   if (cacheSelectError && cacheSelectError.code !== 'PGRST116') {
-    console.warn('AI Coach: Error fetching from cache:', cacheSelectError.message);
+    console.warn('AI Coach: Error fetching from cache:', cacheSelectError.message)
   }
 
   if (cachedEntry && new Date(cachedEntry.expires_at) > new Date()) {
-    console.log('AI Coach: Returning valid recommendation from cache.');
-    return JSON.parse(JSON.stringify(cachedEntry.recommendation)) as AICoachRecommendation;
+    console.log('AI Coach: Returning valid recommendation from cache.')
+    return JSON.parse(JSON.stringify(cachedEntry.recommendation)) as AICoachRecommendation
   } else if (cachedEntry) {
-    console.log('AI Coach: Cache entry found but expired.');
+    console.log('AI Coach: Cache entry found but expired.')
   } else {
-    console.log('AI Coach: No cache entry found.');
+    console.log('AI Coach: No cache entry found.')
   }
 
   // If cache miss or expired, proceed to generate new recommendation
   const metersToMiles = (meters: number | null | undefined) => {
-    if (meters === null || meters === undefined || meters === 0) return 0;
-    return parseFloat((meters / 1609.34).toFixed(2));
-  };
+    if (meters === null || meters === undefined || meters === 0) return 0
+    return parseFloat((meters / 1609.34).toFixed(2))
+  }
 
-  const preferredWeightUnit = profile?.weight_unit || 'kg';
-  const periodDays = 30;
+  const preferredWeightUnit = profile?.weight_unit || 'kg'
+  const periodDays = 30
 
-  const formatMuscleGroupSummary = (summaryInput: UserActivitySummary | null, weightUnit: string): string => {
-    if (!summaryInput?.muscle_group_summary || Object.keys(summaryInput.muscle_group_summary).length === 0) {
-      return "No muscle group data available for this period.";
+  const formatMuscleGroupSummary = (
+    summaryInput: UserActivitySummary | null,
+    weightUnit: string
+  ): string => {
+    if (
+      !summaryInput?.muscle_group_summary ||
+      Object.keys(summaryInput.muscle_group_summary).length === 0
+    ) {
+      return 'No muscle group data available for this period.'
     }
-    let output = "";
+    let output = ''
     for (const groupName in summaryInput.muscle_group_summary) {
-      const group = summaryInput.muscle_group_summary[groupName];
+      const group = summaryInput.muscle_group_summary[groupName]
       if (group) {
-        const topExercisesString = group.top_3_exercises_by_volume?.length > 0
-          ? group.top_3_exercises_by_volume.map(e => `${e.exercise_name} (${e.exercise_volume}${weightUnit})`).join(', ')
-          : 'N/A';
-        output += `- ${groupName}: Sets: ${group.total_sets || 0}, Last Trained: ${group.last_trained_date || 'N/A'}, Volume: ${group.total_volume || 0}${weightUnit}, Distinct Ex: ${group.distinct_exercises_count || 0}. Top Volume Ex: ${topExercisesString}\\n`;
+        const topExercisesString =
+          group.top_3_exercises_by_volume?.length > 0
+            ? group.top_3_exercises_by_volume
+                .map(e => `${e.exercise_name} (${e.exercise_volume}${weightUnit})`)
+                .join(', ')
+            : 'N/A'
+        output += `- ${groupName}: Sets: ${group.total_sets || 0}, Last Trained: ${group.last_trained_date || 'N/A'}, Volume: ${group.total_volume || 0}${weightUnit}, Distinct Ex: ${group.distinct_exercises_count || 0}. Top Volume Ex: ${topExercisesString}\\n`
       }
     }
-    return output.trim() || "No muscle group data available for this period.";
-  };
+    return output.trim() || 'No muscle group data available for this period.'
+  }
 
   const formatDynamicExerciseProgression = (summaryInput: UserActivitySummary | null): string => {
-    if (!summaryInput?.dynamic_exercise_progression || summaryInput.dynamic_exercise_progression.length === 0) {
-      return "No specific exercise progression data tracked for top lifts in this period.";
+    if (
+      !summaryInput?.dynamic_exercise_progression ||
+      summaryInput.dynamic_exercise_progression.length === 0
+    ) {
+      return 'No specific exercise progression data tracked for top lifts in this period.'
     }
-    return summaryInput.dynamic_exercise_progression.map(ex => {
-      const sessionsString = ex.last_sessions?.length > 0
-        ? ex.last_sessions.map(s => `  - ${s.date}: ${s.performance} (Notes: ${s.notes || 'None'})`).join('\\n')
-        : '  N/A';
-      return `- ${ex.exercise_name} (Rank: ${ex.frequency_rank}): Trend: ${ex.trend || 'N/A'}\\nLast Sessions:\\n${sessionsString}`;
-    }).join('\\n\\n');
-  };
+    return summaryInput.dynamic_exercise_progression
+      .map(ex => {
+        const sessionsString =
+          ex.last_sessions?.length > 0
+            ? ex.last_sessions
+                .map(s => `  - ${s.date}: ${s.performance} (Notes: ${s.notes || 'None'})`)
+                .join('\\n')
+            : '  N/A'
+        return `- ${ex.exercise_name} (Rank: ${ex.frequency_rank}): Trend: ${ex.trend || 'N/A'}\\nLast Sessions:\\n${sessionsString}`
+      })
+      .join('\\n\\n')
+  }
 
   const formatLast3Runs = (summaryInput: UserActivitySummary | null): string => {
     if (!summaryInput?.last_3_runs || summaryInput.last_3_runs.length === 0) {
-      return "No recent run data available for this period.";
+      return 'No recent run data available for this period.'
     }
-    return summaryInput.last_3_runs.map(r => 
-      `- ${r.run_date} - Name: \"${r.name || 'Unnamed Run'}\" - ${r.distance_km?.toFixed(1)}km in ${r.duration_min}min (Pace: ${r.avg_pace_min_km || 'N/A'}, Elev: ${r.elevation_gain_m || 0}m, Type: ${r.run_type || 'Run'})`
-    ).join('\\n');
-  };
+    return summaryInput.last_3_runs
+      .map(
+        r =>
+          `- ${r.run_date} - Name: \"${r.name || 'Unnamed Run'}\" - ${r.distance_km?.toFixed(1)}km in ${r.duration_min}min (Pace: ${r.avg_pace_min_km || 'N/A'}, Elev: ${r.elevation_gain_m || 0}m, Type: ${r.run_type || 'Run'})`
+      )
+      .join('\\n')
+  }
 
-  const formattedMuscleSummary = formatMuscleGroupSummary(summary, preferredWeightUnit);
-  const formattedExerciseProgression = formatDynamicExerciseProgression(summary);
-  const formattedRuns = formatLast3Runs(summary);
-  const formattedGoals = goalsString;
+  const formattedMuscleSummary = formatMuscleGroupSummary(summary, preferredWeightUnit)
+  const formattedExerciseProgression = formatDynamicExerciseProgression(summary)
+  const formattedRuns = formatLast3Runs(summary)
+  const formattedGoals = goalsString
 
   const promptText = `
 You are an expert AI Fitness Coach for FitnessTracker V2. Your goal is to provide a personalized, actionable, and encouraging daily/bi-daily recommendation. Users will see this in a dedicated "AI Coach" card in their dashboard.
@@ -339,92 +392,65 @@ Provide your response as a single JSON object matching this TypeScript interface
     *   Use Primary Training Focus and Experience Level to make the suggestion more relevant (e.g., beginner might focus on form; bodybuilder on a lagging part).
 
 Now, generate the recommendation based on all the above data and instructions.
-`;
+`
 
   try {
     // --- Start of Replacement: LLM Call Logic ---
-    console.log('AI Coach: Cache miss or stale, calling OpenAI API...');
+    console.log('AI Coach: Cache miss or stale, calling LLM API via llmService...')
 
-    const apiKey = process.env.LLM_API_KEY;
-    if (!apiKey) {
-        console.error("CRITICAL: LLM_API_KEY is not set in environment variables.");
-        return { error: "AI Coach configuration error: API key not set." };
-    }
-
-    let advice: AICoachRecommendation | null = null; 
+    let advice: AICoachRecommendation | null = null
 
     try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: "gpt-4o",
-                messages: [{ "role": "user", "content": promptText }],
-                temperature: 0.7,
-                max_tokens: 800,
-                response_format: { "type": "json_object" }
-            }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: "Failed to parse error response from LLM" }));
-            console.error('OpenAI API Error Response:', errorData);
-            throw new Error(`OpenAI API Error: ${response.status} - ${errorData.error?.message || response.statusText || 'Unknown API error'}`);
-        }
-
-        const data = await response.json();
-        if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
-            console.error('Invalid response structure from OpenAI:', data);
-            throw new Error('Invalid response structure from AI coach.');
-        }
-
-        const jsonContentString = data.choices[0].message.content;
-        advice = JSON.parse(jsonContentString) as AICoachRecommendation;
-
-    } catch (error: any) { 
-        console.error("LLM API call failed:", error);
-        const errorMessage = error.message || 'Unknown AI Coach communication error';
-        return { error: `AI Coach communication error: ${errorMessage}` };
+      advice = await callLLM(promptText, 'user', {
+        response_format: { type: 'json_object' },
+        max_tokens: 800,
+        model: 'gpt-4o', // Specific model for AI Coach
+      })
+    } catch (error: any) {
+      console.error('LLM API call failed via llmService:', error)
+      const errorMessage = error.message || 'Unknown AI Coach communication error'
+      return { error: `AI Coach communication error: ${errorMessage}` }
     }
 
     if (!advice) {
-        console.error("AI Coach: Advice object is null after LLM call attempt, despite no explicit error thrown.");
-        return { error: "AI Coach: Failed to generate advice." };
+      console.error(
+        'AI Coach: Advice object is null after LLM call attempt, despite no explicit error thrown.'
+      )
+      return { error: 'AI Coach: Failed to generate advice.' }
     }
     // --- End of Replacement: LLM Call Logic ---
 
     // If LLM call was successful and advice is populated:
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + AI_COACH_CACHE_DURATION_MINUTES * 60 * 1000);
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + AI_COACH_CACHE_DURATION_MINUTES * 60 * 1000)
 
-    console.log(`AI Coach: Storing new recommendation in cache. Key: ${cacheKey}, Expires: ${expiresAt.toISOString()}`);
-    const { error: cacheUpsertError } = await supabase
-      .from('ai_coach_cache')
-      .upsert({
+    console.log(
+      `AI Coach: Storing new recommendation in cache. Key: ${cacheKey}, Expires: ${expiresAt.toISOString()}`
+    )
+    const { error: cacheUpsertError } = await supabase.from('ai_coach_cache').upsert(
+      {
         cache_key: cacheKey,
         user_id: userId,
         recommendation: advice, // advice from LLM (or placeholder)
         hashed_data_input: hashedDataInput,
         created_at: now.toISOString(),
-        expires_at: expiresAt.toISOString()
-      }, {
-        onConflict: 'cache_key'
-      });
+        expires_at: expiresAt.toISOString(),
+      },
+      {
+        onConflict: 'cache_key',
+      }
+    )
 
     if (cacheUpsertError) {
-      console.error('AI Coach: Failed to store recommendation in cache:', cacheUpsertError.message);
+      console.error('AI Coach: Failed to store recommendation in cache:', cacheUpsertError.message)
     } else {
-      console.log('AI Coach: Recommendation stored in cache successfully.');
+      console.log('AI Coach: Recommendation stored in cache successfully.')
     }
 
-    return advice; // Return the newly fetched (or placeholder) advice
-
+    return advice // Return the newly fetched (or placeholder) advice
   } catch (error: any) {
-    console.error("getAICoachRecommendation: Error during LLM call or processing", error);
-    const message = error.message || "Failed to get recommendation from AI coach.";
-    return { error: message };
+    console.error('getAICoachRecommendation: Error during LLM call or processing', error)
+    const message = error.message || 'Failed to get recommendation from AI coach.'
+    return { error: message }
   }
 }

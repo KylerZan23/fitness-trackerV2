@@ -45,23 +45,31 @@ export interface SessionRefreshResult {
  * @param context Debug context identifier
  * @returns Promise<SessionDebugInfo>
  */
-export async function debugAuthAPI(supabase: SupabaseClient, context: string): Promise<SessionDebugInfo> {
+export async function debugAuthAPI(
+  supabase: SupabaseClient,
+  context: string
+): Promise<SessionDebugInfo> {
   console.log(`\n=== Auth API Debug [${context}] ===`)
   console.log('Timestamp:', new Date().toISOString())
 
   try {
     // Get current session state
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession()
+
     // Log full API response
     console.log('\nAPI Response:', {
       hasSession: !!session,
-      error: sessionError ? {
-        message: sessionError.message,
-        status: sessionError.status,
-        name: sessionError.name
-      } : null,
-      timestamp: new Date().toISOString()
+      error: sessionError
+        ? {
+            message: sessionError.message,
+            status: sessionError.status,
+            name: sessionError.name,
+          }
+        : null,
+      timestamp: new Date().toISOString(),
     })
 
     if (session) {
@@ -73,37 +81,43 @@ export async function debugAuthAPI(supabase: SupabaseClient, context: string): P
         aud: session.user?.aud,
         role: session.user?.role,
         lastSignIn: session.user?.last_sign_in_at,
-        expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : undefined,
+        expiresAt: session.expires_at
+          ? new Date(session.expires_at * 1000).toISOString()
+          : undefined,
         provider: session.user?.app_metadata?.provider,
         metadata: {
           user: session.user?.user_metadata,
-          app: session.user?.app_metadata
-        }
+          app: session.user?.app_metadata,
+        },
       }
 
       console.log('\nSession Details:', sessionInfo)
-      
+
       // Check token expiration
       const expiresAt = session.expires_at ? new Date(session.expires_at * 1000) : null
       const now = new Date()
-      const timeUntilExpiry = expiresAt ? Math.floor((expiresAt.getTime() - now.getTime()) / 1000) : null
-      
+      const timeUntilExpiry = expiresAt
+        ? Math.floor((expiresAt.getTime() - now.getTime()) / 1000)
+        : null
+
       console.log('\nToken Status:', {
         expiresAt: expiresAt?.toISOString(),
-        timeUntilExpiry: timeUntilExpiry ? `${Math.floor(timeUntilExpiry / 60)} minutes` : 'unknown',
-        needsRefresh: timeUntilExpiry ? timeUntilExpiry < 300 : false // Less than 5 minutes
+        timeUntilExpiry: timeUntilExpiry
+          ? `${Math.floor(timeUntilExpiry / 60)} minutes`
+          : 'unknown',
+        needsRefresh: timeUntilExpiry ? timeUntilExpiry < 300 : false, // Less than 5 minutes
       })
 
       return sessionInfo
     }
 
     return {
-      hasSession: false
+      hasSession: false,
     }
   } catch (error) {
     console.error('\nAuth API Error:', error)
     return {
-      hasSession: false
+      hasSession: false,
     }
   }
 }
@@ -113,16 +127,20 @@ export async function debugAuthAPI(supabase: SupabaseClient, context: string): P
  * @param supabase Supabase client instance
  * @returns Promise<SessionRefreshResult>
  */
-export async function refreshSessionIfNeeded(supabase: SupabaseClient): Promise<SessionRefreshResult> {
+export async function refreshSessionIfNeeded(
+  supabase: SupabaseClient
+): Promise<SessionRefreshResult> {
   const result: SessionRefreshResult = {
     success: false,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   }
 
   try {
     // Get current session
-    const { data: { session } } = await supabase.auth.getSession()
-    
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
     if (!session) {
       console.log('No session to refresh')
       return result
@@ -131,17 +149,25 @@ export async function refreshSessionIfNeeded(supabase: SupabaseClient): Promise<
     // Check if refresh is needed (less than 5 minutes remaining)
     const expiresAt = session.expires_at ? new Date(session.expires_at * 1000) : null
     const now = new Date()
-    const timeUntilExpiry = expiresAt ? Math.floor((expiresAt.getTime() - now.getTime()) / 1000) : null
+    const timeUntilExpiry = expiresAt
+      ? Math.floor((expiresAt.getTime() - now.getTime()) / 1000)
+      : null
 
     console.log('\n=== Session Refresh Check ===')
     console.log('Current session expires:', expiresAt?.toISOString())
-    console.log('Time until expiry:', timeUntilExpiry ? `${Math.floor(timeUntilExpiry / 60)} minutes` : 'unknown')
+    console.log(
+      'Time until expiry:',
+      timeUntilExpiry ? `${Math.floor(timeUntilExpiry / 60)} minutes` : 'unknown'
+    )
 
-    if (timeUntilExpiry && timeUntilExpiry < 300) { // Less than 5 minutes
+    if (timeUntilExpiry && timeUntilExpiry < 300) {
+      // Less than 5 minutes
       console.log('Session needs refresh, attempting...')
-      
-      const { data: { session: newSession }, error: refreshError } = 
-        await supabase.auth.refreshSession()
+
+      const {
+        data: { session: newSession },
+        error: refreshError,
+      } = await supabase.auth.refreshSession()
 
       if (refreshError) {
         console.error('Session refresh failed:', refreshError)
@@ -174,7 +200,10 @@ export async function refreshSessionIfNeeded(supabase: SupabaseClient): Promise<
  * @param context A string describing where this log is coming from
  * @returns The debug information object
  */
-export function debugLogSession(session: SupabaseSession | null, context: string): SessionDebugInfo {
+export function debugLogSession(
+  session: SupabaseSession | null,
+  context: string
+): SessionDebugInfo {
   const debugInfo: SessionDebugInfo = {
     hasSession: !!session,
     userId: session?.user?.id,
@@ -184,7 +213,7 @@ export function debugLogSession(session: SupabaseSession | null, context: string
     lastSignIn: session?.user?.last_sign_in_at,
     expiresAt: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : undefined,
     provider: session?.user?.app_metadata?.provider,
-    metadata: session?.user?.user_metadata
+    metadata: session?.user?.user_metadata,
   }
 
   console.log(`=== Session Debug [${context}] ===`, debugInfo)
@@ -203,7 +232,7 @@ export function debugLogError(error: unknown, context: string): AuthDebugInfo {
   if (error instanceof Error) {
     debugInfo = {
       message: error.message,
-      name: error.name
+      name: error.name,
     }
   } else if (error && typeof error === 'object') {
     const err = error as Record<string, unknown>
@@ -214,7 +243,7 @@ export function debugLogError(error: unknown, context: string): AuthDebugInfo {
       name: err.name as string,
       code: err.code as string,
       details: err.details as string,
-      hint: err.hint as string
+      hint: err.hint as string,
     }
   }
 
@@ -228,7 +257,10 @@ export function debugLogError(error: unknown, context: string): AuthDebugInfo {
  * @param name The name of the cookie
  * @returns The debug information object
  */
-export function debugLogCookie(cookie: { [key: string]: any } | undefined, name: string): CookieDebugInfo {
+export function debugLogCookie(
+  cookie: { [key: string]: any } | undefined,
+  name: string
+): CookieDebugInfo {
   const debugInfo: CookieDebugInfo = {
     exists: !!cookie,
     value: cookie?.value ? `${cookie.value.substring(0, 10)}...` : 'Not found',
@@ -236,7 +268,7 @@ export function debugLogCookie(cookie: { [key: string]: any } | undefined, name:
     expires: cookie?.expires,
     secure: cookie?.secure,
     sameSite: cookie?.sameSite,
-    domain: cookie?.domain
+    domain: cookie?.domain,
   }
 
   console.log(`=== Cookie Debug [${name}] ===`, debugInfo)
@@ -251,7 +283,9 @@ export function debugLogCookie(cookie: { [key: string]: any } | undefined, name:
 export function validateSession(session: SupabaseSession) {
   const expiresAt = session.expires_at ? new Date(session.expires_at * 1000) : null
   const now = new Date()
-  const timeUntilExpiry = expiresAt ? Math.floor((expiresAt.getTime() - now.getTime()) / 1000) : null
+  const timeUntilExpiry = expiresAt
+    ? Math.floor((expiresAt.getTime() - now.getTime()) / 1000)
+    : null
 
   const validation = {
     hasValidUser: !!session.user,
@@ -260,7 +294,7 @@ export function validateSession(session: SupabaseSession) {
     hasValidRole: !!session.user?.role,
     hasValidAccessToken: !!session.access_token,
     hasValidRefreshToken: !!session.refresh_token,
-    timeUntilExpiry: timeUntilExpiry ? Math.floor(timeUntilExpiry / 60) : null
+    timeUntilExpiry: timeUntilExpiry ? Math.floor(timeUntilExpiry / 60) : null,
   }
 
   const issues = {
@@ -269,8 +303,8 @@ export function validateSession(session: SupabaseSession) {
     invalidAudience: session.user?.aud !== 'authenticated',
     missingProvider: !session.user?.app_metadata?.provider,
     shortExpiration: timeUntilExpiry ? timeUntilExpiry < 3600 : false,
-    expired: timeUntilExpiry ? timeUntilExpiry <= 0 : false
+    expired: timeUntilExpiry ? timeUntilExpiry <= 0 : false,
   }
 
   return { validation, issues }
-} 
+}

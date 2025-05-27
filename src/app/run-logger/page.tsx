@@ -6,7 +6,7 @@
  * A page for logging running activities via Strava integration
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Session } from '@supabase/supabase-js'
@@ -20,7 +20,7 @@ import { Icon } from '@/components/ui/Icon'
 import { Error as ErrorComponent } from '@/components/ui/error'
 import { Button } from '@/components/ui/button'
 
-export default function RunLoggerPage() {
+function RunLoggerContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [session, setSession] = useState<Session | null>(null)
@@ -37,7 +37,10 @@ export default function RunLoggerPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true)
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+        const {
+          data: { session: currentSession },
+          error: sessionError,
+        } = await supabase.auth.getSession()
 
         if (sessionError) {
           setError(`Session error: ${sessionError.message}`)
@@ -60,7 +63,8 @@ export default function RunLoggerPage() {
           .eq('id', currentSession.user.id)
           .single()
 
-        if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
+        if (profileError && profileError.code !== 'PGRST116') {
+          // PGRST116 means no rows found, which is fine
           console.warn('Error fetching profile for layout:', profileError.message)
           // Not setting main page error, layout will degrade gracefully
         }
@@ -68,12 +72,12 @@ export default function RunLoggerPage() {
           setProfileName(profileData.name || undefined)
           setProfilePictureUrl(profileData.profile_picture_url || undefined)
         }
-
       } catch (err) {
         console.error('Run Logger setup error:', err)
-        const errorMessage = err && typeof err === 'object' && 'message' in err
-          ? String(err.message)
-          : 'An error occurred while loading the run logger'
+        const errorMessage =
+          err && typeof err === 'object' && 'message' in err
+            ? String(err.message)
+            : 'An error occurred while loading the run logger'
         setError(errorMessage)
       } finally {
         setIsLoading(false)
@@ -82,7 +86,9 @@ export default function RunLoggerPage() {
 
     fetchData()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sessionData) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, sessionData) => {
       if (event === 'SIGNED_OUT') {
         router.push('/login')
       } else if (sessionData) {
@@ -107,10 +113,10 @@ export default function RunLoggerPage() {
   }, [runId])
 
   // const handleRunLogged = () => { // Function no longer needed as ManualRunLogger is removed
-  //   setActiveTab('card-view') 
+  //   setActiveTab('card-view')
   //   // Potentially add a toast notification here or trigger a refresh of the run list data
   // }
-  
+
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/login') // Explicit redirect after sign out
@@ -137,22 +143,22 @@ export default function RunLoggerPage() {
     return (
       <DashboardLayout sidebarProps={sidebarProps}>
         <div className="container mx-auto px-4 py-8 text-center">
-            <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md border border-gray-200">
-                <Icon name="alertTriangle" className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">Run Logger Error</h2>
-                <ErrorComponent message={error} className="text-red-600 mb-6" />
-                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-center">
-                    <Button
-                        onClick={() => typeof window !== 'undefined' ? window.location.reload() : null}
-                        variant="outline"
-                    >
-                        Retry
-                    </Button>
-                    <Button onClick={() => router.push('/dashboard')} variant="default">
-                        Back to Dashboard
-                    </Button>
-                </div>
+          <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md border border-gray-200">
+            <Icon name="alertTriangle" className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Run Logger Error</h2>
+            <ErrorComponent message={error} className="text-red-600 mb-6" />
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 justify-center">
+              <Button
+                onClick={() => (typeof window !== 'undefined' ? window.location.reload() : null)}
+                variant="outline"
+              >
+                Retry
+              </Button>
+              <Button onClick={() => router.push('/dashboard')} variant="default">
+                Back to Dashboard
+              </Button>
             </div>
+          </div>
         </div>
       </DashboardLayout>
     )
@@ -167,10 +173,7 @@ export default function RunLoggerPage() {
         {userId && (
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Strava Connection</h2>
-            <StravaConnect
-              userId={userId}
-              onConnectionChange={setIsStravaConnected}
-            />
+            <StravaConnect userId={userId} onConnectionChange={setIsStravaConnected} />
           </div>
         )}
 
@@ -192,11 +195,32 @@ export default function RunLoggerPage() {
 
         {/* Content Area - Directly show StravaRunList as other tabs are removed */}
         <div className="mt-6">
-            {userId && (
-                <StravaRunList userId={userId} isConnected={isStravaConnected} />
-            )}
+          {userId && <StravaRunList userId={userId} isConnected={isStravaConnected} />}
         </div>
       </div>
     </DashboardLayout>
   )
-} 
+}
+
+export default function RunLoggerPage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout
+          sidebarProps={{
+            userName: undefined,
+            userEmail: undefined,
+            profilePictureUrl: undefined,
+            onLogout: () => {},
+          }}
+        >
+          <div className="flex items-center justify-center h-[calc(100vh-theme(spacing.24))]">
+            <Icon name="loader" className="animate-spin h-12 w-12 text-indigo-600" />
+          </div>
+        </DashboardLayout>
+      }
+    >
+      <RunLoggerContent />
+    </Suspense>
+  )
+}

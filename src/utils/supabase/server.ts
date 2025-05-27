@@ -7,8 +7,8 @@ import { cookies as nextCookies } from 'next/headers'
  * Optionally accepts a pre-fetched cookie store.
  */
 export async function createClient(cookieStore?: ReadonlyRequestCookies) {
-  const store = cookieStore || await nextCookies()
-  
+  const store = cookieStore || (await nextCookies())
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -32,4 +32,4 @@ export async function createClient(cookieStore?: ReadonlyRequestCookies) {
       },
     }
   )
-} 
+}

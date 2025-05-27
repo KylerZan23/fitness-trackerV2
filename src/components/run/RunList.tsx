@@ -33,65 +33,66 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
   const [runs, setRuns] = useState<Run[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   useEffect(() => {
     async function fetchRuns() {
       if (!isConnected || !userId) return
-      
+
       try {
         setIsLoading(true)
         setError(null)
-        
+
         // Get tokens from database
         const tokens = await getTokensFromDatabase(supabase, userId)
-        
+
         if (!tokens) {
           setError('No Strava tokens found. Please reconnect your account.')
           return
         }
-        
+
         // Fetch activities (only runs)
         const activities = await getStravaActivities(tokens)
         const runActivities = activities.filter(activity => activity.type === 'Run')
-        
+
         setRuns(runActivities)
       } catch (err) {
         console.error('Error fetching runs:', err)
-        const errorMessage = err && typeof err === 'object' && 'message' in err 
-          ? String(err.message) 
-          : 'An error occurred while fetching runs from Strava'
+        const errorMessage =
+          err && typeof err === 'object' && 'message' in err
+            ? String(err.message)
+            : 'An error occurred while fetching runs from Strava'
         setError(errorMessage)
       } finally {
         setIsLoading(false)
       }
     }
-    
+
     fetchRuns()
   }, [userId, isConnected])
-  
+
   // Format time from seconds to HH:MM:SS
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
     const remainingSeconds = seconds % 60
-    
+
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
     }
-    
+
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
   }
-  
+
   // Format date to readable format
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString)
-    return date.toLocaleDateString(undefined, { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     })
   }
-  
+
   if (!isConnected) {
     return (
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
@@ -101,7 +102,7 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
       </div>
     )
   }
-  
+
   if (isLoading) {
     return (
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
@@ -112,7 +113,7 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
       </div>
     )
   }
-  
+
   if (error) {
     return (
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
@@ -122,21 +123,22 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
       </div>
     )
   }
-  
+
   if (runs.length === 0) {
     return (
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
         <p className="text-gray-400 text-center py-6">
-          No runs found in your Strava account. Go for a run and sync with Strava, or log a run manually.
+          No runs found in your Strava account. Go for a run and sync with Strava, or log a run
+          manually.
         </p>
       </div>
     )
   }
-  
+
   return (
     <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
       <h3 className="text-xl font-serif mb-4">Your Recent Runs</h3>
-      
+
       <div className="overflow-x-auto">
         <table className="w-full min-w-full">
           <thead>
@@ -151,16 +153,20 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
           </thead>
           <tbody>
             {runs.map(run => (
-              <tr 
-                key={run.id} 
+              <tr
+                key={run.id}
                 className="border-b border-white/5 hover:bg-white/5 transition-colors"
               >
                 <td className="py-3 px-2 text-sm">{formatDate(run.start_date_local)}</td>
                 <td className="py-3 px-2">{run.name}</td>
                 <td className="py-3 px-2 text-right">{formatDistanceMiles(run.distance)}</td>
                 <td className="py-3 px-2 text-right">{formatTime(run.moving_time)}</td>
-                <td className="py-3 px-2 text-right">{calculatePace(run.distance, run.moving_time)}</td>
-                <td className="py-3 px-2 text-right">{formatElevation(run.total_elevation_gain)}</td>
+                <td className="py-3 px-2 text-right">
+                  {calculatePace(run.distance, run.moving_time)}
+                </td>
+                <td className="py-3 px-2 text-right">
+                  {formatElevation(run.total_elevation_gain)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -168,4 +174,4 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
       </div>
     </div>
   )
-} 
+}

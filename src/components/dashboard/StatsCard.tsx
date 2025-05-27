@@ -26,17 +26,17 @@ export function StatsCard({ title, value, description, iconName, trend }: StatsC
           <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">{title}</h3>
         </div>
         {trend && (
-          <div className={`flex items-center text-xs ${trend.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+          <div
+            className={`flex items-center text-xs ${trend.isPositive ? 'text-green-600' : 'text-red-600'}`}
+          >
             {trend.isPositive ? '↑' : '↓'} {trend.value}%
           </div>
         )}
       </div>
       <div className="mt-1 flex items-baseline">
         <p className="text-xl font-semibold text-gray-900">{value}</p>
-        {description && (
-          <p className="ml-1 text-xs text-gray-500">{description}</p>
-        )}
+        {description && <p className="ml-1 text-xs text-gray-500">{description}</p>}
       </div>
     </div>
   )
-} 
+}

@@ -39,6 +39,7 @@ CREATE POLICY "Users can insert own profile"
 ```
 
 These policies ensure that:
+
 - Users can only view their own profile (`auth.uid() = id`)
 - Users can only update their own profile
 - Users can only create a profile with their own ID
@@ -87,12 +88,13 @@ We enhanced the login process to better handle profile creation:
 ## Testing the Fixes
 
 1. Apply the migrations:
+
    ```bash
    npx supabase migration up
    ```
 
 2. If you don't have local Supabase setup with Docker, apply the SQL manually in the Supabase Dashboard:
-   
+
    a. Navigate to your Supabase project dashboard
    b. Go to the "SQL Editor" section
    c. Create a new query and paste the following SQL:
@@ -123,10 +125,11 @@ We enhanced the login process to better handle profile creation:
      ON profiles FOR INSERT
      WITH CHECK (auth.uid() = id);
    ```
-   
+
    d. Run the query
 
 3. Test the login flow after applying the fixes:
+
    - Sign out completely
    - Sign in with valid credentials
    - Check browser console for logs showing successful profile creation
@@ -138,18 +141,21 @@ We enhanced the login process to better handle profile creation:
 ## Additional Recommendations
 
 1. **Security Best Practices**:
+
    - Always verify authentication tokens on the server side
    - Keep RLS policies up-to-date with business rules
    - Use the service role key only for admin functions
    - Consider implementing a dedicated admin role for managing users
 
 2. **Debugging Tips**:
+
    - Add detailed logging in authentication-related code
    - Check browser console for error messages
    - Use the Network tab to inspect API responses
    - Verify token expiration and validity
 
 3. **Performance Considerations**:
+
    - Consider caching user profiles client-side
    - Minimize token verification overhead where possible
    - Use batch operations for multiple database changes
@@ -164,4 +170,4 @@ We enhanced the login process to better handle profile creation:
      - Selecting own profile
      - Attempting to select other profiles (should fail)
      - Updating own profile
-   - Run this test after any changes to RLS policies 
+   - Run this test after any changes to RLS policies

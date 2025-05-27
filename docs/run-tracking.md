@@ -107,4 +107,4 @@ If you encounter any issues with the run tracking feature, please:
 1. Check that your Strava account is correctly connected
 2. Ensure you've granted all the required permissions
 3. Try disconnecting and reconnecting your account
-4. Contact support if problems persist 
+4. Contact support if problems persist

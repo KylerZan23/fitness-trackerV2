@@ -16,7 +16,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 function getErrorMessage(error: unknown): string {
-  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
     return error.message
   }
   return 'An error occurred during signup'
@@ -60,17 +65,15 @@ export default function SignupPage() {
       // If signup successful, create basic profile immediately
       if (authData.user) {
         console.log('Account created successfully, creating basic profile...')
-        
+
         // Create basic profile so user has one when they reach onboarding
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: authData.user.id,
-            email: authData.user.email,
-            name: data.name,
-            onboarding_completed: false,
-            updated_at: new Date().toISOString(),
-          })
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: authData.user.id,
+          email: authData.user.email,
+          name: data.name,
+          onboarding_completed: false,
+          updated_at: new Date().toISOString(),
+        })
 
         if (profileError) {
           console.error('Error creating profile:', profileError)
@@ -91,7 +94,10 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link href="/" className="block mx-auto text-center text-3xl font-bold text-indigo-600 hover:text-indigo-700 mb-2">
+        <Link
+          href="/"
+          className="block mx-auto text-center text-3xl font-bold text-indigo-600 hover:text-indigo-700 mb-2"
+        >
           FitnessTracker
         </Link>
         <h2 className="mt-1 text-center text-2xl font-semibold text-gray-800">
@@ -116,7 +122,7 @@ export default function SignupPage() {
                 <p className="text-red-700 text-sm">{error}</p>
               </div>
             )}
-            
+
             <div className="space-y-4">
               <div>
                 <Label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -131,9 +137,7 @@ export default function SignupPage() {
                   disabled={isLoading}
                   className={errors.name ? 'border-red-500' : ''}
                 />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-                )}
+                {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
               </div>
 
               <div>
@@ -173,15 +177,11 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full"
-            >
+            <Button type="submit" disabled={isLoading} className="w-full">
               {isLoading ? 'Creating account...' : 'Continue to Personalization'}
             </Button>
           </form>
-          
+
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
               By creating an account, you agree to our Terms of Service and Privacy Policy
@@ -191,4 +191,4 @@ export default function SignupPage() {
       </div>
     </div>
   )
-} 
+}

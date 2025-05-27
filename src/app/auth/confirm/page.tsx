@@ -1,18 +1,13 @@
-// @ts-nocheck - This is a temporary fix for TypeScript errors
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AuthLayout } from '@/components/auth/AuthLayout'
-import { Error } from '@/components/ui/error'
+import { Error as ErrorComponent } from '@/components/ui/error'
 import { supabase } from '@/lib/supabase'
+import type { VerifyOtpParams } from '@supabase/supabase-js'
 
-// Define a custom error type
-interface CustomError {
-  message: string;
-}
-
-export default function ConfirmPage() {
+function ConfirmContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -27,7 +22,7 @@ export default function ConfirmPage() {
           setIsVerifying(false)
           return
         }
-        
+
         // Get the token from the URL
         const token = searchParams.get('token')
         const type = searchParams.get('type')
@@ -38,45 +33,46 @@ export default function ConfirmPage() {
           return
         }
 
-        // Verify the user's email
-        const { error: verificationError } = await supabase.auth.verifyOtp({
+        // Verify the user's email with proper typing
+        const verifyParams: VerifyOtpParams = {
           token_hash: token,
-          type: 'signup'
-        })
+          type: 'signup' as const,
+        }
+
+        const { error: verificationError } = await supabase.auth.verifyOtp(verifyParams)
 
         if (verificationError) {
           throw verificationError
         }
 
         // Get the user session
-        const { data: { session } } = await supabase.auth.getSession()
-        
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
         if (!session?.user) {
-          // Use a custom error object that TypeScript can understand
-          const customError: CustomError = { message: 'No user session found' }
-          throw customError
+          throw new Error('No user session found after email verification')
         }
 
-        // Update user profile to mark email as confirmed
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            email_confirmed: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', session.user.id)
-
-        if (profileError) {
-          console.warn('Error updating email confirmation status:', profileError)
-          // Don't throw error, as this is just a status update
-        }
+        // Note: Email confirmation is handled by Supabase auth automatically.
+        // The profiles table doesn't have an email_confirmed column.
+        console.log('Email confirmed successfully via Supabase auth')
 
         // Check if user has completed onboarding to determine redirect
-        const { data: profile } = await supabase
+        const { data: profile, error: profileFetchError } = await supabase
           .from('profiles')
           .select('onboarding_completed')
           .eq('id', session.user.id)
           .single()
+
+        if (profileFetchError) {
+          console.error('Error fetching profile:', profileFetchError)
+          throw new Error('Failed to retrieve profile information after confirmation')
+        }
+
+        if (!profile) {
+          throw new Error('Profile not found for the confirmed user')
+        }
 
         // Redirect based on onboarding status
         if (profile?.onboarding_completed) {
@@ -86,15 +82,19 @@ export default function ConfirmPage() {
           console.log('User has not completed onboarding, redirecting to onboarding')
           router.push('/onboarding')
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Confirmation error:', err)
         // Safely extract error message
-        const errorMessage = err instanceof Error 
-          ? err.message 
-          : (typeof err === 'object' && err !== null && 'message' in err)
-            ? String((err as CustomError).message)
-            : 'Failed to confirm email'
-        
+        let errorMessage = 'Failed to confirm email'
+
+        if (err instanceof Error) {
+          errorMessage = err.message
+        } else if (typeof err === 'object' && err !== null && 'message' in err) {
+          const errorObj = err as { message: unknown }
+          errorMessage =
+            typeof errorObj.message === 'string' ? errorObj.message : 'Failed to confirm email'
+        }
+
         setError(errorMessage)
         setIsVerifying(false)
       }
@@ -118,12 +118,9 @@ export default function ConfirmPage() {
 
   if (error) {
     return (
-      <AuthLayout
-        title="Verification Error"
-        subtitle="There was a problem confirming your email"
-      >
+      <AuthLayout title="Verification Error" subtitle="There was a problem confirming your email">
         <div className="py-8">
-          <Error message={error} />
+          <ErrorComponent message={error} />
           <button
             onClick={() => router.push('/signup')}
             className="mt-4 w-full px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
@@ -136,4 +133,20 @@ export default function ConfirmPage() {
   }
 
   return null
-} 
+}
+
+export default function ConfirmPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthLayout title="Loading" subtitle="Please wait...">
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </AuthLayout>
+      }
+    >
+      <ConfirmContent />
+    </Suspense>
+  )
+}

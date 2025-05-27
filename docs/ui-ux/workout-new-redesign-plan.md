@@ -10,45 +10,49 @@
 
 ## Analysis of Current State (`/workout/new`)
 
-*(Filled in based on `src/app/workout/new/page.tsx`)*
+_(Filled in based on `src/app/workout/new/page.tsx`)_
 
--   **Layout:** Basic full-page form, lacking the standard application layout (no sidebar/consistent header).
--   **Components:** Standard HTML form elements (`input`, `textarea`, `button`), `MuscleGroupSelector`, `ExerciseSelector` (needs review/removal based on README), uses `useState` for form logic, `sonner` for toasts.
--   **Styling:** Basic Tailwind, not integrated with a dashboard theme. Inconsistent visual appearance compared to the dashboard.
--   **Structure:** Single large component handling state, UI, and logic for both single and group workout modes.
+- **Layout:** Basic full-page form, lacking the standard application layout (no sidebar/consistent header).
+- **Components:** Standard HTML form elements (`input`, `textarea`, `button`), `MuscleGroupSelector`, `ExerciseSelector` (needs review/removal based on README), uses `useState` for form logic, `sonner` for toasts.
+- **Styling:** Basic Tailwind, not integrated with a dashboard theme. Inconsistent visual appearance compared to the dashboard.
+- **Structure:** Single large component handling state, UI, and logic for both single and group workout modes.
 
 ## Analysis of Target State (`/dashboard`)
 
-*(Filled in based on `src/app/dashboard/page.tsx`)*
+_(Filled in based on `src/app/dashboard/page.tsx`)_
 
--   **Layout:** Uses `DashboardLayout` component (`@/components/layout/DashboardLayout`), providing a consistent structure (likely sidebar + main content).
--   **Components:** Leverages specific, styled components (`StatsCard`, `WorkoutChart`, `MuscleDistributionChart`, `RecentRun`, `GoalsCard`, `Error`). Suggests a reusable UI component library.
--   **Styling:** Consistent theme (likely defined in `DashboardLayout` and shared components) using Tailwind CSS. Visually coherent.
--   **Structure:** Main page component orchestrates data fetching and passes props to specialized display components. Clear separation of concerns.
+- **Layout:** Uses `DashboardLayout` component (`@/components/layout/DashboardLayout`), providing a consistent structure (likely sidebar + main content).
+- **Components:** Leverages specific, styled components (`StatsCard`, `WorkoutChart`, `MuscleDistributionChart`, `RecentRun`, `GoalsCard`, `Error`). Suggests a reusable UI component library.
+- **Styling:** Consistent theme (likely defined in `DashboardLayout` and shared components) using Tailwind CSS. Visually coherent.
+- **Structure:** Main page component orchestrates data fetching and passes props to specialized display components. Clear separation of concerns.
 
 ---
 
 ## Proposed Changes
 
 1.  **Layout:**
-    *   Integrate the standard dashboard layout (e.g., wrap the page content in the `DashboardLayout` component if one exists, or replicate its structure with sidebar and main content area).
-    *   Ensure consistent header/navigation elements if present on the dashboard.
+
+    - Integrate the standard dashboard layout (e.g., wrap the page content in the `DashboardLayout` component if one exists, or replicate its structure with sidebar and main content area).
+    - Ensure consistent header/navigation elements if present on the dashboard.
 
 2.  **Form Styling:**
-    *   Restyle all form elements (`input`, `label`, `select`, `button`) to match the appearance of those on the dashboard.
-    *   Use consistent spacing, borders, background colors, and focus states.
-    *   Leverage existing styled form components if available.
+
+    - Restyle all form elements (`input`, `label`, `select`, `button`) to match the appearance of those on the dashboard.
+    - Use consistent spacing, borders, background colors, and focus states.
+    - Leverage existing styled form components if available.
 
 3.  **Component Replacement/Styling:**
-    *   Replace generic HTML elements with styled components used on the dashboard where appropriate (e.g., use `Card` components for sections if the dashboard uses them).
-    *   Ensure buttons match the dashboard's button styles (size, color, hover effects).
+
+    - Replace generic HTML elements with styled components used on the dashboard where appropriate (e.g., use `Card` components for sections if the dashboard uses them).
+    - Ensure buttons match the dashboard's button styles (size, color, hover effects).
 
 4.  **Typography & Color Palette:**
-    *   Apply the same font families, sizes, and weights used on the dashboard.
-    *   Use the established color palette for backgrounds, text, borders, and interactive elements. Ensure consistency with the dashboard's theme (light or dark).
+
+    - Apply the same font families, sizes, and weights used on the dashboard.
+    - Use the established color palette for backgrounds, text, borders, and interactive elements. Ensure consistency with the dashboard's theme (light or dark).
 
 5.  **Responsiveness:**
-    *   Ensure the redesigned page is responsive and adapts well to different screen sizes, consistent with the dashboard's responsiveness.
+    - Ensure the redesigned page is responsive and adapts well to different screen sizes, consistent with the dashboard's responsiveness.
 
 ---
 
@@ -67,6 +71,6 @@
 
 ## Open Questions/Verification
 
--   Confirm the current active theme (light/dark) of the `/dashboard` page.
--   Identify the exact file path for the dashboard page (`src/app/dashboard/page.tsx`?) and any shared layout components.
--   Identify the exact file path for the workout creation page (`src/app/workout/new/page.tsx`?). 
+- Confirm the current active theme (light/dark) of the `/dashboard` page.
+- Identify the exact file path for the dashboard page (`src/app/dashboard/page.tsx`?) and any shared layout components.
+- Identify the exact file path for the workout creation page (`src/app/workout/new/page.tsx`?).

@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-The application includes Strava integration for tracking running activities, which by default uses the metric system (kilometers, meters) for distance measurements. However, many users in the United States and other regions prefer to view and record their running metrics in imperial units (miles, feet). 
+The application includes Strava integration for tracking running activities, which by default uses the metric system (kilometers, meters) for distance measurements. However, many users in the United States and other regions prefer to view and record their running metrics in imperial units (miles, feet).
 
 Strava API returns all distances in meters and elevations in meters, regardless of the user's preferences. While Strava's user interface handles unit conversion based on account settings, our application needed to make an explicit decision about which unit system to use for displaying and inputting run data.
 
@@ -42,29 +42,35 @@ We will automatically handle the conversion between the metrics used by Strava's
 ### Technical Implementation
 
 1. Central Units Utility:
+
    - Created `src/lib/units.ts` with standardized conversion functions
    - All unit conversions are centralized to ensure consistency and maintainability
    - Added utility functions for displaying distances, elevation, and pace calculations
 
-2. RunList component: 
+2. RunList component:
+
    - Updated to use centralized unit conversion functions
    - Displays distances in miles, pace in min/mile, elevation in feet
 
-3. StravaRunList component: 
+3. StravaRunList component:
+
    - Leverages `RunCard` for displaying distances in miles, pace in min/mi.
 
-4. RecentRun component: 
+4. RecentRun component:
+
    - Leverages `RunCard` for displaying distances in miles.
 
-5. WorkoutCalendar component: 
+5. WorkoutCalendar component:
+
    - If displaying run distances, ensures they are in miles.
 
-6. README documentation: 
+6. README documentation:
    - Updated to reflect imperial unit support
 
 ### Future Considerations
 
 In the future, we may consider:
+
 1. Adding user preferences to toggle between metric and imperial units
 2. Detecting user region automatically to default to the appropriate unit system
 3. Respecting the unit preferences from the user's Strava account
@@ -74,4 +80,4 @@ In the future, we may consider:
 - [Strava API Documentation](https://developers.strava.com/docs/reference/#api-Activities-getLoggedInAthleteActivities)
 - [Unit Conversion Factors](https://en.wikipedia.org/wiki/Conversion_of_units)
   - 1 mile = 1609.344 meters
-  - 1 foot = 0.3048 meters 
+  - 1 foot = 0.3048 meters

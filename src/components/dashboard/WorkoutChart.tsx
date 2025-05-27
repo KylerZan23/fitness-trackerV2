@@ -18,77 +18,70 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 // Register ChartJS components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-)
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 // Define the type for selectable trend metrics locally
-export type TrendMetric = 'totalDuration' | 'totalWeight' | 'totalSets';
+export type TrendMetric = 'totalDuration' | 'totalWeight' | 'totalSets'
 
 interface WorkoutChartProps {
-  data: WorkoutTrend[];
-  weightUnit: 'kg' | 'lbs';
+  data: WorkoutTrend[]
+  weightUnit: 'kg' | 'lbs'
 }
 
 export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
   // State for week offset (0 = current week, -1 = last week, etc.)
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0)
   // State for the active metric to display
-  const [activeMetric, setActiveMetric] = useState<TrendMetric>('totalDuration');
+  const [activeMetric, setActiveMetric] = useState<TrendMetric>('totalDuration')
 
   // --- Helper Functions ---
 
   // Get the start date (Monday) of the target week based on the offset
   const getTargetWeekStart = (offset: number): Date => {
-    const today = new Date();
-    const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
-    return addWeeks(currentWeekStart, offset);
-  };
+    const today = new Date()
+    const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 })
+    return addWeeks(currentWeekStart, offset)
+  }
 
   // Generate labels and date info for the target week
   const createWeekLabels = (offset: number) => {
-    const mondayOfTargetWeek = getTargetWeekStart(offset);
-    const today = new Date();
-    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const mondayOfTargetWeek = getTargetWeekStart(offset)
+    const today = new Date()
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
 
-    const weekDays = [];
+    const weekDays = []
     for (let i = 0; i < 7; i++) {
-      const day = addDays(mondayOfTargetWeek, i);
+      const day = addDays(mondayOfTargetWeek, i)
       weekDays.push({
         date: format(day, 'yyyy-MM-dd'), // Keep YYYY-MM-DD for data matching
         label: format(day, 'EEE, MMM d'), // Format for display
         isPast: day < todayDateOnly,
-      });
+      })
     }
-    return weekDays;
-  };
+    return weekDays
+  }
 
   // Format the date range string for the title
   const formatWeekTitle = (offset: number): string => {
-    const weekStart = getTargetWeekStart(offset);
-    const weekEnd = addDays(weekStart, 6);
+    const weekStart = getTargetWeekStart(offset)
+    const weekEnd = addDays(weekStart, 6)
     if (offset === 0) {
-      return "Weekly Workout Trends (This Week)";
+      return 'Weekly Workout Trends (This Week)'
     }
-    return `Weekly Workout Trends (Week of ${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')})`;
-  };
+    return `Weekly Workout Trends (Week of ${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')})`
+  }
 
   // --- Data Processing ---
 
   // Generate labels for the currently selected week offset
-  const weekLabels = createWeekLabels(weekOffset);
+  const weekLabels = createWeekLabels(weekOffset)
 
   // Map incoming data to the generated week labels
   const mappedData = weekLabels.map(dayInfo => {
-    const matchingData = data.find(item => item.date === dayInfo.date);
-    const dayDate = new Date(dayInfo.date + "T00:00:00"); // For comparison
-    const today = new Date();
-    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const matchingData = data.find(item => item.date === dayInfo.date)
+    const dayDate = new Date(dayInfo.date + 'T00:00:00') // For comparison
+    const today = new Date()
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
 
     return {
       date: dayInfo.date,
@@ -100,9 +93,9 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
       sets: matchingData?.totalSets ?? 0,
       exerciseNames: matchingData?.exerciseNames ?? [],
       notes: matchingData?.notes ?? [],
-      workoutNames: matchingData?.workoutNames ?? []
-    };
-  });
+      workoutNames: matchingData?.workoutNames ?? [],
+    }
+  })
 
   // --- Chart Configuration ---
 
@@ -115,7 +108,7 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
           yAxisLabel: `Weight (${weightUnit})`,
           color: 'rgba(54, 162, 235, 0.7)', // Blue
           borderColor: 'rgba(54, 162, 235, 1)',
-        };
+        }
       case 'totalSets':
         return {
           data: mappedData.map(item => item.sets),
@@ -123,7 +116,7 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
           yAxisLabel: 'Sets',
           color: 'rgba(75, 192, 192, 0.7)', // Green
           borderColor: 'rgba(75, 192, 192, 1)',
-        };
+        }
       case 'totalDuration':
       default:
         return {
@@ -132,10 +125,10 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
           yAxisLabel: 'Duration (min)',
           color: 'rgba(251, 146, 60, 0.7)', // Orange
           borderColor: 'rgba(251, 146, 60, 1)',
-        };
+        }
     }
-  };
-  const currentMetricInfo = getCurrentMetricDisplayInfo();
+  }
+  const currentMetricInfo = getCurrentMetricDisplayInfo()
 
   const chartData: ChartData<'bar'> = {
     labels: mappedData.map(item => item.label),
@@ -147,24 +140,24 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
         borderColor: currentMetricInfo.borderColor,
         borderWidth: 1,
         borderRadius: 4,
-      }
+      },
     ],
   }
 
   // Use a flag for light/dark mode detection if available, otherwise assume light
   // const isDarkMode = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const axisColor = 'rgba(55, 65, 81, 0.7)'; // Dark gray for light theme
-  const gridColor = 'rgba(209, 213, 219, 0.5)'; // Lighter gray for light theme grid
-  const titleColor = 'rgba(17, 24, 39, 0.9)'; // Very dark gray for titles
-  const legendColor = 'rgba(55, 65, 81, 0.7)'; // Dark gray for legend
+  const axisColor = 'rgba(55, 65, 81, 0.7)' // Dark gray for light theme
+  const gridColor = 'rgba(209, 213, 219, 0.5)' // Lighter gray for light theme grid
+  const titleColor = 'rgba(17, 24, 39, 0.9)' // Very dark gray for titles
+  const legendColor = 'rgba(55, 65, 81, 0.7)' // Dark gray for legend
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
     layout: {
       padding: {
-        bottom: 15
-      }
+        bottom: 15,
+      },
     },
     plugins: {
       legend: {
@@ -173,9 +166,9 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
           color: legendColor,
           font: {
             family: 'system-ui',
-            size: 14
-          }
-        }
+            size: 14,
+          },
+        },
       },
       title: {
         display: true,
@@ -183,8 +176,8 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
         color: titleColor,
         font: {
           family: 'serif',
-          size: 18
-        }
+          size: 18,
+        },
       },
       tooltip: {
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
@@ -195,61 +188,63 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
         padding: 12,
         displayColors: false,
         callbacks: {
-          title: function(tooltipItems: any[]) {
-            const dataIndex = tooltipItems[0].dataIndex;
-            if (!mappedData || dataIndex >= mappedData.length || dataIndex < 0) return ''; 
-            const dataPoint = mappedData[dataIndex];
-            const dateLabel = tooltipItems[0].label;
-            
+          title: function (tooltipItems: any[]) {
+            const dataIndex = tooltipItems[0].dataIndex
+            if (!mappedData || dataIndex >= mappedData.length || dataIndex < 0) return ''
+            const dataPoint = mappedData[dataIndex]
+            const dateLabel = tooltipItems[0].label
+
             if (dataPoint.workoutNames && dataPoint.workoutNames.length > 0) {
-              const workoutName = dataPoint.workoutNames[0] ?? 'Workout'; 
-              return [`${dateLabel}`, `${workoutName}`];
+              const workoutName = dataPoint.workoutNames[0] ?? 'Workout'
+              return [`${dateLabel}`, `${workoutName}`]
             }
-            
-            return dateLabel;
+
+            return dateLabel
           },
-          label: function(context: any) {
-            const label = context.dataset.label || '';
-            const value = context.parsed.y;
-            const dataIndex = context.dataIndex;
-            if (!mappedData || dataIndex >= mappedData.length || dataIndex < 0) return ''; 
-            const dataPoint = mappedData[dataIndex];
-            
-            const lines = [`${label}: ${value}`];
-            
+          label: function (context: any) {
+            const label = context.dataset.label || ''
+            const value = context.parsed.y
+            const dataIndex = context.dataIndex
+            if (!mappedData || dataIndex >= mappedData.length || dataIndex < 0) return ''
+            const dataPoint = mappedData[dataIndex]
+
+            const lines = [`${label}: ${value}`]
+
             if (dataPoint.notes && dataPoint.notes.length > 0) {
-              lines.push('');
-              lines.push('📝 Notes:');
-              
+              lines.push('')
+              lines.push('📝 Notes:')
+
               dataPoint.notes.forEach((note, index) => {
-                const truncatedNote = note && note.length > 80 ? note.substring(0, 80) + '...' : (note ?? '');
-                
-                const notePrefix = (dataPoint.workoutNames && dataPoint.workoutNames.length > 0 && index === 0) 
-                  ? '📌 '
-                  : '• ';
-                
-                lines.push(`${notePrefix}${truncatedNote}`);
-              });
+                const truncatedNote =
+                  note && note.length > 80 ? note.substring(0, 80) + '...' : (note ?? '')
+
+                const notePrefix =
+                  dataPoint.workoutNames && dataPoint.workoutNames.length > 0 && index === 0
+                    ? '📌 '
+                    : '• '
+
+                lines.push(`${notePrefix}${truncatedNote}`)
+              })
             } else if (dataPoint.exerciseNames && dataPoint.exerciseNames.length > 0) {
-              lines.push('');
-              lines.push('📝 No notes for this workout');
+              lines.push('')
+              lines.push('📝 No notes for this workout')
             }
-            
+
             if (dataPoint.exerciseNames && dataPoint.exerciseNames.length > 0) {
-              lines.push('');
-              lines.push('Exercises:');
+              lines.push('')
+              lines.push('Exercises:')
               dataPoint.exerciseNames.forEach(name => {
-                lines.push(`- ${name ?? 'N/A'}`);
-              });
+                lines.push(`- ${name ?? 'N/A'}`)
+              })
             }
-            
-            return lines;
-          }
-        }
+
+            return lines
+          },
+        },
       },
       datalabels: {
-        display: false
-      }
+        display: false,
+      },
     },
     scales: {
       y: {
@@ -261,8 +256,8 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
         ticks: {
           color: axisColor,
           font: {
-            size: 12
-          }
+            size: 12,
+          },
         },
         title: {
           display: true,
@@ -270,9 +265,9 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
           color: axisColor,
           font: {
             family: 'system-ui',
-            size: 14
-          }
-        }
+            size: 14,
+          },
+        },
       },
       x: {
         grid: {
@@ -281,43 +276,43 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
         },
         ticks: {
           color: axisColor,
-          callback: function(value: any, index: number) {
-            if (!mappedData || index >= mappedData.length || index < 0) return '';
-            const dataPoint = mappedData[index];
-            const dateLabel = dataPoint.label;
-            
-            let workoutLabel = '';
+          callback: function (value: any, index: number) {
+            if (!mappedData || index >= mappedData.length || index < 0) return ''
+            const dataPoint = mappedData[index]
+            const dateLabel = dataPoint.label
+
+            let workoutLabel = ''
             if (dataPoint.workoutNames && dataPoint.workoutNames.length > 0) {
-              workoutLabel = dataPoint.workoutNames[0] ?? 'Workout';
+              workoutLabel = dataPoint.workoutNames[0] ?? 'Workout'
             } else if (dataPoint.exerciseNames && dataPoint.exerciseNames.length > 0) {
-              const exerciseName = dataPoint.exerciseNames[0] ?? 'Exercise'; 
-              const formattedName = exerciseName.charAt(0).toUpperCase() + exerciseName.slice(1);
-              
+              const exerciseName = dataPoint.exerciseNames[0] ?? 'Exercise'
+              const formattedName = exerciseName.charAt(0).toUpperCase() + exerciseName.slice(1)
+
               if (dataPoint.exerciseNames.length > 1) {
-                workoutLabel = `${formattedName} Day`;
+                workoutLabel = `${formattedName} Day`
               } else {
-                workoutLabel = formattedName;
+                workoutLabel = formattedName
               }
             }
-            
+
             if (workoutLabel.length > 15) {
-              workoutLabel = workoutLabel.substring(0, 15) + '...';
+              workoutLabel = workoutLabel.substring(0, 15) + '...'
             }
-            
+
             if (!workoutLabel) {
               if (dataPoint.isPast) {
-                return [dateLabel, 'Rest Day'];
+                return [dateLabel, 'Rest Day']
               } else {
-                return [dateLabel, '—'];
+                return [dateLabel, '—']
               }
             }
-            
-            return [dateLabel, workoutLabel];
+
+            return [dateLabel, workoutLabel]
           },
           font: {
-            size: 12
+            size: 12,
           },
-          padding: 10
+          padding: 10,
         },
         title: {
           display: true,
@@ -325,10 +320,10 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
           color: axisColor,
           font: {
             family: 'system-ui',
-            size: 14
-          }
-        }
-      }
+            size: 14,
+          },
+        },
+      },
     },
   }
 
@@ -337,23 +332,23 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
       <div className="flex justify-between items-center mb-2 px-2">
-         <Button 
-           variant="ghost" 
-           size="icon" 
-           onClick={() => setWeekOffset(prev => prev - 1)}
-           aria-label="Previous Week"
-         >
-           <ChevronLeft className="h-5 w-5" />
-         </Button>
-         
-         {/* Metric Selection Buttons */}
-         <div className="flex justify-center space-x-2">
-          {(['totalDuration', 'totalWeight', 'totalSets'] as TrendMetric[]).map((metric) => {
-            let buttonText = '';
-            if (metric === 'totalDuration') buttonText = 'Duration';
-            else if (metric === 'totalWeight') buttonText = `Weight (${weightUnit})`;
-            else if (metric === 'totalSets') buttonText = 'Sets';
-            
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setWeekOffset(prev => prev - 1)}
+          aria-label="Previous Week"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+
+        {/* Metric Selection Buttons */}
+        <div className="flex justify-center space-x-2">
+          {(['totalDuration', 'totalWeight', 'totalSets'] as TrendMetric[]).map(metric => {
+            let buttonText = ''
+            if (metric === 'totalDuration') buttonText = 'Duration'
+            else if (metric === 'totalWeight') buttonText = `Weight (${weightUnit})`
+            else if (metric === 'totalSets') buttonText = 'Sets'
+
             return (
               <Button
                 key={metric}
@@ -364,19 +359,19 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
               >
                 {buttonText}
               </Button>
-            );
+            )
           })}
         </div>
 
-         <Button 
-           variant="ghost" 
-           size="icon" 
-           onClick={() => setWeekOffset(prev => prev + 1)}
-           disabled={weekOffset === 0}
-           aria-label="Next Week"
-         >
-           <ChevronRight className="h-5 w-5" />
-         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setWeekOffset(prev => prev + 1)}
+          disabled={weekOffset === 0}
+          aria-label="Next Week"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </Button>
       </div>
 
       <div className="h-[400px] relative">
@@ -384,4 +379,4 @@ export function WorkoutChart({ data, weightUnit }: WorkoutChartProps) {
       </div>
     </div>
   )
-} 
+}

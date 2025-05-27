@@ -40,7 +40,9 @@ export function WorkoutLog({ onSuccess }: WorkoutLogProps) {
       reset() // Reset form after successful submission
       onSuccess?.() // Call success callback if provided
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred while logging your workout')
+      setError(
+        error instanceof Error ? error.message : 'An error occurred while logging your workout'
+      )
     } finally {
       setIsLoading(false)
     }
@@ -60,9 +62,7 @@ export function WorkoutLog({ onSuccess }: WorkoutLogProps) {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
-            {error}
-          </div>
+          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">{error}</div>
         )}
 
         {/* Exercise Name */}
@@ -96,9 +96,7 @@ export function WorkoutLog({ onSuccess }: WorkoutLogProps) {
               className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2"
               disabled={isLoading}
             />
-            {errors.sets && (
-              <p className="mt-1 text-sm text-destructive">{errors.sets.message}</p>
-            )}
+            {errors.sets && <p className="mt-1 text-sm text-destructive">{errors.sets.message}</p>}
           </div>
 
           <div>
@@ -112,9 +110,7 @@ export function WorkoutLog({ onSuccess }: WorkoutLogProps) {
               className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2"
               disabled={isLoading}
             />
-            {errors.reps && (
-              <p className="mt-1 text-sm text-destructive">{errors.reps.message}</p>
-            )}
+            {errors.reps && <p className="mt-1 text-sm text-destructive">{errors.reps.message}</p>}
           </div>
         </div>
 
@@ -167,9 +163,7 @@ export function WorkoutLog({ onSuccess }: WorkoutLogProps) {
             placeholder="Add any additional notes about your workout"
             disabled={isLoading}
           />
-          {errors.notes && (
-            <p className="mt-1 text-sm text-destructive">{errors.notes.message}</p>
-          )}
+          {errors.notes && <p className="mt-1 text-sm text-destructive">{errors.notes.message}</p>}
         </div>
 
         {/* Submit Button */}
@@ -183,4 +177,4 @@ export function WorkoutLog({ onSuccess }: WorkoutLogProps) {
       </form>
     </div>
   )
-} 
+}

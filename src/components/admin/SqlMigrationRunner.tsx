@@ -19,7 +19,7 @@ export const SqlMigrationRunner = ({
   adminOnly = true,
   defaultSql = '',
   description = 'Run SQL migrations to fix database issues',
-  migrationName = 'Custom SQL Migration'
+  migrationName = 'Custom SQL Migration',
 }: SqlMigrationRunnerProps) => {
   const [sql, setSql] = useState(defaultSql || PROFILE_PICTURE_MIGRATION)
   const [isRunning, setIsRunning] = useState(false)
@@ -34,26 +34,28 @@ export const SqlMigrationRunner = ({
   // Check if user has admin role
   const checkAdminStatus = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (!user) {
         setIsAdmin(false)
         return false
       }
-      
+
       // Get user's roles from profiles table or from auth metadata
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single()
-      
+
       if (error) {
         console.error('Error checking admin status:', error)
         setIsAdmin(false)
         return false
       }
-      
+
       // Check if role is admin
       const isUserAdmin = profile?.role === 'admin'
       setIsAdmin(isUserAdmin)
@@ -70,38 +72,38 @@ export const SqlMigrationRunner = ({
     if (adminOnly && !isAdmin) {
       setResult({
         success: false,
-        message: 'Admin privileges required to run SQL migrations'
+        message: 'Admin privileges required to run SQL migrations',
       })
       return
     }
-    
+
     setIsRunning(true)
     setResult(null)
-    
+
     try {
       // Use RPC function to run SQL with admin privileges
-      const { error } = await supabase.rpc('run_sql_migration', { 
+      const { error } = await supabase.rpc('run_sql_migration', {
         sql_script: sql,
-        migration_name: migrationName 
+        migration_name: migrationName,
       })
-      
+
       if (error) {
         // Fallback to individual SQL commands if RPC fails
         console.error('RPC migration failed:', error)
-        
+
         // Try to run profile picture specific migrations
         if (sql.includes('profile_picture_url')) {
           // Add column
           const { error: columnError } = await supabase.rpc('add_profile_picture_column')
-          
+
           if (columnError) {
             throw new Error(`Failed to add column: ${columnError.message}`)
           }
-          
+
           setResult({
             success: true,
             message: 'Profile picture column added successfully',
-            details: 'The database has been updated to support profile pictures.'
+            details: 'The database has been updated to support profile pictures.',
           })
         } else {
           throw new Error(`Migration failed: ${error.message}`)
@@ -110,59 +112,59 @@ export const SqlMigrationRunner = ({
         setResult({
           success: true,
           message: 'SQL migration completed successfully',
-          details: 'The database has been updated with the requested changes.'
+          details: 'The database has been updated with the requested changes.',
         })
       }
     } catch (err) {
       console.error('Error running migration:', err)
       let errorMessage = 'An error occurred while running the SQL migration'
-      
+
       if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
         errorMessage = err.message
       }
-      
+
       setResult({
         success: false,
         message: 'Migration failed',
-        details: errorMessage
+        details: errorMessage,
       })
     } finally {
       setIsRunning(false)
     }
   }
-  
+
   // Run specific profile picture fix
   const runProfilePictureFix = async () => {
     setSql(PROFILE_PICTURE_MIGRATION)
     await runMigration()
   }
-  
+
   // Effect to check admin status on mount
   useEffect(() => {
     checkAdminStatus()
   }, [])
-  
+
   if (adminOnly && isAdmin === false) {
     return null // Don't render for non-admins if adminOnly is true
   }
-  
+
   return (
     <div className="bg-white/5 rounded-lg p-4 border border-white/10">
       <h3 className="text-lg font-medium mb-2">{migrationName || 'Database Migration Tool'}</h3>
       <p className="text-white/60 mb-4 text-sm">{description}</p>
-      
+
       {showEditor && (
         <div className="mb-4">
           <textarea
             value={sql}
-            onChange={(e) => setSql(e.target.value)}
+            onChange={e => setSql(e.target.value)}
             className="w-full h-64 bg-black/50 text-white/90 p-3 font-mono text-xs rounded-md border border-white/10"
             placeholder="Enter SQL migration script..."
             disabled={isRunning}
           />
         </div>
       )}
-      
+
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -172,7 +174,7 @@ export const SqlMigrationRunner = ({
         >
           {isRunning ? 'Running...' : 'Fix Profile Pictures'}
         </button>
-        
+
         <button
           type="button"
           onClick={() => setShowEditor(!showEditor)}
@@ -180,7 +182,7 @@ export const SqlMigrationRunner = ({
         >
           {showEditor ? 'Hide SQL Editor' : 'Show SQL Editor'}
         </button>
-        
+
         {showEditor && (
           <button
             type="button"
@@ -192,21 +194,21 @@ export const SqlMigrationRunner = ({
           </button>
         )}
       </div>
-      
+
       {result && (
-        <div className={`mt-4 p-3 rounded-lg ${
-          result.success 
-            ? 'bg-green-900/20 border border-green-500/30' 
-            : 'bg-red-900/20 border border-red-500/30'
-        }`}>
-          <p className={`text-sm font-medium ${
-            result.success ? 'text-green-400' : 'text-red-400'
-          }`}>
+        <div
+          className={`mt-4 p-3 rounded-lg ${
+            result.success
+              ? 'bg-green-900/20 border border-green-500/30'
+              : 'bg-red-900/20 border border-red-500/30'
+          }`}
+        >
+          <p
+            className={`text-sm font-medium ${result.success ? 'text-green-400' : 'text-red-400'}`}
+          >
             {result.message}
           </p>
-          {result.details && (
-            <p className="text-white/60 text-xs mt-1">{result.details}</p>
-          )}
+          {result.details && <p className="text-white/60 text-xs mt-1">{result.details}</p>}
         </div>
       )}
     </div>
@@ -244,4 +246,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION update_profile_picture TO authenticated;
 GRANT EXECUTE ON FUNCTION update_profile_picture TO anon;
-GRANT EXECUTE ON FUNCTION update_profile_picture TO service_role;`; 
+GRANT EXECUTE ON FUNCTION update_profile_picture TO service_role;`

@@ -21,7 +21,10 @@ Added a `force_login=true` URL parameter that allows direct access to the login 
 // In middleware.ts
 const isForceLogin = request.nextUrl.searchParams.get('force_login') === 'true'
 
-if (isForceLogin && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
+if (
+  isForceLogin &&
+  (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')
+) {
   console.log('Force login parameter detected, bypassing authentication check')
   return response
 }
@@ -34,14 +37,14 @@ Enhanced error handling in the middleware to clear auth cookies when errors occu
 ```typescript
 catch (err) {
   console.error('Middleware error:', err)
-  
+
   // If there's an error in the middleware, we should clear the auth cookie
   // to prevent authentication loops
   const response = NextResponse.redirect(new URL('/login?force_login=true', request.url))
-  
+
   // Clear the auth cookie
   response.cookies.delete('sb-oimcnjdkcqwdltdpkmnu-auth-token')
-  
+
   return response
 }
 ```
@@ -53,7 +56,10 @@ Updated all authentication checks to use `getUser()` instead of `getSession()` f
 ```typescript
 // Use getUser() instead of getSession() for secure authentication verification
 // This verifies the token with the Supabase Auth server
-const { data: { user }, error: userError } = await supabase.auth.getUser()
+const {
+  data: { user },
+  error: userError,
+} = await supabase.auth.getUser()
 ```
 
 ### 4. Complete Sign Out Functionality
@@ -74,11 +80,13 @@ window.location.href = '/login?force_login=true'
 ## How It Works
 
 1. When a user tries to log in but encounters an authentication loop:
+
    - They can access `/login?force_login=true` directly
    - This bypasses all authentication checks in the middleware
    - The login page shows a "Fresh Login" message
 
 2. When a user logs out:
+
    - All auth tokens are properly cleared
    - The user is redirected to `/login?force_login=true`
    - This ensures they can access the login page without being redirected
@@ -95,4 +103,4 @@ To verify the fix is working:
 1. Try logging in with valid credentials
 2. You should be redirected to the dashboard
 3. If you encounter any issues, access `/login?force_login=true` directly
-4. This should allow you to log in without being caught in a redirect loop 
+4. This should allow you to log in without being caught in a redirect loop

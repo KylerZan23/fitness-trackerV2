@@ -16,10 +16,8 @@ export function DashboardLayout({ children, sidebarProps }: DashboardLayoutProps
       {/* Adjust left margin based on sidebar width */}
       <main className="flex-1 md:ml-64">
         {/* Add padding to the main content area */}
-        <div className="py-6 px-4 sm:px-6 lg:px-8">
-          {children}
-        </div>
+        <div className="py-6 px-4 sm:px-6 lg:px-8">{children}</div>
       </main>
     </div>
   )
-} 
+}

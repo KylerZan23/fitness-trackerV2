@@ -17,7 +17,9 @@ export async function getActiveTrainingProgram(): Promise<TrainingProgramWithId 
   const cookieStore = await cookies()
   const supabase = await createClient(cookieStore)
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) {
     console.log('No authenticated user found for getActiveTrainingProgram.')
     return null
@@ -25,7 +27,9 @@ export async function getActiveTrainingProgram(): Promise<TrainingProgramWithId 
 
   const { data, error } = await supabase
     .from('training_programs')
-    .select('id, program_details, program_name, total_duration_weeks, start_date, generated_at, ai_model_version')
+    .select(
+      'id, program_details, program_name, total_duration_weeks, start_date, generated_at, ai_model_version'
+    )
     .eq('user_id', user.id)
     .eq('is_active', true)
     .order('generated_at', { ascending: false })
@@ -41,10 +45,10 @@ export async function getActiveTrainingProgram(): Promise<TrainingProgramWithId 
     console.log('No active program found or program_details is null for user:', user.id)
     return null
   }
-  
+
   // Extract the program_details which contains the TrainingProgram structure
   const program = data.program_details as TrainingProgram
-  
+
   // Augment with database fields if they're not already in program_details
   if (data.program_name && !program.programName) {
     program.programName = data.program_name
@@ -62,6 +66,6 @@ export async function getActiveTrainingProgram(): Promise<TrainingProgramWithId 
   // Return the program with the database ID included
   return {
     ...program,
-    id: data.id
+    id: data.id,
   }
-} 
+}
