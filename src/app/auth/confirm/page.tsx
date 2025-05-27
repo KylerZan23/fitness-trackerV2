@@ -57,24 +57,35 @@ export default function ConfirmPage() {
           throw customError
         }
 
-        // Create user profile in the database
+        // Update user profile to mark email as confirmed
         const { error: profileError } = await supabase
           .from('profiles')
-          .upsert({
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.user_metadata.name,
-            age: session.user.user_metadata.age,
-            fitness_goals: session.user.user_metadata.fitness_goals,
+          .update({
+            email_confirmed: true,
             updated_at: new Date().toISOString(),
           })
+          .eq('id', session.user.id)
 
         if (profileError) {
-          throw profileError
+          console.warn('Error updating email confirmation status:', profileError)
+          // Don't throw error, as this is just a status update
         }
 
-        // Redirect to dashboard with success parameter
-        router.push('/dashboard?welcome=true')
+        // Check if user has completed onboarding to determine redirect
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', session.user.id)
+          .single()
+
+        // Redirect based on onboarding status
+        if (profile?.onboarding_completed) {
+          console.log('User has completed onboarding, redirecting to dashboard')
+          router.push('/dashboard')
+        } else {
+          console.log('User has not completed onboarding, redirecting to onboarding')
+          router.push('/onboarding')
+        }
       } catch (err) {
         console.error('Confirmation error:', err)
         // Safely extract error message

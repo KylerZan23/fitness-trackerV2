@@ -44,11 +44,11 @@ const mockStats: WorkoutStats = {
 }
 
 const mockTrends: WorkoutTrend[] = [
-  { date: '2024-01-01', count: 2, totalWeight: 130, totalDuration: 90 },
-  { date: '2024-01-02', count: 1, totalWeight: 65, totalDuration: 45 },
-  { date: '2024-01-03', count: 3, totalWeight: 195, totalDuration: 135 },
-  { date: '2024-01-04', count: 2, totalWeight: 130, totalDuration: 90 },
-  { date: '2024-01-05', count: 2, totalWeight: 130, totalDuration: 90 },
+  { date: '2024-01-01', count: 2, totalWeight: 130, totalDuration: 90, totalSets: 12 },
+  { date: '2024-01-02', count: 1, totalWeight: 65, totalDuration: 45, totalSets: 6 },
+  { date: '2024-01-03', count: 3, totalWeight: 195, totalDuration: 135, totalSets: 18 },
+  { date: '2024-01-04', count: 2, totalWeight: 130, totalDuration: 90, totalSets: 12 },
+  { date: '2024-01-05', count: 2, totalWeight: 130, totalDuration: 90, totalSets: 12 },
 ]
 
 // Empty stats for new users with no workout data

@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import { getStravaActivities } from '@/lib/strava'
 import { getTokensFromDatabase } from '@/lib/strava-token-store'
 import { formatDistanceMiles, formatElevation, calculatePace } from '@/lib/units'
+import { supabase } from '@/lib/supabase'
 
 interface RunListProps {
   userId: string
@@ -42,7 +43,7 @@ export const RunList = ({ userId, isConnected }: RunListProps) => {
         setError(null)
         
         // Get tokens from database
-        const tokens = await getTokensFromDatabase(userId)
+        const tokens = await getTokensFromDatabase(supabase, userId)
         
         if (!tokens) {
           setError('No Strava tokens found. Please reconnect your account.')

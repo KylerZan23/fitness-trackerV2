@@ -35,8 +35,8 @@ import {
   type EquipmentType,
 } from '@/lib/types/onboarding'
 import { 
-  saveOnboardingData, 
-  type OnboardingAndProfileData 
+  finalizeOnboardingAndGenerateProgram, 
+  type FullOnboardingAnswers 
 } from '@/app/_actions/onboardingActions'
 
 // Constants for form options
@@ -164,10 +164,12 @@ export default function OnboardingPage() {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (!session?.user) {
-          console.log('No active session found, redirecting to login')
-          router.replace('/login')
+          console.log('No active session found, redirecting to signup')
+          router.replace('/signup')
           return
         }
+
+        console.log('Authenticated user found:', session.user.id)
 
         // Check for force reset parameter (for debugging)
         const urlParams = new URLSearchParams(window.location.search)
@@ -189,7 +191,7 @@ export default function OnboardingPage() {
           }
         }
 
-        // Check if user has already completed onboarding
+        // Fetch user profile (should exist from signup)
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('id, name, email, onboarding_completed, onboarding_responses')
@@ -199,89 +201,46 @@ export default function OnboardingPage() {
         if (profileError) {
           console.error('Error loading profile:', profileError)
           
-          // If profile doesn't exist (PGRST116), that's fine - user needs onboarding
+          // If profile doesn't exist, redirect to signup to create one
           if (profileError.code === 'PGRST116') {
-            console.log('No profile found, user needs to complete onboarding')
-            setProfile({
-              id: session.user.id,
-              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-              email: session.user.email || '',
-              onboarding_completed: false
-            })
+            console.log('Profile not found, redirecting to signup')
+            router.replace('/signup')
             return
           }
           
-          setError('Unable to load profile information')
+          setError('Failed to load your profile. Please try again.')
           return
         }
-
-        console.log('Profile loaded:', { 
-          id: profile.id, 
-          onboarding_completed: profile.onboarding_completed,
-          has_onboarding_responses: !!profile.onboarding_responses,
-          onboarding_responses_keys: profile.onboarding_responses ? Object.keys(profile.onboarding_responses) : []
-        })
 
         setProfile(profile)
 
-        // Check if user has an active training program (if onboarding appears complete)
-        let hasActiveProgram = false
-        if (profile.onboarding_completed && profile.onboarding_responses) {
-          console.log('Checking for active training program...')
-          try {
-            const { data: trainingProgram, error: programError } = await supabase
-              .from('training_programs')
-              .select('id, is_active')
-              .eq('user_id', session.user.id)
-              .eq('is_active', true)
-              .maybeSingle()
+        // Check if user has already completed onboarding and has an active program
+        if (profile.onboarding_completed && !forceReset) {
+          // Check if user has an active training program
+          const { data: trainingProgram } = await supabase
+            .from('training_programs')
+            .select('id, is_active')
+            .eq('user_id', session.user.id)
+            .eq('is_active', true)
+            .maybeSingle()
 
-            if (programError) {
-              console.error('Error checking training program:', programError)
-            } else {
-              hasActiveProgram = !!trainingProgram
-              console.log('Has active training program:', hasActiveProgram, trainingProgram)
-            }
-          } catch (programCheckError) {
-            console.error('Error in program check:', programCheckError)
+          const hasActiveProgram = !!trainingProgram
+
+          if (hasActiveProgram) {
+            console.log('User has completed onboarding and has active program, redirecting to dashboard')
+            router.replace('/dashboard')
+            return
+          } else {
+            console.log('User completed onboarding but no active program found, allowing re-onboarding')
+            // Allow user to redo onboarding to generate new program
           }
         }
 
-        // Only redirect if ALL conditions are met:
-        // 1. onboarding_completed is true
-        // 2. onboarding_responses exist  
-        // 3. user has an active training program
-        // 4. not forcing reset
-        if (profile.onboarding_completed && profile.onboarding_responses && hasActiveProgram && !forceReset) {
-          console.log('Onboarding completed with responses and active program, redirecting to dashboard')
-          router.replace('/dashboard')
-          return
-        }
-
-        // If onboarding appears complete but no active program, allow them to redo onboarding
-        if (profile.onboarding_completed && profile.onboarding_responses && !hasActiveProgram) {
-          console.log('Onboarding completed but no active program found, allowing redo')
-          // Don't redirect, let them access onboarding page
-        }
-
-        // If onboarding_completed is true but no responses, reset the flag
-        if (profile.onboarding_completed && !profile.onboarding_responses) {
-          console.log('Onboarding marked complete but no responses found, resetting flag')
-          try {
-            await supabase
-              .from('profiles')
-              .update({ onboarding_completed: false })
-              .eq('id', session.user.id)
-            
-            setProfile(prev => prev ? { ...prev, onboarding_completed: false } : null)
-          } catch (resetError) {
-            console.error('Error resetting onboarding flag:', resetError)
-          }
-        }
-
+        console.log('User ready for onboarding')
+        
       } catch (err) {
-        console.error('Error in checkAuthAndRedirect:', err)
-        setError('An error occurred while loading your profile')
+        console.error('Error during auth check:', err)
+        setError('An error occurred while loading your profile. Please try again.')
       } finally {
         setIsLoading(false)
       }
@@ -298,7 +257,7 @@ export default function OnboardingPage() {
 
     try {
       // Prepare the data for the server action
-      const onboardingAndProfileData: OnboardingAndProfileData = {
+      const onboardingAndProfileData: FullOnboardingAnswers = {
         ...data,
         primaryTrainingFocus: data.primaryTrainingFocus,
         experienceLevel: data.experienceLevel,
@@ -307,7 +266,7 @@ export default function OnboardingPage() {
       console.log('Submitting onboarding data:', onboardingAndProfileData)
 
       // Call the server action
-      const result = await saveOnboardingData(onboardingAndProfileData)
+      const result = await finalizeOnboardingAndGenerateProgram(onboardingAndProfileData)
 
       if ('error' in result) {
         setError(result.error)

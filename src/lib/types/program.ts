@@ -35,7 +35,8 @@ export type WorkoutFocus =
   | "Glutes"
   | "Recovery/Mobility"
   | "Sport-Specific"
-  | "Rest Day";
+  | "Rest Day"
+  | "Lower Body Endurance";
 
 /**
  * Individual exercise detail within a workout

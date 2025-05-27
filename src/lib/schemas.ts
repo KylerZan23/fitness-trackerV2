@@ -5,6 +5,14 @@ export const loginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
+// Minimal signup schema for the new simplified signup flow
+export const minimalSignupSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+})
+
+// Original full signup schema (kept for backward compatibility)
 export const signupSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -86,6 +94,7 @@ export const workoutGroupSchema = z.object({
 })
 
 export type LoginFormData = z.infer<typeof loginSchema>
+export type MinimalSignupFormData = z.infer<typeof minimalSignupSchema>
 export type SignupFormData = z.infer<typeof signupSchema>
 export type WorkoutFormData = z.infer<typeof workoutSchema>
 export type WorkoutExerciseData = z.infer<typeof workoutExerciseSchema>

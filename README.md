@@ -4,6 +4,7 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Simplified Signup Flow**: Implemented minimal account creation that collects only essential information (name, email, password) and immediately redirects users to the comprehensive onboarding questionnaire, ensuring all users complete their profile setup while reducing initial signup friction.
 - **AI Training Program Generator**: Implemented complete AI-powered training program generation with comprehensive onboarding questionnaire, LLM integration (OpenAI GPT-4o-mini), and personalized program creation based on user goals, equipment, and experience level.
 - **Comprehensive Onboarding Flow**: Added multi-step onboarding questionnaire collecting fitness goals, training preferences, equipment access, and limitations with seamless integration to AI program generation.
 - **Training Program Database Schema**: Created robust database schema for storing AI-generated training programs with JSONB storage, automatic field extraction, and Row Level Security.

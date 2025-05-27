@@ -48,7 +48,8 @@ const WorkoutDaySchema = z.object({
     "Glutes",
     "Recovery/Mobility",
     "Sport-Specific",
-    "Rest Day"
+    "Rest Day",
+    "Lower Body Endurance"
   ]).optional(),
   exercises: z.array(ExerciseDetailSchema),
   warmUp: z.array(ExerciseDetailSchema).optional(),
@@ -140,7 +141,7 @@ interface ExerciseDetail {
 
 interface WorkoutDay {
   dayOfWeek: DayOfWeek; // 1-7 (Monday=1)
-  focus?: string; // e.g., "Upper Body", "Lower Body"
+  focus?: "Upper Body" | "Lower Body" | "Push" | "Pull" | "Legs" | "Full Body" | "Cardio" | "Core" | "Arms" | "Back" | "Chest" | "Shoulders" | "Glutes" | "Recovery/Mobility" | "Sport-Specific" | "Rest Day" | "Lower Body Endurance"; // MUST use one of these exact values
   exercises: ExerciseDetail[];
   warmUp?: ExerciseDetail[];
   coolDown?: ExerciseDetail[];
@@ -229,6 +230,9 @@ PROGRAM GENERATION INSTRUCTIONS:
 12. Set generatedAt to current ISO date string
 13. Include appropriate tags based on goals and focus
 14. Provide practical generalAdvice for program execution
+
+CRITICAL FOCUS FIELD REQUIREMENT:
+For the focus field in WorkoutDay objects, you MUST strictly use one of the following predefined values: "Upper Body", "Lower Body", "Push", "Pull", "Legs", "Full Body", "Cardio", "Core", "Arms", "Back", "Chest", "Shoulders", "Glutes", "Recovery/Mobility", "Sport-Specific", "Rest Day", or "Lower Body Endurance". Do not combine terms or create new focus categories. If more specificity is needed, use the notes field of the WorkoutDay.
 
 IMPORTANT: Return ONLY valid JSON matching the TrainingProgram interface. No additional text or markdown.
 `;

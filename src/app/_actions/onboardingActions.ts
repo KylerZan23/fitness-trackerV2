@@ -14,6 +14,12 @@ export interface OnboardingAndProfileData extends OnboardingData {
 }
 
 /**
+ * Type alias for the full onboarding answers - same as OnboardingAndProfileData
+ * but with a more descriptive name for the new flow
+ */
+export type FullOnboardingAnswers = OnboardingAndProfileData
+
+/**
  * Server action response type
  */
 type ActionResponse = 
@@ -21,7 +27,16 @@ type ActionResponse =
   | { error: string }
 
 /**
+ * Server action to finalize onboarding and generate training program
+ * This is the main function for the new simplified signup flow
+ */
+export async function finalizeOnboardingAndGenerateProgram(formData: FullOnboardingAnswers): Promise<ActionResponse> {
+  return await saveOnboardingData(formData)
+}
+
+/**
  * Server action to save user onboarding data and mark onboarding as completed
+ * @deprecated Use finalizeOnboardingAndGenerateProgram for new flows
  */
 export async function saveOnboardingData(formData: OnboardingAndProfileData): Promise<ActionResponse> {
   try {
