@@ -474,7 +474,7 @@ export default function HomePage() {
                 <div className="space-y-4">
                   <button
                     onClick={handleDashboardNavigation}
-                    className="inline-block px-8 py-4 bg-black text-white font-medium rounded-lg text-lg hover:bg-black/90 transition-colors"
+                    className="inline-block px-8 py-4 bg-black text-white font-medium rounded-lg text-lg hover:bg-black/90 hover:scale-105 hover:shadow-xl hover:shadow-black/25 active:scale-95 transition-all duration-300 ease-out transform"
                   >
                     Go to Your Dashboard
                   </button>
@@ -483,7 +483,7 @@ export default function HomePage() {
                 <div className="space-y-4">
                   <Link
                     href="/signup"
-                    className="inline-block px-8 py-4 bg-black text-white font-medium rounded-lg text-lg hover:bg-black/90 transition-colors flex items-center"
+                    className="inline-block px-8 py-4 bg-black text-white font-medium rounded-lg text-lg hover:bg-black/90 hover:scale-105 hover:shadow-xl hover:shadow-black/25 active:scale-95 transition-all duration-300 ease-out transform flex items-center"
                   >
                     Get Started Free
                     <svg
@@ -902,18 +902,7 @@ export default function HomePage() {
                           </div>
                         </div>
 
-                        {/* Floating AI Coach Button */}
-                        <div className="fixed bottom-4 right-4 z-50">
-                          <button className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 8V4H8" />
-                              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-                              <path d="M12 8v4" />
-                              <path d="M12 16v4" />
-                              <path d="M16 12h4M8 12H4M17 9l2-2M7 9l-2-2m12 8 2 2M7 17l-2 2m7-5a1 1 0 0 0-2 0v1a1 1 0 0 0 2 0Z" />
-                            </svg>
-                          </button>
-                        </div>
+
                       </div>
                       {/* === MAIN CONTENT AREA END === */}
                     </div>

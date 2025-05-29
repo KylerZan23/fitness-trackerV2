@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Home, Dumbbell, User, Settings, LogOut, LayoutDashboard, Calendar } from 'lucide-react'
+import { Home, Dumbbell, User, LogOut, LayoutDashboard, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Separator } from '@/components/ui/separator'
@@ -21,7 +21,6 @@ const navItems = [
   { href: '/program', label: 'My Program', icon: Calendar },
   { href: '/workouts', label: 'Workouts', icon: Dumbbell },
   { href: '/profile', label: 'Profile', icon: User }, // Placeholder
-  { href: '/settings', label: 'Settings', icon: Settings }, // Placeholder
 ]
 
 export function Sidebar({

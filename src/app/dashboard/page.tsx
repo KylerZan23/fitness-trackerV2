@@ -360,7 +360,7 @@ export default function DashboardPage() {
         {session && profile && (
           <>
             {/* Enhanced Welcome Message with fitness-inspired gradient */}
-            <div className="bg-gradient-hero text-white p-8 rounded-2xl shadow-card-elevated mb-8 relative overflow-hidden animate-fadeIn">
+            <div className="bg-gradient-hero text-white p-8 rounded-2xl shadow-card-elevated mb-8 relative overflow-hidden">
               {/* Background pattern overlay */}
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
@@ -371,17 +371,6 @@ export default function DashboardPage() {
                   <div className="flex-1">
                     <h1 className="text-3xl font-bold mb-2">Welcome back, {profile.name}!</h1>
                     <p className="text-white/90 text-lg">Ready to crush your fitness goals today?</p>
-                  </div>
-                  
-                  {/* Workout Streak Indicator */}
-                  <div className="mt-4 lg:mt-0 lg:ml-6">
-                    <StreakIndicator
-                      currentStreak={7} // This would come from your data
-                      longestStreak={14} // This would come from your data
-                      streakType="workout"
-                      showMilestones={false}
-                      className="bg-white/10 backdrop-blur-sm"
-                    />
                   </div>
                 </div>
               </div>
