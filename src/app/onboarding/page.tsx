@@ -43,21 +43,17 @@ import {
 const FITNESS_GOALS: { value: FitnessGoal; label: string }[] = [
   { value: 'Muscle Gain', label: 'Muscle Gain' },
   { value: 'Strength Gain', label: 'Strength Gain' },
-  { value: 'Fat Loss', label: 'Fat Loss' },
-  { value: 'General Fitness', label: 'General Fitness' },
   { value: 'Endurance Improvement', label: 'Endurance Improvement' },
   { value: 'Sport-Specific', label: 'Sport-Specific' },
+  { value: 'General Fitness', label: 'General Fitness' },
 ]
 
 const TRAINING_FOCUS_OPTIONS = [
   { value: 'General Fitness', label: 'General Fitness' },
   { value: 'Bodybuilding', label: 'Bodybuilding' },
   { value: 'Powerlifting', label: 'Powerlifting' },
-  { value: 'Weight Loss', label: 'Weight Loss' },
-  { value: 'Endurance', label: 'Endurance' },
   { value: 'Athletic Performance', label: 'Athletic Performance' },
-  { value: 'Beginner Strength', label: 'Beginner Strength' },
-  { value: 'Other', label: 'Other' },
+  { value: 'Endurance', label: 'Endurance' },
 ]
 
 const EXPERIENCE_LEVEL_OPTIONS = [
@@ -96,19 +92,17 @@ const step1Schema = z.object({
   primaryGoal: z.enum([
     'Muscle Gain',
     'Strength Gain',
-    'Fat Loss',
-    'General Fitness',
     'Endurance Improvement',
     'Sport-Specific',
+    'General Fitness',
   ]),
   secondaryGoal: z
     .enum([
       'Muscle Gain',
       'Strength Gain',
-      'Fat Loss',
-      'General Fitness',
       'Endurance Improvement',
       'Sport-Specific',
+      'General Fitness',
     ])
     .optional(),
   sportSpecificDetails: z.string().optional(),

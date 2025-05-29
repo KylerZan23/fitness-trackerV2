@@ -15,10 +15,9 @@ export type EquipmentType =
 export type FitnessGoal =
   | 'Muscle Gain'
   | 'Strength Gain'
-  | 'Fat Loss'
-  | 'General Fitness'
   | 'Endurance Improvement'
   | 'Sport-Specific'
+  | 'General Fitness'
 
 // Session duration options
 export type SessionDuration = '30-45 minutes' | '45-60 minutes' | '60-90 minutes' | '90+ minutes'

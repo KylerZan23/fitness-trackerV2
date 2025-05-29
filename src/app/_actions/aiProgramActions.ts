@@ -15,6 +15,23 @@ import {
   DayOfWeek,
   type WorkoutFocus,
 } from '@/lib/types/program'
+import {
+  MUSCLE_GAIN_BEGINNER_GUIDELINES,
+  MUSCLE_GAIN_INTERMEDIATE_GUIDELINES,
+  MUSCLE_GAIN_ADVANCED_GUIDELINES,
+  STRENGTH_GAIN_BEGINNER_GUIDELINES,
+  STRENGTH_GAIN_INTERMEDIATE_GUIDELINES,
+  STRENGTH_GAIN_ADVANCED_GUIDELINES,
+  ENDURANCE_IMPROVEMENT_BEGINNER_GUIDELINES,
+  ENDURANCE_IMPROVEMENT_INTERMEDIATE_GUIDELINES,
+  ENDURANCE_IMPROVEMENT_ADVANCED_GUIDELINES,
+  SPORT_PERFORMANCE_BEGINNER_GUIDELINES,
+  SPORT_PERFORMANCE_INTERMEDIATE_GUIDELINES,
+  SPORT_PERFORMANCE_ADVANCED_GUIDELINES,
+  GENERAL_FITNESS_BEGINNER_GUIDELINES,
+  GENERAL_FITNESS_INTERMEDIATE_GUIDELINES,
+  GENERAL_FITNESS_ADVANCED_GUIDELINES,
+} from '@/lib/llmProgramContent'
 
 /**
  * Zod schemas for validating LLM-generated training program data
@@ -190,6 +207,53 @@ interface TrainingProgram {
 }
 
 /**
+ * Helper function to select guidelines based on user's training focus and experience level
+ */
+function getExpertGuidelines(
+  trainingFocus: string | null,
+  experienceLevel: string | null
+): string {
+  const focus = trainingFocus?.toLowerCase() || 'general fitness'; // Default if null
+  const level = experienceLevel?.toLowerCase() || 'beginner'; // Default if null
+
+  // Normalize experience level string to match constant suffixes
+  let normalizedLevelKey: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' = 'BEGINNER';
+  if (level.includes('intermediate')) {
+    normalizedLevelKey = 'INTERMEDIATE';
+  } else if (level.includes('advanced')) {
+    normalizedLevelKey = 'ADVANCED';
+  }
+
+  if (focus.includes('muscle gain') || focus.includes('bodybuilding')) {
+    if (normalizedLevelKey === 'BEGINNER') return MUSCLE_GAIN_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return MUSCLE_GAIN_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return MUSCLE_GAIN_ADVANCED_GUIDELINES;
+  } else if (focus.includes('strength gain') || focus.includes('powerlifting') || focus.includes('beginner strength')) {
+    if (normalizedLevelKey === 'BEGINNER') return STRENGTH_GAIN_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return STRENGTH_GAIN_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return STRENGTH_GAIN_ADVANCED_GUIDELINES;
+  } else if (focus.includes('endurance')) {
+    if (normalizedLevelKey === 'BEGINNER') return ENDURANCE_IMPROVEMENT_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return ENDURANCE_IMPROVEMENT_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return ENDURANCE_IMPROVEMENT_ADVANCED_GUIDELINES;
+  } else if (focus.includes('sport performance') || focus.includes('athletic performance')) {
+    if (normalizedLevelKey === 'BEGINNER') return SPORT_PERFORMANCE_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return SPORT_PERFORMANCE_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return SPORT_PERFORMANCE_ADVANCED_GUIDELINES;
+  } else if (focus.includes('general fitness') || focus.includes('weight loss')) { // Grouping weight loss with general fitness for guidelines
+    if (normalizedLevelKey === 'BEGINNER') return GENERAL_FITNESS_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return GENERAL_FITNESS_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return GENERAL_FITNESS_ADVANCED_GUIDELINES;
+  }
+
+  // Fallback if no specific match is found
+  console.warn(
+    `No specific guidelines found for focus "${focus}" and level "${level}". Falling back to General Fitness Beginner.`
+  );
+  return GENERAL_FITNESS_BEGINNER_GUIDELINES;
+}
+
+/**
  * Construct the detailed LLM prompt for program generation
  */
 function constructLLMPrompt(profile: UserProfileForGeneration): string {
@@ -200,6 +264,9 @@ function constructLLMPrompt(profile: UserProfileForGeneration): string {
   }
 
   const typeDefinitions = getTypeScriptInterfaceDefinitions()
+  
+  // Get expert guidelines based on user's training focus and experience level
+  const expertGuidelines = getExpertGuidelines(profile.primary_training_focus, profile.experience_level)
 
   const userDataSection = `
 USER PROFILE:
@@ -221,23 +288,21 @@ USER GOALS & PREFERENCES:
 
   const instructions = `
 PROGRAM GENERATION INSTRUCTIONS:
-1. Generate a comprehensive 4-6 week training program
-2. Structure the program with 1-2 phases depending on duration and goals
-3. Base exercise selection strictly on available equipment: ${onboarding.equipment.join(', ')}
-4. Consider experience level (${profile.experience_level}) for exercise complexity and volume
-5. Implement progressive overload throughout the program
-6. Ensure exercise names are standard and recognizable
-7. Include warm-up and cool-down for each training day
-8. Set estimatedDurationMinutes to match the user's preferred session duration
-9. Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.)
-10. For rest days, set isRestDay: true and provide minimal exercises array
-11. Generate ${onboarding.trainingFrequencyDays} training days per week with ${7 - onboarding.trainingFrequencyDays} rest days
-12. Set generatedAt to current ISO date string
-13. Include appropriate tags based on goals and focus
-14. Provide practical generalAdvice for program execution
-
-CRITICAL FOCUS FIELD REQUIREMENT:
-For the focus field in WorkoutDay objects, you MUST strictly use one of the following predefined values: "Upper Body", "Lower Body", "Push", "Pull", "Legs", "Full Body", "Cardio", "Core", "Arms", "Back", "Chest", "Shoulders", "Glutes", "Recovery/Mobility", "Sport-Specific", "Rest Day", or "Lower Body Endurance". Do not combine terms or create new focus categories. If more specificity is needed, use the notes field of the WorkoutDay.
+1.  **Prioritize Expert Guidelines**: Generate a comprehensive 4-6 week training program. Base this program PRIMARILY on the "EXPERT GUIDELINES FOR ${profile.primary_training_focus?.toUpperCase() || 'USER\'S GOAL'} - ${profile.experience_level?.toUpperCase() || 'USER\'S LEVEL'}" provided below. These guidelines are CRITICAL.
+2.  **Adapt to User Specifics**: You MUST adapt the expert guidelines and any example plans within them to the user's specific "Available Equipment" (${onboarding.equipment.join(', ')}), "Training Frequency" (${onboarding.trainingFrequencyDays} days/week), and "Session Duration" (${onboarding.sessionDuration}). If the user's available equipment or preferred schedule differs significantly from an example in the guidelines, modify the exercises and structure to be appropriate and safe while still adhering to the core principles (e.g., target muscle groups, progression type) from the guidelines. For instance, if guidelines suggest barbell squats but user only has dumbbells, suggest dumbbell squats or goblet squats. If guidelines suggest 5 days but user selected 3, condense the plan logically.
+3.  **Structure & Content**:
+    *   Structure the program with 1-2 phases as appropriate for a 4-6 week duration and the user's goals, based on the expert guidelines.
+    *   Implement progressive overload principles as described in the expert guidelines.
+    *   Ensure exercise names are standard and recognizable. If an exercise from the guidelines is not in the provided TypeScript \`ExerciseDetail.name\` list, use a very common, standard alternative or break it down if it's a complex movement.
+    *   Include warm-up and cool-down for each training day. If guidelines are sparse on this, apply general best practices (e.g., 5-10 min light cardio and dynamic stretches for warm-up; 5-10 min static stretches for cool-down).
+    *   Set \`estimatedDurationMinutes\` for each WorkoutDay to align with the user's preferred session duration, adapting the number of exercises or sets from the guidelines if necessary.
+4.  **Output Format**:
+    *   Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.).
+    *   For rest days, set \`isRestDay: true\` and provide a minimal or empty exercises array.
+    *   Ensure ${onboarding.trainingFrequencyDays} training days and ${7 - onboarding.trainingFrequencyDays} rest days per week, distributing them reasonably (e.g., not all training days consecutively if possible, unless specified in guidelines).
+    *   Set \`generatedAt\` to the current ISO date string.
+    *   Include appropriate tags based on goals and focus.
+5.  **Focus Field**: For the \`focus\` field in WorkoutDay objects, you MUST strictly use one of the predefined values listed in the TypeScript interface. Do not combine terms or create new focus categories. If more specificity is needed, use the notes field of the WorkoutDay.
 
 IMPORTANT: Return ONLY valid JSON matching the TrainingProgram interface. No additional text or markdown.
 `
@@ -246,9 +311,16 @@ IMPORTANT: Return ONLY valid JSON matching the TrainingProgram interface. No add
 
 ${typeDefinitions}
 
+---
+USER DATA:
 ${userDataSection}
-
-${instructions}`
+---
+EXPERT GUIDELINES FOR ${profile.primary_training_focus?.toUpperCase() || 'USER\'S GOAL'} - ${profile.experience_level?.toUpperCase() || 'USER\'S LEVEL'}:
+${expertGuidelines}
+---
+PROGRAM GENERATION INSTRUCTIONS:
+${instructions}
+`
 }
 
 /**
