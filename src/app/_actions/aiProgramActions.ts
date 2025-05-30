@@ -127,6 +127,7 @@ interface UserProfileForGeneration {
   id: string
   name: string
   age: number
+  weight_unit?: string
   primary_training_focus: string | null
   experience_level: string | null
   onboarding_responses: OnboardingData | null
@@ -263,6 +264,14 @@ function constructLLMPrompt(profile: UserProfileForGeneration): string {
     throw new Error('User has not completed onboarding')
   }
 
+  // Extract strength data
+  const squat1RMEstimate = onboarding.squat1RMEstimate
+  const benchPress1RMEstimate = onboarding.benchPress1RMEstimate
+  const deadlift1RMEstimate = onboarding.deadlift1RMEstimate
+  const overheadPress1RMEstimate = onboarding.overheadPress1RMEstimate
+  const strengthAssessmentType = onboarding.strengthAssessmentType
+  const weightUnit = profile.weight_unit || 'kg' // Get weight unit from profile
+
   const typeDefinitions = getTypeScriptInterfaceDefinitions()
   
   // Get expert guidelines based on user's training focus and experience level
@@ -286,6 +295,15 @@ USER GOALS & PREFERENCES:
 - Injuries/Limitations: ${onboarding.injuriesLimitations || 'None specified'}
 `
 
+  const strengthDataSection = `
+USER STRENGTH ESTIMATES (in ${weightUnit}):
+- Squat 1RM / Estimate: ${squat1RMEstimate || 'Not provided'}
+- Bench Press 1RM / Estimate: ${benchPress1RMEstimate || 'Not provided'}
+- Deadlift 1RM / Estimate: ${deadlift1RMEstimate || 'Not provided'}
+- Overhead Press 1RM / Estimate: ${overheadPress1RMEstimate || 'Not provided'}
+- Values Determined By: ${strengthAssessmentType || 'Not provided'}
+`
+
   const instructions = `
 PROGRAM GENERATION INSTRUCTIONS:
 1.  **Prioritize Expert Guidelines**: Generate a comprehensive 4-6 week training program. Base this program PRIMARILY on the "EXPERT GUIDELINES FOR ${profile.primary_training_focus?.toUpperCase() || 'USER\'S GOAL'} - ${profile.experience_level?.toUpperCase() || 'USER\'S LEVEL'}" provided below. These guidelines are CRITICAL.
@@ -303,6 +321,15 @@ PROGRAM GENERATION INSTRUCTIONS:
     *   Set \`generatedAt\` to the current ISO date string.
     *   Include appropriate tags based on goals and focus.
 5.  **Focus Field**: For the \`focus\` field in WorkoutDay objects, you MUST strictly use one of the predefined values listed in the TypeScript interface. Do not combine terms or create new focus categories. If more specificity is needed, use the notes field of the WorkoutDay.
+6.  **Weight Prescription**:
+    *   Utilize the "USER STRENGTH ESTIMATES" provided. The unit for these estimates is ${weightUnit}.
+    *   For core compound exercises (Squat, Bench Press, Deadlift, Overhead Press if applicable) where a 1RM/e1RM is provided by the user:
+        *   For sets in the 1-5 rep range (strength focus), suggest working weights typically between 80-95% of the user's 1RM/e1RM.
+        *   For sets in the 6-12 rep range (hypertrophy focus), suggest working weights typically between 65-80% of 1RM/e1RM.
+        *   For sets in the 12-15+ rep range (endurance focus), suggest working weights typically between 50-65% of 1RM/e1RM.
+    *   If the user's \`Experience Level\` is 'Beginner' or \`Values Determined By\` is 'Unsure / Just a guess', instruct the AI to be conservative. It should prioritize form and suggest starting at the lower end of percentage ranges or even with 'just the bar' for complex movements. Emphasize gradual weight increase.
+    *   For exercises where a direct 1RM is not applicable or not provided by the user (e.g., isolation exercises like Bicep Curls, dumbbell accessories, or if the user didn't provide a 1RM for the parent compound lift), instruct the AI to provide descriptive guidance. Examples: "Challenging weight for X reps", "Use bodyweight", "Light dumbbells", or suggest selecting a weight that matches a target RPE (e.g., "Select weight for RPE 7-8").
+    *   The output for the \`weight\` field in the \`ExerciseDetail\` JSON object should be a string. Examples: "100 ${weightUnit}", "45 ${weightUnit}", "Bodyweight", "Challenging weight for 10 reps (RPE 8)". If a specific weight is given, ALWAYS include the unit (${weightUnit}).
 
 IMPORTANT: Return ONLY valid JSON matching the TrainingProgram interface. No additional text or markdown.
 `
@@ -314,6 +341,7 @@ ${typeDefinitions}
 ---
 USER DATA:
 ${userDataSection}
+${strengthDataSection}
 ---
 EXPERT GUIDELINES FOR ${profile.primary_training_focus?.toUpperCase() || 'USER\'S GOAL'} - ${profile.experience_level?.toUpperCase() || 'USER\'S LEVEL'}:
 ${expertGuidelines}
@@ -331,7 +359,6 @@ function getDurationBasedOnGoals(onboarding: OnboardingData): number {
 
   // Adjust duration based on goals (shortened to 4-6 weeks to manage token limits)
   if (primaryGoal === 'General Fitness') return 4
-  if (primaryGoal === 'Fat Loss') return 6
   if (primaryGoal === 'Muscle Gain') return 6
   if (primaryGoal === 'Strength Gain') return 6
   if (primaryGoal === 'Endurance Improvement') return 5
@@ -405,7 +432,7 @@ export async function generateTrainingProgram(
     // Fetch user profile and onboarding data
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, name, age, primary_training_focus, experience_level, onboarding_responses')
+      .select('id, name, age, weight_unit, primary_training_focus, experience_level, onboarding_responses')
       .eq('id', userId)
       .single()
 

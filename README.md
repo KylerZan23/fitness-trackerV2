@@ -4,63 +4,170 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
-- **Simplified Signup Flow**: Implemented minimal account creation that collects only essential information (name, email, password) and immediately redirects users to the comprehensive onboarding questionnaire, ensuring all users complete their profile setup while reducing initial signup friction.
-- **AI Training Program Generator**: Implemented complete AI-powered training program generation with comprehensive onboarding questionnaire, LLM integration (OpenAI GPT-4o-mini), and personalized program creation based on user goals, equipment, and experience level.
-- **Comprehensive Onboarding Flow**: Added multi-step onboarding questionnaire collecting fitness goals, training preferences, equipment access, and limitations with seamless integration to AI program generation.
-- **Training Program Database Schema**: Created robust database schema for storing AI-generated training programs with JSONB storage, automatic field extraction, and Row Level Security.
-- **Dashboard "Log New Workout" Button**: Re-implemented a prominent "Log a New Workout" button on the dashboard page for easy access to workout logging.
-- **Workout Calendar Enhancement**: The yearly workout history calendar on the `/workouts` page now displays both Strava run activities and traditional lifting workouts, providing a unified view of all training.
-- **Workout Logging UI Overhaul**: Redesigned the workout logging page (`/workout/new`) to match the dashboard's light theme and layout for a consistent user experience.
-- **CoPacer-Inspired Landing Page**: Updated the landing page with a modern gradient background, simplified form inputs, and device mockup visuals
-- **Dashboard Running Activity**: Added a "Your Recent Run" section to the dashboard to display the latest run from Strava
-- **Strava-like Run Cards**: Added Strava-style run cards with map visualization to the run logger page
-- **Fixed Authentication Loop**: Added force_login parameter to bypass authentication checks and allow direct access to login page
-- **Enhanced Authentication Security**: Updated middleware to use `getUser()` instead of `getSession()` for secure token verification
-- **Fixed Workout Logging**: Resolved schema cache issue that prevented workout logging by removing dependency on muscle_group column
-- **Simplified Workout Entry**: Removed the exercise selector component for a more direct workout logging experience -> Updated to reflect UI overhaul.
-- **Simplified Exercise Selection**: Removed muscle group filtering during workout entry for a more streamlined workout logging experience -> Updated to reflect UI overhaul.
-- **Enhanced Auth Session Debugging**: Added comprehensive client and server-side logging for authentication troubleshooting and a standalone token verification testing tool
-- **Improved Auth Token Verification**: Enhanced security by using service role for token verification with proper error handling
-- **Enhanced Authentication & Profile Creation**: Fixed RLS policy issues and improved server-side API token verification for robust user registration
-- **Improved Authentication Flow**: Added ability to bypass authentication redirection for accessing the login page and switching accounts
-- **Muscle Group Information**: Added muscle group information for exercises when logging workouts
-- **Workout Entry Feature**: Added a new page for logging individual workouts with exercise details
-- **SSR Authentication Fix**: Updated Supabase client to use cookie-based authentication for SSR compatibility, fixing login redirection issues
-- **Authentication Flow Improvements**: Fixed issues with session persistence and navigation between dashboard and profile pages
+- **Individual Question-Based Onboarding (Complete)**: Replaced the original multi-step onboarding form with an engaging individual question-per-page experience:
+  - Each question presented on its own dedicated page for maximum engagement
+  - Smooth animations and transitions between questions
+  - Real-time validation with helpful feedback and suggestions
+  - Progress persistence with auto-save and session restoration
+  - Comprehensive review summary before program generation
+  - 15+ individual questions with conditional logic and smart navigation
+  - **Fixed**: Flow now continues through all questions (including optional strength assessments) before showing review
+  - **Fixed**: "Back to Questions" button now properly navigates back to continue the flow
+  - **Fixed**: All question components implemented (no more "coming soon" messages)
+  - **Fixed**: Onboarding completion now properly saves data and generates AI training programs
+  - **Enhanced**: Added loading overlay during AI program generation with progress feedback
+  - **Enhanced**: Proper error handling and graceful fallback if program generation fails
 
-- **User Avatar Component**: Added personalized user avatars with initials and tooltips for better UX
-- **Error Handling**: Improved error handling for database operations to ensure a smoother user experience
-- **Added Run Logger Page**: New dedicated page for tracking running activities accessible from the dashboard
-- **Strava API Integration**: Added Strava OAuth authentication and run logging capabilities to the Run Logger page
-- **Imperial Unit Support**: Updated run logging and display to use miles, feet, and miles-per-minute metrics instead of kilometers
-- **Profile Picture Upload**: Added support for uploading and displaying user profile pictures with Supabase Storage integration
-- **Unified Workout Calendar**: The yearly workout calendar on the `/workouts` page now includes Strava run data alongside lifting workouts, offering a comprehensive training overview.
+- **Enhanced AI Weight Recommendations**: Added 1RM/e1RM data collection during onboarding with personalized weight prescriptions:
+  - Individual strength assessment questions for squat, bench press, deadlift, and overhead press
+  - Confidence level tracking (actual 1RM vs estimated vs unsure)
+  - AI prompt integration with percentage-based training recommendations
+  - Conservative approach for beginners and uncertain assessments
+  - Proper weight unit handling (lbs/kg) throughout the system
 
-## Features
+## Key Features
 
-- **AI Training Program Generator**: Complete LLM-powered personalized training program creation with:
-  - Multi-step onboarding questionnaire (9 comprehensive questions)
-  - OpenAI GPT-4o-mini integration with structured JSON responses
-  - Equipment-based exercise selection and progressive overload
-  - Zod schema validation for type-safe program generation
-  - Automatic database persistence and program management
-- User authentication with email/password (SSR-compatible)
-- Profile management
-- Workout tracking with detailed exercise logging (integrated into the light-themed dashboard layout)
-- Progress analytics
-- Health app integration
-- Exercise categorization
-- Muscle heatmap visualization for tracking training balance
-- Run tracking with Strava integration and interactive maps
-- **Dashboard UI:** A modern, sidebar-based dashboard with a **light theme**, displaying:
-  - Welcome banner (e.g., "Welcome back, {user}").
-  - Today's Snapshot: Displays "Exercises", "Sets", "Total Duration (min)", and "Total Weight".
-  - Workout trends chart (last 7 days).
-  - Muscle group distribution chart.
-  - Goals tracking section (e.g., weekly distance, workout days).
-  - Recent activity section (e.g., runs).
-  - AI Personal Coach section.
-  - Prominent "Log a New Workout" button for quick access to logging.
+### 🎯 **AI-Powered Training Programs**
+- Personalized workout generation based on comprehensive onboarding data
+- 1RM-based weight recommendations with percentage training zones
+- Equipment-specific exercise selection and modifications
+- Progressive overload principles built into program structure
+- **Complete Integration**: Onboarding → Data Validation → AI Generation → Database Storage
+
+### 🔄 **Seamless Onboarding Experience**
+- Individual question-per-page design for maximum engagement
+- Real-time validation with helpful suggestions and warnings
+- Progress auto-save and session restoration
+- Comprehensive review summary with edit capabilities
+- Loading states and error handling for smooth user experience
+
+### 📊 **Comprehensive Data Collection**
+- Primary and secondary fitness goals
+- Training focus and experience level assessment
+- Equipment availability and session preferences
+- Exercise preferences and limitations
+- Detailed strength assessments with 1RM estimates
+- Injury and limitation considerations
+
+### 🏋️‍♂️ **Smart Program Generation**
+- TypeScript-validated program structures
+- Zod schema validation for AI responses
+- Equipment-based exercise substitutions
+- Experience-level appropriate programming
+- Strength data integration for personalized weights
+
+## Technical Architecture
+
+### Frontend
+- **Next.js 15** with App Router
+- **TypeScript** for type safety
+- **Tailwind CSS** for styling
+- **React Hook Form** with Zod validation
+- **Framer Motion** for animations
+
+### Backend
+- **Supabase** for authentication and database
+- **PostgreSQL** with JSONB for flexible program storage
+- **Row Level Security** for data protection
+- **Server Actions** for type-safe API calls
+
+### AI Integration
+- **OpenAI GPT-4o-mini** for program generation
+- **Structured JSON responses** with schema validation
+- **Comprehensive prompt engineering** with TypeScript interfaces
+- **Error handling and fallback mechanisms**
+
+## Getting Started
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/KylerZan23/fitness-trackerV2.git
+   cd fitness-trackerV2
+   ```
+
+2. **Install dependencies**
+   ```bash
+   yarn install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   # Add your Supabase and OpenAI API keys
+   ```
+
+4. **Run the development server**
+   ```bash
+   yarn dev
+   ```
+
+5. **Open your browser**
+   Navigate to `http://localhost:3000`
+
+## Environment Variables Required
+
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# OpenAI Configuration (for AI program generation)
+LLM_API_KEY=sk-your-openai-api-key
+LLM_API_ENDPOINT=https://api.openai.com/v1/chat/completions  # Optional, defaults to OpenAI
+```
+
+## User Flow
+
+1. **Sign Up** → Create account with basic profile information
+2. **Onboarding** → Complete individual question-based assessment
+3. **Review** → Verify responses and preferences
+4. **AI Generation** → Personalized training program created
+5. **Dashboard** → Access your program and track progress
+
+## Recent Fixes & Improvements
+
+### Onboarding Flow Completion ✅
+- **Issue**: "Generate My Training Program" button only redirected to dashboard without saving data
+- **Solution**: Implemented proper `finalizeOnboardingAndGenerateProgram` server action integration
+- **Features Added**:
+  - Data transformation and validation before submission
+  - Loading overlay with progress feedback during AI generation
+  - Error handling with graceful fallback
+  - Success/warning states with appropriate redirects
+  - Proper TypeScript typing throughout the flow
+
+### Question Component Implementation ✅
+- **Issue**: Several questions showed "component not yet implemented" messages
+- **Solution**: Created comprehensive question components for all onboarding steps
+- **Components Added**:
+  - `PrimaryTrainingFocusQuestion` - Training focus selection with detailed descriptions
+  - `SecondaryGoalQuestion` - Optional secondary fitness goals
+  - `ExperienceLevelQuestion` - Fitness experience assessment
+  - `SessionDurationQuestion` - Workout duration preferences
+  - `ExercisePreferencesQuestion` - Free-form exercise preferences and limitations
+  - Individual strength assessment components for all major lifts
+
+### Navigation & Flow Control ✅
+- **Issue**: "Back to Questions" button didn't work properly
+- **Solution**: Fixed navigation logic to properly return to question flow
+- **Issue**: Flow completed too early, skipping optional questions
+- **Solution**: Updated completion logic to ensure all questions are presented
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support, email kylerzan23@gmail.com or open an issue on GitHub.
 
 ## Profile Management
 
@@ -184,104 +291,6 @@ All images are sourced from Unsplash and are free to use under the Unsplash Lice
    - Celebratory fitness scene
    - Source: https://unsplash.com/photos/7ZmtUtAArRI
 
-## Getting Started
-
-1. Clone the repository
-2. Install dependencies:
-
-   ```bash
-   yarn install
-   ```
-
-3. Set up environment variables:
-
-   ```bash
-   cp .env.example .env.local
-   ```
-
-   Then add your Supabase credentials to `.env.local`
-
-4. Start the development server:
-
-   ```bash
-   yarn dev
-   ```
-
-5. Open [http://localhost:3000](http://localhost:3000)
-
-## Development
-
-- Built with Next.js 14 (App Router)
-- Styled with Tailwind CSS
-- Authentication via Supabase SSR
-- Form handling with React Hook Form
-- Validation with Zod
-- Map visualization with Leaflet
-
-## Code Quality
-
-This project uses ESLint and Prettier to maintain code quality and consistent styling:
-
-### Linting
-
-- ESLint is configured with TypeScript-specific rules
-- Run linting checks:
-  ```bash
-  yarn lint
-  ```
-- Fix automatically fixable issues:
-  ```bash
-  yarn lint:fix
-  ```
-
-### Formatting
-
-- Prettier ensures consistent code formatting
-- Format all files:
-  ```bash
-  yarn format
-  ```
-- Check if files are properly formatted:
-  ```bash
-  yarn format:check
-  ```
-
-### Pre-commit Hooks
-
-Consider adding pre-commit hooks with Husky to ensure code quality before committing:
-
-```bash
-yarn add --dev husky lint-staged
-```
-
-Then add to package.json:
-
-```json
-{
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx}": ["eslint --fix", "prettier --write"],
-    "*.{json,css,md}": ["prettier --write"]
-  }
-}
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-MIT License - see LICENSE for details
-
 ## Workout Tracking
 
 The application provides robust workout tracking features, allowing users to log, view, and analyze their training progress. The yearly workout calendar on the `/workouts` page now offers a consolidated view, displaying both manually logged lifting sessions and synchronized Strava run activities.
@@ -352,3 +361,27 @@ The `profiles` table has been updated with the following fields to support Strav
 - `strava_refresh_token`: User's Strava refresh token
 - `strava_token_expires_at`: Expiration timestamp for the access token
 - `strava_connected`: Boolean flag indicating if the user has connected their Strava account
+
+## 🎯 Features
+
+### Core Functionality
+- **AI Training Program Generator**: Personalized workout programs using OpenAI GPT-4o-mini
+- **Individual Question-Based Onboarding**: Streamlined question-per-page flow with:
+  - Primary and secondary fitness goals
+  - Training style and experience level selection
+  - **Unit preference selection (kg/lbs)** - NEW! 
+  - Training frequency and session duration
+  - Equipment availability assessment
+  - Optional strength assessments (1RM estimates)
+  - Exercise preferences and injury considerations
+- **Workout Logging**: Track exercises, sets, reps, and weights
+- **Progress Tracking**: Visual charts and analytics
+- **Strava Integration**: Sync running activities automatically
+- **Profile Management**: Comprehensive user profiles with unit preferences
+
+### Advanced Features
+- **Real-time Validation**: Instant feedback during onboarding
+- **Progress Persistence**: Resume onboarding where you left off
+- **Responsive Design**: Works seamlessly on desktop and mobile
+- **Dark Mode Support**: Eye-friendly interface options
+- **Unit Conversion**: Automatic weight unit handling throughout the app

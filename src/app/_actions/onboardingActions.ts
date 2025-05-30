@@ -61,12 +61,13 @@ export async function saveOnboardingData(
     }
 
     // Separate the data: profile fields vs onboarding responses
-    const { primaryTrainingFocus, experienceLevel, ...onboardingResponses } = formData
+    const { primaryTrainingFocus, experienceLevel, weightUnit, ...onboardingResponses } = formData
 
     // Prepare the update object
     const updateData = {
       primary_training_focus: primaryTrainingFocus,
       experience_level: experienceLevel,
+      weight_unit: weightUnit,
       onboarding_responses: onboardingResponses,
       onboarding_completed: true,
     }
