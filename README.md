@@ -4,6 +4,14 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **LLM Program Content Refinement (2025-01-06)**: Completely overhauled the AI training program content for improved efficiency and quality:
+  - **Evidence-Based Guidelines**: All recommendations now reflect meta-analyses and consensus from 2023-2025
+  - **Optimized Format**: Reduced content from 345 to ~200 lines while maintaining comprehensiveness
+  - **Structured Layout**: Unified FOUR-header format (PRINCIPLES · WEEKLY PLAN · PROGRESSION · OPTIONS)
+  - **Token Efficiency**: Significantly reduced LLM API costs and improved response times
+  - **Scientific Accuracy**: Updated with latest exercise science research and RPE-based programming
+  - **Maintained Compatibility**: Zero breaking changes to existing AI program generation system
+
 - **Individual Question-Based Onboarding (Complete)**: Replaced the original multi-step onboarding form with an engaging individual question-per-page experience:
   - Each question presented on its own dedicated page for maximum engagement
   - Smooth animations and transitions between questions

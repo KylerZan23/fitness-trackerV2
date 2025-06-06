@@ -113,7 +113,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     title: "How long per training session? ⏱️",
     description: "This helps us plan the right amount of exercises for each workout",
     component: PlaceholderQuestion,
-    validation: z.enum(['30-45 minutes', '45-60 minutes', '60-90 minutes', '90+ minutes']),
+    validation: z.enum(['30-45 minutes', '45-60 minutes', '60-75 minutes', '75+ minutes']),
     category: 'training',
     order: 8,
     isOptional: false

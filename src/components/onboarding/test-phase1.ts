@@ -66,7 +66,7 @@ export function testPhase1Implementation() {
     primaryTrainingFocus: 'Bodybuilding',
     experienceLevel: 'Intermediate (6mo-2yr)',
     trainingFrequencyDays: 4,
-    sessionDuration: '60-90 minutes',
+    sessionDuration: '60-75 minutes',
     equipment: ['Full Gym (Barbells, Racks, Machines)']
   }
   

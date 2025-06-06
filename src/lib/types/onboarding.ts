@@ -20,7 +20,7 @@ export type FitnessGoal =
   | 'General Fitness'
 
 // Session duration options
-export type SessionDuration = '30-45 minutes' | '45-60 minutes' | '60-90 minutes' | '90+ minutes'
+export type SessionDuration = '30-45 minutes' | '45-60 minutes' | '60-75 minutes' | '75+ minutes'
 
 // Weight unit options
 export type WeightUnit = 'kg' | 'lbs'

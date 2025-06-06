@@ -59,11 +59,11 @@ export default function OnboardingPage() {
       if ('warning' in result && result.warning) {
         console.warn('Program generation warning:', result.warning)
         // You could show a toast notification here
-        // For now, we'll still redirect to dashboard with a query param
-        router.push('/dashboard?onboarding=completed&program_warning=true')
+        // For now, we'll still redirect to program page with a query param
+        router.push('/program?onboarding=completed&program_warning=true')
       } else {
-        // Complete success - redirect to dashboard
-        router.push('/dashboard?onboarding=completed&program=generated')
+        // Complete success - redirect to program page
+        router.push('/program?onboarding=completed&program=generated')
       }
       
     } catch (error) {

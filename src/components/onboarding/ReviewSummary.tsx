@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/Icon'
 import { type OnboardingFormData } from './types/onboarding-flow'
+import { ONBOARDING_QUESTIONS } from './QuestionRegistry'
 import { type FitnessGoal, type EquipmentType } from '@/lib/types/onboarding'
 
 interface ReviewSummaryProps {
@@ -253,6 +254,13 @@ function buildSummarySections(answers: Partial<OnboardingFormData>): SummarySect
           questionId: 'secondaryGoal',
           isOptional: true,
           isEmpty: !answers.secondaryGoal
+        },
+        {
+          label: 'Sport Details',
+          value: answers.sportSpecificDetails || '',
+          questionId: 'sportSpecificDetails',
+          isOptional: true,
+          isEmpty: !answers.sportSpecificDetails
         }
       ]
     },
@@ -268,7 +276,7 @@ function buildSummarySections(answers: Partial<OnboardingFormData>): SummarySect
         },
         {
           label: 'Session Duration',
-          value: answers.sessionDuration ? `${answers.sessionDuration} minutes` : '',
+          value: answers.sessionDuration || '',
           questionId: 'sessionDuration',
           isEmpty: !answers.sessionDuration
         },
@@ -283,6 +291,12 @@ function buildSummarySections(answers: Partial<OnboardingFormData>): SummarySect
           value: answers.primaryTrainingFocus || '',
           questionId: 'primaryTrainingFocus',
           isEmpty: !answers.primaryTrainingFocus
+        },
+        {
+          label: 'Weight Unit',
+          value: answers.weightUnit || '',
+          questionId: 'weightUnit',
+          isEmpty: !answers.weightUnit
         }
       ]
     },
@@ -338,6 +352,26 @@ function buildSummarySections(answers: Partial<OnboardingFormData>): SummarySect
           isEmpty: !answers.strengthAssessmentType
         }
       ]
+    },
+    {
+      title: 'Preferences & Limitations',
+      emoji: '⚠️',
+      items: [
+        {
+          label: 'Exercise Preferences',
+          value: answers.exercisePreferences || '',
+          questionId: 'exercisePreferences',
+          isOptional: true,
+          isEmpty: !answers.exercisePreferences
+        },
+        {
+          label: 'Injuries/Limitations',
+          value: answers.injuriesLimitations || '',
+          questionId: 'injuriesLimitations',
+          isOptional: true,
+          isEmpty: !answers.injuriesLimitations
+        }
+      ]
     }
   ]
 }
@@ -346,34 +380,23 @@ function buildSummarySections(answers: Partial<OnboardingFormData>): SummarySect
  * Calculate completion statistics
  */
 function calculateCompletionStats(answers: Partial<OnboardingFormData>) {
-  const requiredQuestions = [
-    'primaryGoal',
-    'trainingFrequencyDays',
-    'equipment',
-    'experienceLevel',
-    'primaryTrainingFocus',
-    'sessionDuration'
-  ]
+  // Get all question IDs from the registry
+  const allQuestionIds = ONBOARDING_QUESTIONS.map(q => q.id)
   
-  const optionalQuestions = [
-    'secondaryGoal',
-    'squat1RMEstimate',
-    'benchPress1RMEstimate',
-    'deadlift1RMEstimate',
-    'overheadPress1RMEstimate',
-    'strengthAssessmentType'
-  ]
-  
-  const totalQuestions = requiredQuestions.length + optionalQuestions.length
-  const answeredQuestions = Object.keys(answers).filter(key => {
-    const value = answers[key as keyof OnboardingFormData]
-    return value !== undefined && value !== null && value !== ''
+  // Count only answers that correspond to actual questions in the registry
+  const answeredQuestions = allQuestionIds.filter(questionId => {
+    const value = answers[questionId as keyof OnboardingFormData]
+    return value !== undefined && value !== null && value !== '' && 
+           (Array.isArray(value) ? value.length > 0 : true)
   }).length
+  
+  const totalQuestions = allQuestionIds.length
+  const percentage = Math.min(100, Math.round((answeredQuestions / totalQuestions) * 100))
   
   return {
     total: totalQuestions,
     completed: answeredQuestions,
-    percentage: Math.round((answeredQuestions / totalQuestions) * 100)
+    percentage
   }
 }
 

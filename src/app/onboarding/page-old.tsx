@@ -65,8 +65,8 @@ const EXPERIENCE_LEVEL_OPTIONS = [
 const SESSION_DURATIONS: { value: SessionDuration; label: string }[] = [
   { value: '30-45 minutes', label: '30-45 minutes' },
   { value: '45-60 minutes', label: '45-60 minutes' },
-  { value: '60-90 minutes', label: '60-90 minutes' },
-  { value: '90+ minutes', label: '90+ minutes' },
+  { value: '60-75 minutes', label: '60-75 minutes' },
+  { value: '75+ minutes', label: '75+ minutes' },
 ]
 
 const EQUIPMENT_OPTIONS: { value: EquipmentType; label: string }[] = [
@@ -112,7 +112,7 @@ const step1Schema = z.object({
 
 const step2Schema = z.object({
   trainingFrequencyDays: z.number().min(2).max(7),
-  sessionDuration: z.enum(['30-45 minutes', '45-60 minutes', '60-90 minutes', '90+ minutes']),
+      sessionDuration: z.enum(['30-45 minutes', '45-60 minutes', '60-75 minutes', '75+ minutes']),
   equipment: z
     .array(
       z.enum([
@@ -256,9 +256,9 @@ export default function OnboardingPage() {
 
           if (hasActiveProgram) {
             console.log(
-              'User has completed onboarding and has active program, redirecting to dashboard'
+              'User has completed onboarding and has active program, redirecting to program page'
             )
-            router.replace('/dashboard')
+            router.replace('/program')
             return
           } else {
             console.log(
@@ -311,8 +311,8 @@ export default function OnboardingPage() {
       // You could add a toast notification here in the future
       // toast.success('Welcome! Your personalized training program is being generated.')
 
-      // Redirect to dashboard or a success page
-      router.push('/dashboard?onboarding=completed')
+      // Redirect to program page to view the generated training program
+      router.push('/program?onboarding=completed')
     } catch (err) {
       console.error('Error submitting onboarding:', err)
       setError('An unexpected error occurred. Please try again.')
