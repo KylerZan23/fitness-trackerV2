@@ -60,7 +60,7 @@ export async function syncStravaActivities(
   lastActivityDate?: string
 }> {
   console.log(`Starting Strava sync for user ${userId.substring(0, 6)}. Mode: ${syncMode}`)
-  let currentTokens = { ...tokens }
+  const currentTokens = { ...tokens }
   let totalSyncedCount = 0
   let totalNewActivitiesCount = 0
   let lastProcessedActivityDate: string | undefined

@@ -254,13 +254,6 @@ function buildSummarySections(answers: Partial<OnboardingFormData>): SummarySect
           questionId: 'secondaryGoal',
           isOptional: true,
           isEmpty: !answers.secondaryGoal
-        },
-        {
-          label: 'Sport Details',
-          value: answers.sportSpecificDetails || '',
-          questionId: 'sportSpecificDetails',
-          isOptional: true,
-          isEmpty: !answers.sportSpecificDetails
         }
       ]
     },

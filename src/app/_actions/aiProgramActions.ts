@@ -308,18 +308,46 @@ USER STRENGTH ESTIMATES (in ${weightUnit}):
 PROGRAM GENERATION INSTRUCTIONS:
 1.  **Prioritize Expert Guidelines**: Generate a comprehensive 4-6 week training program. Base this program PRIMARILY on the "EXPERT GUIDELINES FOR ${profile.primary_training_focus?.toUpperCase() || 'USER\'S GOAL'} - ${profile.experience_level?.toUpperCase() || 'USER\'S LEVEL'}" provided below. These guidelines are CRITICAL.
 2.  **Adapt to User Specifics**: You MUST adapt the expert guidelines and any example plans within them to the user's specific "Available Equipment" (${onboarding.equipment.join(', ')}), "Training Frequency" (${onboarding.trainingFrequencyDays} days/week), and "Session Duration" (${onboarding.sessionDuration}). If the user's available equipment or preferred schedule differs significantly from an example in the guidelines, modify the exercises and structure to be appropriate and safe while still adhering to the core principles (e.g., target muscle groups, progression type) from the guidelines. For instance, if guidelines suggest barbell squats but user only has dumbbells, suggest dumbbell squats or goblet squats. If guidelines suggest 5 days but user selected 3, condense the plan logically.
+
+**CRITICAL: Session Duration & Exercise Count Requirements**:
+Based on the user's selected session duration (${onboarding.sessionDuration}), you MUST include the following MINIMUM number of exercises per workout:
+- **30-45 minutes**: Minimum 6-8 total exercises (2-3 warm-up, 3-4 main workout, 1-2 cool-down)
+- **45-60 minutes**: Minimum 8-10 total exercises (3-4 warm-up, 4-5 main workout, 1-2 cool-down)  
+- **60-75 minutes**: Minimum 10-14 total exercises (3-4 warm-up, 6-8 main workout, 2-3 cool-down)
+- **75+ minutes**: Minimum 12-16 total exercises (4-5 warm-up, 7-9 main workout, 2-3 cool-down)
+
+For ADVANCED users doing ATHLETIC PERFORMANCE training with 60+ minute sessions, you MUST include:
+- Complex multi-joint movements (squats, deadlifts, presses)
+- Power/explosive exercises (cleans, jumps, throws)
+- Speed/agility components
+- Sport-specific conditioning
+- Adequate volume to justify the time commitment
+
+**Mandatory Injury/Limitation & Preference Handling**:
+Based on the \`USER GOALS & PREFERENCES -> Injuries/Limitations\` field (verbatim: '${onboarding.injuriesLimitations || 'None specified'}') and \`USER GOALS & PREFERENCES -> Exercise Preferences\` field (verbatim: '${onboarding.exercisePreferences || 'None specified'}'):
+- You MUST adapt exercise selection. IF specific injuries are mentioned (e.g., 'knee pain', 'shoulder impingement', 'lower back sensitivity'), AVOID exercises that typically aggravate these conditions.
+- SUGGEST suitable, safer alternatives for the target muscle group. For example, if 'knee pain' is mentioned, prefer Leg Press or Glute Bridges over Deep Barbell Squats or high-impact Plyometrics. If 'shoulder impingement' is mentioned, avoid direct Overhead Press and suggest Landmine Press or incline dumbbell press with neutral grip.
+- If specific exercises are listed as 'disliked' in \`exercisePreferences\`, DO NOT include them. Find appropriate substitutes.
+- If specific exercises are listed as 'liked' or 'preferred', PRIORITIZE their inclusion if they align with the user's goals and overall program structure.
+
 3.  **Structure & Content**:
     *   Structure the program with 1-2 phases as appropriate for a 4-6 week duration and the user's goals, based on the expert guidelines.
     *   Implement progressive overload principles as described in the expert guidelines.
     *   Ensure exercise names are standard and recognizable. If an exercise from the guidelines is not in the provided TypeScript \`ExerciseDetail.name\` list, use a very common, standard alternative or break it down if it's a complex movement.
     *   Include warm-up and cool-down for each training day. If guidelines are sparse on this, apply general best practices (e.g., 5-10 min light cardio and dynamic stretches for warm-up; 5-10 min static stretches for cool-down).
     *   Set \`estimatedDurationMinutes\` for each WorkoutDay to align with the user's preferred session duration, adapting the number of exercises or sets from the guidelines if necessary.
+    *   **DURATION VALIDATION**: The total estimated time for all exercises (including rest periods) MUST reasonably fill the user's selected session duration. Calculate: (sets × reps × tempo) + (sets × rest time) + transition time between exercises.
+    *   For the \`notes\` field in each \`ExerciseDetail\`:
+        *   If the exercise is a major compound lift (e.g., Squat, Bench Press, Deadlift, Overhead Press), ALWAYS include 1-2 concise, critical form cues. Examples: For Squat: 'Keep chest up, drive knees out, descend to at least parallel.' For Deadlift: 'Maintain neutral spine, engage lats, push through the floor.'
+        *   If the user's \`Experience Level\` is 'Beginner (<6 months)', provide more detailed form cues or safety reminders for most exercises.
+        *   If an exercise was modified due to an injury/limitation, briefly note this (e.g., 'Modified for knee comfort').
 4.  **Output Format**:
     *   Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.).
     *   For rest days, set \`isRestDay: true\` and provide a minimal or empty exercises array.
     *   Ensure ${onboarding.trainingFrequencyDays} training days and ${7 - onboarding.trainingFrequencyDays} rest days per week, distributing them reasonably (e.g., not all training days consecutively if possible, unless specified in guidelines).
     *   Set \`generatedAt\` to the current ISO date string.
     *   Include appropriate tags based on goals and focus.
+    *   For the \`generalAdvice\` field: Provide a brief (2-3 sentences) explanation of the program's overall structure and how it aligns with the user's \`Primary Goal\`, \`Experience Level\`, and \`Available Equipment\`. Example: 'This 4-week program focuses on Full Body workouts 3 times per week, which is ideal for your 'Beginner' experience level and 'General Fitness' goal, utilizing the Dumbbells and Bodyweight exercises you have available. The primary aim is to build foundational strength and improve movement patterns.'
 5.  **Focus Field**: For the \`focus\` field in WorkoutDay objects, you MUST strictly use one of the predefined values listed in the TypeScript interface. Do not combine terms or create new focus categories. If more specificity is needed, use the notes field of the WorkoutDay.
 6.  **Weight Prescription**:
     *   Utilize the "USER STRENGTH ESTIMATES" provided. The unit for these estimates is ${weightUnit}.
@@ -376,8 +404,8 @@ async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: stri
 
     const parsedProgram = await callLLM(prompt, 'user', {
       response_format: { type: 'json_object' },
-      max_tokens: 16000, // Ensure this is appropriate for your program size
-      model: 'gpt-4o-mini', // Model specified for program generation
+      max_tokens: 40000, // Increased for comprehensive program generation
+      model: 'gpt-4o', // Upgraded to more capable model for complex program generation
     })
 
     // Write full response to temporary file for debugging
@@ -463,7 +491,7 @@ export async function generateTrainingProgram(
       const programData = {
         ...llmResult.program,
         generatedAt: llmResult.program.generatedAt || new Date().toISOString(),
-        aiModelUsed: llmResult.program.aiModelUsed || 'gpt-4o-mini',
+        aiModelUsed: llmResult.program.aiModelUsed || 'gpt-4o',
       }
 
       validatedProgram = TrainingProgramSchema.parse(programData)
@@ -479,7 +507,7 @@ export async function generateTrainingProgram(
       .insert({
         user_id: userId,
         program_details: validatedProgram,
-        ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o-mini',
+        ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
         onboarding_data_snapshot: profile.onboarding_responses,
       })
       .select()

@@ -44,11 +44,10 @@ export function testPhase1Implementation() {
   console.log('✅ Second question:', secondQuestion?.title)
   
   // Test 5: Test conditional logic
-  console.log('\n5. Testing Conditional Logic')
+  console.log('\n5. Testing Conditional Logic - Sport-Specific Goal (General)')
   flowEngine.updateAnswer('primaryGoal', 'Sport-Specific')
   const questionsAfterSportSpecific = flowEngine.getQuestionsToShow()
-  const hasSportDetailsQuestion = questionsAfterSportSpecific.some(q => q.id === 'sportSpecificDetails')
-  console.log('✅ Sport-specific question appears:', hasSportDetailsQuestion)
+  console.log('✅ Sport-specific goal can be selected without requiring specific sport details:', questionsAfterSportSpecific.length > 0)
   
   // Test 6: Test strength questions conditional logic
   console.log('\n6. Testing Strength Questions Conditional Logic')

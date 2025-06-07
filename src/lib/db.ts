@@ -417,7 +417,7 @@ export async function getWorkoutTrends(
 
     // Fetch associated workout group names if needed (optimization: fetch once)
     const groupIds = workouts.map(w => w.workout_group_id).filter((id): id is string => !!id)
-    let groupNamesMap = new Map<string, string>()
+    const groupNamesMap = new Map<string, string>()
     if (groupIds.length > 0) {
       const { data: groups, error: groupError } = await browserSupabaseClient
         .from('workout_groups')

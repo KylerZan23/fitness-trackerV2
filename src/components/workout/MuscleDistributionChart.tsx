@@ -216,7 +216,7 @@ export function MuscleDistributionChart({
             const percentage =
               totalSetsAllGroups > 0 ? ((sets / totalSetsAllGroups) * 100).toFixed(1) : 0
 
-            let labelText = `${muscleGroup}: ${sets} sets (${percentage}%)` // Renamed from label to avoid conflict
+            const labelText = `${muscleGroup}: ${sets} sets (${percentage}%)` // Renamed from label to avoid conflict
             const details = []
             details.push(`Total Reps: ${reps}`)
             details.push(`Total Weight: ${Math.round(weight)} ${weightUnit}`)

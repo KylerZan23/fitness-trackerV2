@@ -8,13 +8,17 @@ import {
   fetchActiveProgramAction,
   type CompletedDayIdentifier,
 } from '@/app/_actions/aiProgramActions'
+import { submitProgramFeedback } from '@/app/_actions/feedbackActions'
 import { type TrainingProgram } from '@/lib/types/program'
+import { type TrainingProgramWithId } from '@/lib/programDb'
 import { Session } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, Calendar, Target, Clock, TrendingUp, Play, Plus, BarChart3, Settings, HelpCircle, ChevronUp, BookOpen, Activity, Info } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Loader2, Calendar, Target, Clock, TrendingUp, Play, Plus, BarChart3, Settings, HelpCircle, ChevronUp, BookOpen, Activity, Info, Star, MessageSquare } from 'lucide-react'
 import { ProgramPhaseDisplay } from '@/components/program/ProgramPhaseDisplay'
+import { useToast } from '@/components/ui/Toast'
 
 interface UserProfile {
   id: string
@@ -61,6 +65,202 @@ const calculateProgramProgress = (
     completedWorkouts,
     completionPercentage
   }
+}
+
+// Program Feedback Component
+const ProgramFeedbackSection = ({ programData }: { programData: TrainingProgramWithId }) => {
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null)
+  const [feedbackComment, setFeedbackComment] = useState('')
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+  const [feedbackError, setFeedbackError] = useState<string | null>(null)
+  const [hoveredRating, setHoveredRating] = useState<number | null>(null)
+  const { addToast } = useToast()
+
+  const handleProgramFeedbackSubmit = async () => {
+    console.log('Submit handler called, rating:', feedbackRating)
+    if (!feedbackRating) {
+      console.log('No rating selected, returning early')
+      return
+    }
+
+    console.log('Proceeding with submission...')
+    setIsSubmittingFeedback(true)
+    setFeedbackError(null)
+
+    try {
+      console.log('Calling submitProgramFeedback with:', {
+        programId: programData.id,
+        programIdType: typeof programData.id,
+        programIdLength: programData.id?.length,
+        rating: feedbackRating,
+        ratingType: typeof feedbackRating,
+        comment: feedbackComment.trim() || undefined
+      })
+      
+      const result = await submitProgramFeedback(
+        programData.id,
+        feedbackRating,
+        feedbackComment.trim() || undefined
+      )
+      
+      console.log('Server action result:', result)
+
+      if (result.success) {
+        console.log('Feedback submitted successfully:', result)
+        setFeedbackSubmitted(true)
+        addToast({
+          type: 'success',
+          title: 'Feedback submitted!',
+          description: 'Thank you for helping us improve your training experience.',
+        })
+      } else {
+        console.error('Server action returned error:', result.error)
+        console.error('Full result object:', result)
+        setFeedbackError(result.error)
+        addToast({
+          type: 'error',
+          title: 'Failed to submit feedback',
+          description: result.error,
+        })
+      }
+    } catch (error) {
+      console.error('Error submitting feedback:', error)
+      const errorMessage = 'An unexpected error occurred. Please try again.'
+      setFeedbackError(errorMessage)
+      addToast({
+        type: 'error',
+        title: 'Failed to submit feedback',
+        description: errorMessage,
+      })
+    } finally {
+      setIsSubmittingFeedback(false)
+    }
+  }
+
+  const renderStarRating = () => {
+    return (
+      <div className="flex items-center space-x-1">
+        {[1, 2, 3, 4, 5].map((star) => {
+          const isActive = (hoveredRating ?? feedbackRating ?? 0) >= star
+          return (
+            <button
+              key={star}
+              type="button"
+              onClick={() => {
+                console.log(`Setting rating to: ${star}`)
+                setFeedbackRating(star)
+              }}
+              onMouseEnter={() => setHoveredRating(star)}
+              onMouseLeave={() => setHoveredRating(null)}
+              className={`p-1 transition-all duration-200 hover:scale-110 ${
+                isActive ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'
+              }`}
+              aria-label={`Rate ${star} star${star !== 1 ? 's' : ''}`}
+            >
+              <Star
+                className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`}
+              />
+            </button>
+          )
+        })}
+        {feedbackRating && (
+          <span className="ml-2 text-sm text-gray-600">
+            {feedbackRating} star{feedbackRating !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  if (feedbackSubmitted) {
+    return (
+      <Card className="border-green-200 bg-green-50">
+        <CardContent className="p-6">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+              <Star className="w-5 h-5 text-green-600 fill-current" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-green-800">Thank you for your feedback!</h3>
+              <p className="text-green-700">Your input helps us improve your training experience.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="border-blue-200 bg-blue-50/50">
+      <CardHeader>
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <MessageSquare className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <CardTitle className="text-xl text-blue-900">Rate Your Program</CardTitle>
+            <CardDescription className="text-blue-700">
+              Help us improve by sharing your experience with this AI-generated program
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Star Rating */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            How would you rate this training program?
+          </label>
+          {renderStarRating()}
+        </div>
+
+        {/* Comment Textarea */}
+        <div>
+          <label htmlFor="feedback-comment" className="block text-sm font-medium text-gray-700 mb-2">
+            Additional comments (optional)
+          </label>
+          <Textarea
+            id="feedback-comment"
+            placeholder="Share your thoughts about the program structure, exercise selection, difficulty level, or any other feedback..."
+            value={feedbackComment}
+            onChange={(e) => setFeedbackComment(e.target.value)}
+            className="min-h-[100px] resize-none"
+            disabled={isSubmittingFeedback}
+          />
+        </div>
+
+        {/* Error Display */}
+        {feedbackError && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-3">
+            <p className="text-sm text-red-700">{feedbackError}</p>
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <div className="flex justify-end">
+          <Button
+            onClick={handleProgramFeedbackSubmit}
+            disabled={!feedbackRating || isSubmittingFeedback}
+            className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmittingFeedback ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Submit Feedback'
+            )}
+          </Button>
+          {/* Debug info - remove after testing */}
+          <div className="ml-2 text-xs text-gray-500">
+            Rating: {feedbackRating || 'None'} | Submitting: {isSubmittingFeedback ? 'Yes' : 'No'}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 // Mobile-Optimized Progress Display Component
@@ -256,6 +456,24 @@ const OverviewTabContent = ({
 }) => {
   return (
     <div className="space-y-6 sm:space-y-8">
+      {/* Program Rationale */}
+      {programData.generalAdvice && (
+        <Card className="mb-6 bg-blue-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-lg text-blue-700 flex items-center">
+              <Info className="w-5 h-5 mr-2" /> Program Rationale from Your AI Coach
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-700 whitespace-pre-line">
+              {programData.generalAdvice}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+
+
       {/* Progress Tracking */}
       <ProgressTrackingSection programData={programData} completedDays={completedDays} />
       
@@ -537,7 +755,7 @@ export default function ProgramPage() {
   const router = useRouter()
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [programData, setProgramData] = useState<TrainingProgram | null>(null)
+  const [programData, setProgramData] = useState<TrainingProgramWithId | null>(null)
   const [completedDays, setCompletedDays] = useState<CompletedDayIdentifier[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -762,6 +980,11 @@ export default function ProgramPage() {
               <ResourcesTabContent programData={programData} />
             )}
           </div>
+        </div>
+
+        {/* Program Feedback Section */}
+        <div className="mt-8">
+          <ProgramFeedbackSection programData={programData} />
         </div>
       </div>
 

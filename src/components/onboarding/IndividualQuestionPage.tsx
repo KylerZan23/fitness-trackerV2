@@ -10,6 +10,7 @@ import { SessionDurationQuestion } from './questions/SessionDurationQuestion'
 import { TrainingFrequencyQuestion } from './questions/TrainingFrequencyQuestion'
 import { EquipmentAccessQuestion } from './questions/EquipmentAccessQuestion'
 import { ExercisePreferencesQuestion } from './questions/ExercisePreferencesQuestion'
+import { InjuriesQuestion } from './questions/InjuriesQuestion'
 import { UnitPreferenceQuestion } from './questions/UnitPreferenceQuestion'
 import { StrengthAssessmentQuestion } from './questions/StrengthAssessmentQuestion'
 import { ReviewSummary } from './ReviewSummary'
@@ -256,6 +257,8 @@ function QuestionRenderer({ question, value, onChange, error, allAnswers }: {
       return <EquipmentAccessQuestion {...questionProps} />
     case 'exercisePreferences':
       return <ExercisePreferencesQuestion {...questionProps} />
+    case 'injuriesLimitations':
+      return <InjuriesQuestion {...questionProps} />
     case 'squat1RMEstimate':
       return <StrengthQuestionComponent exercise="Squat" emoji="🏋️‍♂️" placeholder="e.g., 225" />
     case 'benchPress1RMEstimate':

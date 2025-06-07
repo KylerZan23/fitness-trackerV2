@@ -77,7 +77,11 @@ export function ExerciseListDisplay({ exercises, listTitle }: ExerciseListDispla
                         <span className="font-medium">RPE:</span> {exercise.rpe}/10
                       </div>
                     )}
-                    {exercise.notes && <div className="text-gray-700 italic">{exercise.notes}</div>}
+                    {exercise.notes && (
+                      <div className="text-xs text-gray-500 mt-1 italic">
+                        <span className="font-semibold">Note:</span> {exercise.notes}
+                      </div>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

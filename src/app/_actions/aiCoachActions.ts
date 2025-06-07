@@ -4,7 +4,9 @@ import { cookies } from 'next/headers'
 import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
 import { getUserProfile } from '@/lib/db'
 import { fetchCurrentWeekGoalsWithProgress } from '@/lib/goalsDb'
+import { getActiveTrainingProgram, type TrainingProgramWithId } from '@/lib/programDb'
 import type { GoalWithProgress } from '@/lib/types'
+import type { DayOfWeek } from '@/lib/types/program'
 import { callLLM } from '@/lib/llmService'
 // Assuming OpenAI client might be needed, or similar for LLM interaction
 // import OpenAI from 'openai';
@@ -95,11 +97,95 @@ interface UserProfile {
   // other profile fields
 }
 
+interface ProgramAdherenceData {
+  programName: string
+  currentPhase: string
+  currentWeek: string
+  todaysPlannedWorkout: string
+  workoutsCompletedThisWeek: number
+  lastLoggedWorkoutVsPlan: string
+}
+
+/**
+ * Helper function to fetch and analyze program adherence data
+ */
+async function getProgramAdherenceData(
+  supabase: any,
+  userId: string,
+  activeProgram: TrainingProgramWithId
+): Promise<ProgramAdherenceData | null> {
+  try {
+    // Get current date info
+    const today = new Date()
+    const currentDayOfWeek = ((today.getDay() + 6) % 7) + 1 // Convert Sunday=0 to Monday=1 format
+    
+    // For MVP, assume user is in first phase, first week (can be enhanced later with start_date logic)
+    const currentPhaseIndex = 0
+    const currentWeekIndex = 0
+    
+    if (!activeProgram.phases[currentPhaseIndex]?.weeks[currentWeekIndex]) {
+      return null
+    }
+    
+    const currentPhase = activeProgram.phases[currentPhaseIndex]
+    const currentWeek = currentPhase.weeks[currentWeekIndex]
+    
+    // Find today's planned workout
+    const todaysWorkout = currentWeek.days.find(day => day.dayOfWeek === currentDayOfWeek)
+    const todaysPlannedWorkout = todaysWorkout?.isRestDay 
+      ? 'Rest Day' 
+      : todaysWorkout?.focus || 'Workout Planned'
+    
+    // Query workout_groups for adherence data
+    const { data: linkedWorkouts, error } = await supabase
+      .from('workout_groups')
+      .select('linked_program_phase_index, linked_program_week_index, linked_program_day_of_week, created_at')
+      .eq('user_id', userId)
+      .eq('linked_program_id', activeProgram.id)
+      .eq('linked_program_phase_index', currentPhaseIndex)
+      .eq('linked_program_week_index', currentWeekIndex)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('Error fetching linked workouts for adherence:', error)
+      return null
+    }
+    
+    // Calculate adherence metrics
+    const workoutsCompletedThisWeek = linkedWorkouts?.length || 0
+    
+    // Determine last logged workout vs plan
+    let lastLoggedWorkoutVsPlan = 'N/A'
+    if (linkedWorkouts && linkedWorkouts.length > 0) {
+      const lastWorkout = linkedWorkouts[0]
+      const lastWorkoutDay = currentWeek.days.find(day => day.dayOfWeek === lastWorkout.linked_program_day_of_week)
+      if (lastWorkoutDay) {
+        const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][lastWorkout.linked_program_day_of_week - 1]
+        lastLoggedWorkoutVsPlan = `Completed ${dayName}'s ${lastWorkoutDay.focus || 'workout'}`
+      }
+    } else {
+      lastLoggedWorkoutVsPlan = 'No workouts logged for current week yet'
+    }
+    
+    return {
+      programName: activeProgram.programName,
+      currentPhase: `Phase ${currentPhaseIndex + 1} of ${activeProgram.phases.length}: ${currentPhase.phaseName}`,
+      currentWeek: `Week ${currentWeekIndex + 1} of ${currentPhase.durationWeeks}`,
+      todaysPlannedWorkout,
+      workoutsCompletedThisWeek,
+      lastLoggedWorkoutVsPlan
+    }
+  } catch (error) {
+    console.error('Error in getProgramAdherenceData:', error)
+    return null
+  }
+}
+
 // Placeholder for actual OpenAI or LLM client initialization if needed globally
 // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function getAICoachRecommendation(): Promise<
-  AICoachRecommendation | { error: string }
+  (AICoachRecommendation & { cacheKey?: string }) | { error: string }
 > {
   const cookieStore = await cookies()
   // Debug log for cookies from next/headers
@@ -141,6 +227,8 @@ export async function getAICoachRecommendation(): Promise<
   let profile: UserProfile | null = null
   let goals: GoalWithProgress[] = []
   let summary: UserActivitySummary | null = null
+  let activeProgram: TrainingProgramWithId | null = null
+  let programAdherence: ProgramAdherenceData | null = null
 
   try {
     profile = (await getUserProfile(supabase)) as UserProfile | null
@@ -151,6 +239,19 @@ export async function getAICoachRecommendation(): Promise<
       console.warn(
         `getAICoachRecommendation: Error fetching goals for user ${userId}`,
         goalFetchError
+      )
+    }
+
+    // Fetch active training program
+    try {
+      activeProgram = await getActiveTrainingProgram()
+      if (activeProgram) {
+        programAdherence = await getProgramAdherenceData(supabase, userId, activeProgram)
+      }
+    } catch (programFetchError) {
+      console.warn(
+        `getAICoachRecommendation: Error fetching active program for user ${userId}`,
+        programFetchError
       )
     }
 
@@ -192,12 +293,13 @@ export async function getAICoachRecommendation(): Promise<
           .join('\\n')
       : 'No active goals set for this week.'
 
-  let dataSignatureObject = {
+  const dataSignatureObject = {
     profileFitnessGoals: profile?.fitness_goals || null,
     stravaConnected: profile?.strava_connected || false,
     totalWorkouts: summary?.total_workout_sessions || 0,
     totalRuns: summary?.total_run_sessions || 0,
     workoutsThisWeek: summary?.workout_days_this_week || 0,
+    programAdherence: programAdherence || null,
     topExerciseTrend: summary?.dynamic_exercise_progression?.[0]?.trend || null,
     activeGoals: goalsString || '',
     profileTrainingFocus: profile?.primary_training_focus || null,
@@ -230,7 +332,8 @@ export async function getAICoachRecommendation(): Promise<
 
   if (cachedEntry && new Date(cachedEntry.expires_at) > new Date()) {
     console.log('AI Coach: Returning valid recommendation from cache.')
-    return JSON.parse(JSON.stringify(cachedEntry.recommendation)) as AICoachRecommendation
+    const recommendation = JSON.parse(JSON.stringify(cachedEntry.recommendation)) as AICoachRecommendation
+    return { ...recommendation, cacheKey }
   } else if (cachedEntry) {
     console.log('AI Coach: Cache entry found but expired.')
   } else {
@@ -309,6 +412,25 @@ export async function getAICoachRecommendation(): Promise<
   const formattedRuns = formatLast3Runs(summary)
   const formattedGoals = goalsString
 
+  // Format program context for the prompt
+  const programContextSection = programAdherence 
+    ? `
+**Current Training Program Context:**
+- Program Name: ${programAdherence.programName}
+- Current Phase: ${programAdherence.currentPhase}
+- Current Week: ${programAdherence.currentWeek}
+- Today's Planned Workout Focus: ${programAdherence.todaysPlannedWorkout}
+- Workouts Completed This Week: ${programAdherence.workoutsCompletedThisWeek}
+- Last Logged Workout vs Plan: ${programAdherence.lastLoggedWorkoutVsPlan}`
+    : `
+**Current Training Program Context:**
+- Program Name: N/A
+- Current Phase: N/A
+- Current Week: N/A
+- Today's Planned Workout Focus: N/A
+- Workouts Completed This Week: N/A
+- Last Logged Workout vs Plan: N/A`
+
   const promptText = `
 You are an expert AI Fitness Coach for FitnessTracker V2. Your goal is to provide a personalized, actionable, and encouraging daily/bi-daily recommendation. Users will see this in a dedicated "AI Coach" card in their dashboard.
 
@@ -321,6 +443,14 @@ You are an expert AI Fitness Coach for FitnessTracker V2. Your goal is to provid
 6.  **Safety First**: If suggesting new exercises, subtly remind about good form or starting with lighter weights.
 7.  **Data-Driven Insights**: Connect your suggestions directly to the data provided (e.g., "I see your squat volume is trending up, let's build on that...").
 8.  **Crucially, tailor all recommendations considering the user's Primary Training Focus and Experience Level.**
+
+**CRITICAL: If 'Current Training Program Context' is provided and indicates an active program:**
+- PRIORITIZE your \`workoutRecommendation\` and \`generalInsight\` to align with the user's current position in their AI-generated program.
+- If a workout was planned for today but not yet logged, encourage them to do it, possibly highlighting an exercise. Title could be 'Today's Plan: [Workout Focus]'.
+- If a workout was recently completed, acknowledge it. Title could be 'Great Job on Your [Focus] Workout!'.
+- If a workout was missed, gently suggest how to get back on track (e.g., 'Missed yesterday's workout? No worries, you can do it today or adjust your week. Focus on [X] next.').
+- If the user is consistently adhering, provide positive reinforcement.
+- Tailor \`focusAreaSuggestion\` to complement their current program phase or address potential imbalances noted from their adherence.
 
 **User Profile:**
 - Age: ${profile?.age || 'Not specified'}
@@ -351,6 +481,7 @@ ${formattedExerciseProgression}
 
 **Last 3 Runs (If Strava Connected):**
 ${formattedRuns}
+${programContextSection}
 
 **Output Format (Strict JSON - provide only the JSON object):**
 Provide your response as a single JSON object matching this TypeScript interface:
@@ -370,8 +501,8 @@ Provide your response as a single JSON object matching this TypeScript interface
     "details": "A brief, encouraging insight. E.g., 'Great job on increasing your chest volume!' or 'Remember to incorporate rest days.'"
   },
   "focusAreaSuggestion": {
-    "title": "Suggested Focus Area (Optional)", // e.g., "Improve Squat Form", "Increase Cardio Endurance"
-    "details": "A brief suggestion for a broader area to focus on, complementing the main recommendation."
+    "title": "Suggested Focus Area (Optional)", // e.g., "Boost Back Volume", "Improve Squat Depth"
+    "details": "A specific, actionable focus area for long-term improvement based on data. Give a concrete tip or action."
   }
 }
 \`\`\`
@@ -388,8 +519,13 @@ Provide your response as a single JSON object matching this TypeScript interface
 -   \`runRecommendation\`: Only include if Strava is connected AND user has run data OR their goals suggest running focus. If so, make it specific. Title example: "Tempo Run Challenge", "Easy Recovery Jog".
     *   If Primary Training Focus involves running, make the run recommendation highly specific to that focus (e.g., interval suggestions for 'Sprint Training', varied runs for 'Marathon Training').
 -   \`generalInsight\`: Positive and data-driven. One concise sentence or two.
--   \`focusAreaSuggestion\` (Optional): Suggest a skill, habit, or area for longer-term improvement. Examples: "Focus on Sleep Hygiene", "Explore Core Strength Routines", "Learn about Progressive Overload".
-    *   Use Primary Training Focus and Experience Level to make the suggestion more relevant (e.g., beginner might focus on form; bodybuilder on a lagging part).
+
+**For \`focusAreaSuggestion\` (If a clear opportunity exists):**
+-   Analyze \`Detailed Muscle Group Summary\` and \`Dynamic Exercise Progression\`.
+-   IF a muscle group in \`muscle_group_summary\` has significantly lower \`total_sets\` or \`total_volume\` compared to others (especially antagonist muscles or those key to \`Primary Goal\`), suggest focusing on it. Example - Title: 'Balance Your Push/Pull', Details: 'Your chest volume is higher than your back volume. Try adding one extra set to your rows or lat pulldowns this week to promote balanced development.'
+-   IF \`dynamic_exercise_progression\` for a key lift (relevant to \`Primary Goal\`) shows a 'Decreasing' or 'Stagnant' trend, suggest a focus. Example - Title: 'Reignite Bench Press Progress', Details: 'Your bench press trend has been stagnant. Consider a small deload this week, or focus on improving your form on the eccentric phase for better control.'
+-   IF \`profile.experience_level\` is 'Beginner', the focus could be on mastering form for a fundamental exercise. Example - Title: 'Master Squat Form', Details: 'Focus on squat depth and maintaining a neutral spine. Watch tutorial videos or consider recording yourself.'
+-   IF no clear data-driven focus emerges, this field can be \`null\` or omitted.
 
 Now, generate the recommendation based on all the above data and instructions.
 `
@@ -447,7 +583,7 @@ Now, generate the recommendation based on all the above data and instructions.
       console.log('AI Coach: Recommendation stored in cache successfully.')
     }
 
-    return advice // Return the newly fetched (or placeholder) advice
+    return { ...advice, cacheKey } // Return the newly fetched advice with cache key
   } catch (error: any) {
     console.error('getAICoachRecommendation: Error during LLM call or processing', error)
     const message = error.message || 'Failed to get recommendation from AI coach.'

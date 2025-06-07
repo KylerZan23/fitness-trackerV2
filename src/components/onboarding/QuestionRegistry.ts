@@ -51,26 +51,13 @@ export const ONBOARDING_QUESTIONS: Question[] = [
   },
 
   {
-    id: 'sportSpecificDetails',
-    title: "What sport do you play? ⚽",
-    description: "Tell us about your sport so we can create sport-specific training",
-    component: PlaceholderQuestion,
-    validation: z.string().min(1, 'Please specify your sport'),
-    category: 'profile',
-    order: 3,
-    isOptional: false,
-    shouldShow: (answers) => 
-      answers.primaryGoal === 'Sport-Specific' || answers.secondaryGoal === 'Sport-Specific'
-  },
-
-  {
     id: 'primaryTrainingFocus',
     title: "What's your training style? 💪",
     description: "This helps us choose the right approach for your workouts",
     component: PlaceholderQuestion,
     validation: z.string().min(1, 'Please select your training focus'),
     category: 'profile',
-    order: 4,
+    order: 3,
     isOptional: false
   },
 
@@ -81,7 +68,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.string().min(1, 'Please select your experience level'),
     category: 'profile',
-    order: 5,
+    order: 4,
     isOptional: false
   },
 
@@ -92,7 +79,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.enum(['kg', 'lbs']),
     category: 'profile',
-    order: 6,
+    order: 5,
     isOptional: false
   },
 
@@ -104,7 +91,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.number().min(2, 'Minimum 2 days per week').max(7, 'Maximum 7 days per week'),
     category: 'training',
-    order: 7,
+    order: 6,
     isOptional: false
   },
 
@@ -115,7 +102,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.enum(['30-45 minutes', '45-60 minutes', '60-75 minutes', '75+ minutes']),
     category: 'training',
-    order: 8,
+    order: 7,
     isOptional: false
   },
 
@@ -133,7 +120,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
       'Cardio Machines (Treadmill, Bike, Rower, Elliptical)'
     ])).min(1, 'Please select at least one equipment option'),
     category: 'training',
-    order: 9,
+    order: 8,
     isOptional: false
   },
 
@@ -145,7 +132,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.number().positive().optional(),
     category: 'strength',
-    order: 10,
+    order: 9,
     isOptional: true
   },
 
@@ -156,7 +143,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.number().positive().optional(),
     category: 'strength',
-    order: 11,
+    order: 10,
     isOptional: true
   },
 
@@ -167,7 +154,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.number().positive().optional(),
     category: 'strength',
-    order: 12,
+    order: 11,
     isOptional: true
   },
 
@@ -178,7 +165,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.number().positive().optional(),
     category: 'strength',
-    order: 13,
+    order: 12,
     isOptional: true
   },
 
@@ -189,7 +176,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.enum(['actual_1rm', 'estimated_1rm', 'unsure']).optional(),
     category: 'strength',
-    order: 14,
+    order: 13,
     isOptional: true,
     shouldShow: (answers) => !!(
       answers.squat1RMEstimate || 
@@ -207,7 +194,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.string().optional(),
     category: 'preferences',
-    order: 15,
+    order: 14,
     isOptional: true
   },
 
@@ -218,7 +205,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.string().optional(),
     category: 'preferences',
-    order: 16,
+    order: 15,
     isOptional: true
   }
 ]
@@ -229,9 +216,6 @@ export const ONBOARDING_QUESTIONS: Question[] = [
  */
 export const QUESTION_CONDITIONS: QuestionConditions = {
   secondaryGoal: (answers) => !!answers.primaryGoal,
-  
-  sportSpecificDetails: (answers) => 
-    answers.primaryGoal === 'Sport-Specific' || answers.secondaryGoal === 'Sport-Specific',
   
   strengthAssessmentType: (answers) => !!(
     answers.squat1RMEstimate || 

@@ -4,6 +4,37 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **AI Feedback System - Database & Backend (2025-01-06)**: Implemented comprehensive feedback collection system for AI-generated content:
+  - **Database Schema**: New `ai_program_feedback` and `ai_coach_feedback` tables with proper foreign keys and RLS policies
+  - **Server Actions**: Type-safe feedback submission with Zod validation and ownership verification
+  - **Dual Reference System**: AI Coach feedback supports both cache key and content hash identification
+  - **Security First**: Row Level Security ensures users can only access their own feedback
+  - **Analytics Ready**: Built-in statistics helper for feedback analysis and AI improvement
+  - **Performance Optimized**: Strategic indexes and efficient query patterns for scalability
+
+- **AI Coach - Specific & Actionable Focus Areas (2025-01-06)**: Enhanced AI Coach focus area suggestions to be data-driven and immediately actionable:
+  - **Muscle Group Imbalance Detection**: Analyzes volume differences to identify push/pull imbalances and weak muscle groups
+  - **Exercise Progression Analysis**: Identifies stagnant or declining trends in key lifts and suggests specific interventions
+  - **Experience-Level Adaptation**: Provides appropriate recommendations from beginner form cues to advanced techniques
+  - **Concrete Actions**: Specific tips like "add one extra set to rows" rather than generic advice
+  - **Data-Driven Insights**: All suggestions tied directly to user's actual workout patterns and trends
+  - **Quality Control**: Only provides suggestions when clear opportunities exist, avoiding generic recommendations
+
+- **AI Coach - Program Adherence & Feedback Loop Integration (2025-01-06)**: Transformed AI Coach from generic advice to program-aware, contextual coaching:
+  - **Active Program Integration**: AI Coach now fetches and analyzes user's current training program position
+  - **Real-time Adherence Tracking**: Monitors workout completion vs planned program using workout_groups linking
+  - **Contextual Recommendations**: Coaching aligns with current phase/week and today's planned workout
+  - **Intelligent Feedback**: Acknowledges completed workouts, encourages planned sessions, helps with missed workouts
+  - **Program Synergy**: AI Coach and AI Program Generation now work together seamlessly
+  - **Performance Optimized**: Minimal additional queries with smart caching integration
+
+- **AI Program Generation - Deeper Personalization (2025-01-06)**: Enhanced AI training program generation with critical safety and personalization improvements:
+  - **Mandatory Injury/Limitation Handling**: AI now explicitly avoids exercises that could aggravate user-reported injuries (knee pain, shoulder impingement, etc.) and provides safer alternatives
+  - **Detailed Exercise Form Cues**: All major compound lifts now include 1-2 critical form cues directly in the program, with experience-level appropriate guidance
+  - **Program Rationale**: Each generated program includes a clear explanation of why the specific structure was chosen based on user goals, experience, and equipment
+  - **Enhanced Safety**: Conservative approach for beginners with injury-aware exercise substitutions
+  - **Improved User Experience**: Users understand both what to do and why, increasing program adherence and confidence
+
 - **LLM Program Content Refinement (2025-01-06)**: Completely overhauled the AI training program content for improved efficiency and quality:
   - **Evidence-Based Guidelines**: All recommendations now reflect meta-analyses and consensus from 2023-2025
   - **Optimized Format**: Reduced content from 345 to ~200 lines while maintaining comprehensiveness
@@ -36,11 +67,28 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 ## Key Features
 
 ### 🎯 **AI-Powered Training Programs**
-- Personalized workout generation based on comprehensive onboarding data
-- 1RM-based weight recommendations with percentage training zones
-- Equipment-specific exercise selection and modifications
-- Progressive overload principles built into program structure
+- **Personalized workout generation** based on comprehensive onboarding data
+- **Injury-aware exercise selection** with automatic substitutions for user limitations
+- **Detailed form cues and safety notes** for all major compound movements
+- **Program rationale explanations** showing why specific structures were chosen
+- **1RM-based weight recommendations** with percentage training zones
+- **Equipment-specific exercise selection** and modifications
+- **Progressive overload principles** built into program structure
 - **Complete Integration**: Onboarding → Data Validation → AI Generation → Database Storage
+
+### 🤖 **Intelligent AI Coach**
+- **Program-aware coaching** that understands your current training phase and weekly position
+- **Real-time adherence tracking** with contextual feedback on completed vs planned workouts
+- **Data-driven focus areas** identifying muscle imbalances and exercise progression opportunities
+- **Specific actionable recommendations** like "add one extra set to rows" rather than generic advice
+- **Experience-level adaptation** from beginner form cues to advanced training techniques
+
+### 📝 **User Feedback System**
+- **Quality improvement through feedback** on AI-generated programs and coach recommendations
+- **Secure feedback storage** with Row Level Security and proper data isolation
+- **Dual identification system** for coach recommendations (cache key + content hash fallback)
+- **Analytics-ready data structure** for continuous AI model improvement
+- **Type-safe submission process** with comprehensive validation and error handling
 
 ### 🔄 **Seamless Onboarding Experience**
 - Individual question-per-page design for maximum engagement
