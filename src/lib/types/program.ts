@@ -270,3 +270,54 @@ export interface ExerciseCompletion {
   /** Whether the exercise was completed as prescribed */
   completedAsPrescribed: boolean
 }
+
+/**
+ * Daily Readiness tracking interfaces
+ */
+export interface DailyReadinessData {
+  /** Sleep quality rating */
+  sleep: 'Poor' | 'Average' | 'Great'
+  
+  /** Energy/soreness level */
+  energy: 'Sore/Tired' | 'Feeling Good' | 'Ready to Go'
+  
+  /** Date when readiness was recorded (YYYY-MM-DD format) */
+  date: string
+  
+  /** Timestamp when readiness was recorded */
+  timestamp: Date | string
+}
+
+/**
+ * Props for Daily Readiness Modal component
+ */
+export interface DailyReadinessModalProps {
+  /** Whether the modal is open */
+  isOpen: boolean
+  
+  /** Callback when modal is closed */
+  onClose: () => void
+  
+  /** Callback when readiness data is submitted */
+  onSubmit: (readiness: DailyReadinessData) => void
+  
+  /** Whether the form is being submitted */
+  isSubmitting?: boolean
+}
+
+/**
+ * Service for tracking daily readiness completion
+ */
+export interface DailyReadinessService {
+  /** Check if user has completed readiness for today */
+  hasCompletedToday: () => boolean
+  
+  /** Record that user has completed readiness for today */
+  markCompletedToday: (readiness: DailyReadinessData) => void
+  
+  /** Get today's readiness data if available */
+  getTodaysReadiness: () => DailyReadinessData | null
+  
+  /** Clear all stored readiness data */
+  clearAll: () => void
+}

@@ -77,7 +77,7 @@ export async function middleware(request: NextRequest) {
 
   // Define path types
   const isProtectedRoute =
-    request.nextUrl.pathname.startsWith('/dashboard') ||
+    request.nextUrl.pathname.startsWith('/program') ||
     request.nextUrl.pathname.startsWith('/profile') ||
     request.nextUrl.pathname.startsWith('/workout')
   const isAuthRoute =
@@ -123,9 +123,9 @@ export async function middleware(request: NextRequest) {
     const bypassAuth = request.nextUrl.searchParams.get('bypass') === 'true'
 
     if (isAuthRoute && !bypassAuth) {
-      console.log('Middleware: Redirecting authenticated user from auth route to dashboard.')
+      console.log('Middleware: Redirecting authenticated user from auth route to program.')
       // Construct a new response for redirection, but copy cookies from supabaseResponse
-      const redirectResponse = NextResponse.redirect(new URL('/dashboard', request.url))
+      const redirectResponse = NextResponse.redirect(new URL('/program', request.url))
       supabaseResponse.cookies.getAll().forEach(cookie => {
         redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
       })
@@ -162,7 +162,7 @@ function redirectToLogin(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
+    '/program/:path*',
     '/profile/:path*',
     '/workout/:path*',
     '/login',

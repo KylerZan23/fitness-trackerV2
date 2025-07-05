@@ -11,14 +11,21 @@ import {
 import { submitProgramFeedback } from '@/app/_actions/feedbackActions'
 import { type TrainingProgram } from '@/lib/types/program'
 import { type TrainingProgramWithId } from '@/lib/programDb'
+import { calculateWorkoutStreak } from '@/lib/db'
 import { Session } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
-import { Loader2, Calendar, Target, Clock, TrendingUp, Play, Plus, BarChart3, Settings, HelpCircle, ChevronUp, BookOpen, Activity, Info, Star, MessageSquare } from 'lucide-react'
+import { Loader2, Calendar, Target, Clock, TrendingUp, Play, BarChart3, Settings, HelpCircle, ChevronUp, BookOpen, Activity, Info, Star, MessageSquare } from 'lucide-react'
 import { ProgramPhaseDisplay } from '@/components/program/ProgramPhaseDisplay'
+import { WeeklyCheckInModal } from '@/components/program/WeeklyCheckInModal'
+import { DailyReadinessModal } from '@/components/program/DailyReadinessModal'
+import { AICoachCard } from '@/components/dashboard/AICoachCard'
+import { StreakIndicator } from '@/components/ui/StreakIndicator'
 import { useToast } from '@/components/ui/Toast'
+import { shouldShowDailyReadinessModal, dailyReadinessService } from '@/lib/dailyReadinessService'
+import { type DailyReadinessData } from '@/lib/types/program'
 
 interface UserProfile {
   id: string
@@ -320,12 +327,8 @@ const FloatingActionButtons = ({ programData }: { programData: TrainingProgram |
     router.push('/workout/new')
   }
 
-  const handleLogWorkout = () => {
-    router.push('/workout/new')
-  }
-
   const handleViewProgress = () => {
-    router.push('/dashboard')
+    router.push('/workouts')
   }
 
   const handleSettings = () => {
@@ -344,13 +347,6 @@ const FloatingActionButtons = ({ programData }: { programData: TrainingProgram |
       action: handleViewProgress,
       color: 'from-green-500 to-green-600',
       hoverColor: 'hover:from-green-600 hover:to-green-700'
-    },
-    {
-      icon: Plus,
-      label: 'Log Workout',
-      action: handleLogWorkout,
-      color: 'from-purple-500 to-purple-600',
-      hoverColor: 'hover:from-purple-600 hover:to-purple-700'
     },
     {
       icon: Settings,
@@ -449,10 +445,12 @@ const FloatingActionButtons = ({ programData }: { programData: TrainingProgram |
 // Tab Content Components
 const OverviewTabContent = ({ 
   programData, 
-  completedDays 
+  completedDays,
+  workoutStreak 
 }: { 
   programData: TrainingProgram
-  completedDays: CompletedDayIdentifier[] 
+  completedDays: CompletedDayIdentifier[]
+  workoutStreak: number
 }) => {
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -472,7 +470,16 @@ const OverviewTabContent = ({
         </Card>
       )}
 
-
+      {/* Workout Streak */}
+      <div className="mb-6">
+        <StreakIndicator
+          currentStreak={workoutStreak}
+          longestStreak={workoutStreak} // For now, current streak is also the longest
+          streakType="workout"
+          className="mx-auto max-w-md"
+          showMilestones={true}
+        />
+      </div>
 
       {/* Progress Tracking */}
       <ProgressTrackingSection programData={programData} completedDays={completedDays} />
@@ -760,6 +767,95 @@ export default function ProgramPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
+  const [todaysWorkout, setTodaysWorkout] = useState<any>(null)
+  const [showWeeklyCheckIn, setShowWeeklyCheckIn] = useState(false)
+  const [checkInWeekNumber, setCheckInWeekNumber] = useState<number>(1)
+  const [workoutStreak, setWorkoutStreak] = useState<number>(0)
+  const [showDailyReadinessModal, setShowDailyReadinessModal] = useState(false)
+  const [dailyReadinessData, setDailyReadinessData] = useState<DailyReadinessData | null>(null)
+
+  // Helper function to find today's planned workout
+  const findTodaysWorkout = (program: TrainingProgram) => {
+    const today = new Date()
+    const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday, etc.
+    
+    // Convert JS day to our DayOfWeek enum (1 = Monday, 7 = Sunday)
+    const programDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek
+    
+    // Find the current week in the program (simplified - using first phase, first week for now)
+    // In a real implementation, you'd track progress through the program
+    if (program.phases && program.phases.length > 0) {
+      const currentPhase = program.phases[0]
+      if (currentPhase.weeks && currentPhase.weeks.length > 0) {
+        const currentWeek = currentPhase.weeks[0]
+        const todaysWorkout = currentWeek.days.find(day => day.dayOfWeek === programDayOfWeek)
+        return todaysWorkout || null
+      }
+    }
+    return null
+  }
+
+  // Helper function to check if a training week is completed
+  const checkIfWeekCompleted = (
+    program: TrainingProgram,
+    completedDays: CompletedDayIdentifier[],
+    phaseIndex: number = 0,
+    weekIndex: number = 0
+  ): boolean => {
+    if (!program.phases[phaseIndex]?.weeks[weekIndex]) {
+      return false
+    }
+
+    const week = program.phases[phaseIndex].weeks[weekIndex]
+    const workoutDays = week.days.filter(day => !day.isRestDay)
+    
+    if (workoutDays.length === 0) {
+      return false // No workouts to complete
+    }
+
+    // Check if all workout days are completed
+    const completedWorkoutDays = workoutDays.filter(day =>
+      completedDays.some(cd =>
+        cd.phaseIndex === phaseIndex &&
+        cd.weekIndex === weekIndex &&
+        cd.dayOfWeek === day.dayOfWeek
+      )
+    )
+
+    return completedWorkoutDays.length === workoutDays.length
+  }
+
+  // Helper function to check if user should see weekly check-in
+  const shouldShowWeeklyCheckIn = (
+    program: TrainingProgram,
+    completedDays: CompletedDayIdentifier[]
+  ): { show: boolean; weekNumber: number } => {
+    const today = new Date()
+    const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday, etc.
+    
+    // For MVP, we're working with first phase, first week
+    const currentPhaseIndex = 0
+    const currentWeekIndex = 0
+    
+    if (!program.phases[currentPhaseIndex]?.weeks[currentWeekIndex]) {
+      return { show: false, weekNumber: 1 }
+    }
+
+    const currentWeek = program.phases[currentPhaseIndex].weeks[currentWeekIndex]
+    const isWeekCompleted = checkIfWeekCompleted(program, completedDays, currentPhaseIndex, currentWeekIndex)
+    
+    // Show check-in if:
+    // 1. It's Sunday (day 0) or Monday (day 1) - end/start of training week
+    // 2. The current week is completed
+    // 3. There's a next week to adapt
+    const isEndOfWeek = dayOfWeek === 0 || dayOfWeek === 1
+    const hasNextWeek = Boolean(program.phases[currentPhaseIndex]?.weeks[currentWeekIndex + 1])
+    
+    return {
+      show: isWeekCompleted && isEndOfWeek && hasNextWeek,
+      weekNumber: currentWeek.weekNumber
+    }
+  }
 
   const fetchData = useCallback(async () => {
     setIsLoading(true)
@@ -818,10 +914,26 @@ export default function ProgramPage() {
         setProgramData(result.program)
         setCompletedDays(result.completedDays || [])
 
-        // Console log the full program data as requested
+        // Fetch workout streak
+        const streak = await calculateWorkoutStreak(currentSession.user.id)
+        setWorkoutStreak(streak)
+
+        // Find and set today's workout
         if (result.program) {
+          const todaysWorkout = findTodaysWorkout(result.program)
+          setTodaysWorkout(todaysWorkout)
+          
+          // Check if weekly check-in should be shown
+          const checkInStatus = shouldShowWeeklyCheckIn(result.program, result.completedDays || [])
+          if (checkInStatus.show) {
+            setCheckInWeekNumber(checkInStatus.weekNumber)
+            setShowWeeklyCheckIn(true)
+          }
+          
           console.log('Successfully fetched training program:', result.program)
           console.log('Completed workout days:', result.completedDays)
+          console.log('Today\'s planned workout:', todaysWorkout)
+          console.log('Weekly check-in status:', checkInStatus)
         }
       }
     } catch (err) {
@@ -836,9 +948,65 @@ export default function ProgramPage() {
     fetchData()
   }, [fetchData])
 
+  // Check if daily readiness modal should be shown
+  useEffect(() => {
+    // Only check after initial data load is complete
+    if (!isLoading && programData && !showWeeklyCheckIn) {
+      const shouldShow = shouldShowDailyReadinessModal()
+      if (shouldShow) {
+        setShowDailyReadinessModal(true)
+      }
+    }
+  }, [isLoading, programData, showWeeklyCheckIn])
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  // Weekly check-in handlers
+  const handleCloseWeeklyCheckIn = () => {
+    setShowWeeklyCheckIn(false)
+  }
+
+  const handleAdaptationComplete = () => {
+    // Refresh the program data to show the updated program
+    fetchData()
+  }
+
+  // Daily readiness handlers
+  const handleShowDailyReadinessModal = () => {
+    setShowDailyReadinessModal(true)
+  }
+
+  const handleDailyReadinessSubmit = (data: DailyReadinessData) => {
+    // Store the readiness data
+    dailyReadinessService.markCompletedToday(data)
+    setDailyReadinessData(data)
+    setShowDailyReadinessModal(false)
+    
+    console.log('Daily readiness submitted:', data)
+    
+    // If user came from clicking Start Session, automatically proceed to workout
+    if (todaysWorkout && !todaysWorkout.isRestDay && programData) {
+      // Pass today's workout data via URL state
+      const workoutData = encodeURIComponent(JSON.stringify(todaysWorkout))
+      const programContext = encodeURIComponent(JSON.stringify({
+        programId: programData.id,
+        phaseIndex: 0, // Using first phase for now
+        weekIndex: 0, // Using first week for now
+        dayOfWeek: todaysWorkout.dayOfWeek
+      }))
+      
+      // Include readiness data for adaptation
+      const readinessParam = encodeURIComponent(JSON.stringify(data))
+      
+      router.push(`/workout/new?workout=${workoutData}&context=${programContext}&readiness=${readinessParam}`)
+    }
+  }
+
+  const handleDailyReadinessClose = () => {
+    setShowDailyReadinessModal(false)
   }
 
   if (isLoading) {
@@ -927,6 +1095,136 @@ export default function ProgramPage() {
       }}
     >
       <div className="space-y-6 sm:space-y-8">
+        {/* Today's Session Section */}
+        {todaysWorkout ? (
+          todaysWorkout.isRestDay ? (
+            <div className="relative bg-gradient-to-br from-green-50 via-white to-emerald-50 rounded-xl sm:rounded-2xl p-6 lg:p-8 overflow-hidden border border-green-200 shadow-lg">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-200/30 to-emerald-200/30 rounded-full -translate-y-8 translate-x-8" />
+              <div className="relative z-10">
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-16 h-16 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <span className="text-2xl">🧘</span>
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-green-900">Rest Day</h2>
+                    <p className="text-green-700">Today is scheduled for recovery</p>
+                  </div>
+                </div>
+                <p className="text-green-800 text-lg mb-6">
+                  Take time to recover and prepare for tomorrow's workout. Your body needs rest to grow stronger.
+                </p>
+                <div className="bg-white/70 rounded-lg p-4">
+                  <h3 className="font-semibold text-green-900 mb-2">Recovery Activities</h3>
+                  <ul className="text-green-800 space-y-1">
+                    <li>• Light stretching or yoga</li>
+                    <li>• Hydration and proper nutrition</li>
+                    <li>• Quality sleep (7-9 hours)</li>
+                    <li>• Optional: light walk or gentle movement</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="relative bg-gradient-to-br from-blue-50 via-white to-purple-50 rounded-xl sm:rounded-2xl p-6 lg:p-8 overflow-hidden border border-blue-200 shadow-lg">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200/30 to-purple-200/30 rounded-full -translate-y-8 translate-x-8" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <span className="text-2xl">💪</span>
+                    </div>
+                    <div>
+                      <h2 className="text-3xl font-bold text-blue-900">Today's Session</h2>
+                      <p className="text-blue-700 text-lg">{todaysWorkout.focus || 'Workout Day'}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {todaysWorkout.estimatedDurationMinutes && (
+                  <div className="bg-white/70 rounded-lg p-4 mb-6">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-5 w-5 text-blue-600" />
+                      <span className="text-blue-900 font-medium">
+                        Estimated Duration: {todaysWorkout.estimatedDurationMinutes} minutes
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => {
+                      // Check if user has completed daily readiness
+                      const hasCompletedReadiness = dailyReadinessService.hasCompletedToday()
+                      
+                      if (!hasCompletedReadiness) {
+                        // Show daily readiness modal first
+                        setShowDailyReadinessModal(true)
+                        return
+                      }
+                      
+                      // User has completed readiness, proceed with adapted workout
+                      const readinessData = dailyReadinessService.getTodaysReadiness()
+                      
+                      // Pass today's workout data via URL state
+                      const workoutData = encodeURIComponent(JSON.stringify(todaysWorkout))
+                      const programContext = encodeURIComponent(JSON.stringify({
+                        programId: programData.id,
+                        phaseIndex: 0, // Using first phase for now
+                        weekIndex: 0, // Using first week for now
+                        dayOfWeek: todaysWorkout.dayOfWeek
+                      }))
+                      
+                      // Include readiness data for adaptation
+                      const readinessParam = readinessData ? encodeURIComponent(JSON.stringify(readinessData)) : ''
+                      
+                      router.push(`/workout/new?workout=${workoutData}&context=${programContext}&readiness=${readinessParam}`)
+                    }}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-3"
+                  >
+                    <Play className="h-6 w-6" />
+                    <span>Start Session</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        ) : programData ? (
+          <div className="relative bg-gradient-to-br from-gray-50 via-white to-gray-50 rounded-xl sm:rounded-2xl p-6 lg:p-8 overflow-hidden border border-gray-200 shadow-lg">
+            <div className="relative z-10 text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-gray-400 to-gray-500 rounded-xl flex items-center justify-center shadow-lg mx-auto mb-4">
+                <Calendar className="h-8 w-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">No Specific Session Today</h2>
+              <p className="text-gray-600">
+                You have an active program, but no specific workout is scheduled for today.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {/* AI Coach Card - Daily Workout Advice */}
+        <Card className="bg-gradient-to-br from-purple-50 via-white to-blue-50 border border-purple-200 shadow-lg">
+          <CardHeader className="pb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-xl">🧠</span>
+              </div>
+              <div>
+                <CardTitle className="text-xl font-semibold text-gray-900">
+                  AI Coach Recommendation
+                </CardTitle>
+                <CardDescription className="text-gray-600">
+                  Personalized advice for today's session
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <AICoachCard />
+          </CardContent>
+        </Card>
+
         {/* Enhanced Hero Section */}
         <div className="relative bg-gradient-to-br from-blue-50 via-white to-purple-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 overflow-hidden border border-gray-100 shadow-sm">
           {/* Decorative background elements - hidden on mobile for cleaner look */}
@@ -961,7 +1259,7 @@ export default function ProgramPage() {
             activeTab === 'overview' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 absolute inset-0 pointer-events-none'
           }`}>
             {activeTab === 'overview' && (
-              <OverviewTabContent programData={programData} completedDays={completedDays} />
+              <OverviewTabContent programData={programData} completedDays={completedDays} workoutStreak={workoutStreak} />
             )}
           </div>
           
@@ -990,6 +1288,21 @@ export default function ProgramPage() {
 
       {/* Floating Action Buttons */}
       <FloatingActionButtons programData={programData} />
+
+      {/* Weekly Check-In Modal */}
+      <WeeklyCheckInModal
+        isOpen={showWeeklyCheckIn}
+        onClose={handleCloseWeeklyCheckIn}
+        onAdaptationComplete={handleAdaptationComplete}
+        weekNumber={checkInWeekNumber}
+      />
+
+             {/* Daily Readiness Modal */}
+       <DailyReadinessModal
+         isOpen={showDailyReadinessModal}
+         onClose={handleDailyReadinessClose}
+         onSubmit={handleDailyReadinessSubmit}
+       />
     </DashboardLayout>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Target, Dumbbell, Activity, Calendar, TrendingUp, X } from 'lucide-react'
+import { Plus, Target, Calendar, TrendingUp, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
@@ -23,14 +23,6 @@ interface FloatingActionMenuProps {
 
 const defaultActions: FloatingAction[] = [
   {
-    id: 'new-workout',
-    label: 'Log Workout',
-    icon: Dumbbell,
-    href: '/workout/new',
-    color: 'from-blue-500 to-blue-600',
-    description: 'Record a new workout session'
-  },
-  {
     id: 'add-goal',
     label: 'Add Goal',
     icon: Target,
@@ -44,14 +36,6 @@ const defaultActions: FloatingAction[] = [
     href: '/workouts',
     color: 'from-green-500 to-green-600',
     description: 'Check your workout history'
-  },
-  {
-    id: 'log-run',
-    label: 'Log Run',
-    icon: Activity,
-    href: '/run-logger',
-    color: 'from-orange-500 to-orange-600',
-    description: 'Record a running session'
   }
 ]
 

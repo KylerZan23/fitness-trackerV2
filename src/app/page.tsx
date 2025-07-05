@@ -360,8 +360,8 @@ export default function HomePage() {
       }
 
       if (session) {
-        console.log('Session found, navigating to dashboard')
-        router.push('/dashboard')
+        console.log('Session found, navigating to program')
+        router.push('/program')
       } else {
         console.log('No session found, redirecting to login')
         router.push('/login')
@@ -434,7 +434,7 @@ export default function HomePage() {
                     onClick={handleDashboardNavigation}
                     className="px-6 py-2 bg-white text-black text-sm font-medium rounded-full hover:bg-white/90 transition-colors mr-4"
                   >
-                    Your Dashboard
+                    Your Program
                   </button>
                   <button
                     onClick={handleSignOut}
@@ -476,7 +476,7 @@ export default function HomePage() {
                     onClick={handleDashboardNavigation}
                     className="inline-block px-8 py-4 bg-black text-white font-medium rounded-lg text-lg hover:bg-black/90 hover:scale-105 hover:shadow-xl hover:shadow-black/25 active:scale-95 transition-all duration-300 ease-out transform"
                   >
-                    Go to Your Dashboard
+                    Go to Your Program
                   </button>
                 </div>
               ) : (

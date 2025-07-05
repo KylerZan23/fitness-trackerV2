@@ -3,7 +3,7 @@ import { type WorkoutDay, DayOfWeek } from '@/lib/types/program'
 import { type CompletedDayIdentifier } from '@/app/_actions/aiProgramActions'
 import { ExerciseListDisplay } from './ExerciseListDisplay'
 import { Badge } from '@/components/ui/badge'
-import { Clock, Calendar, CheckCircle2 } from 'lucide-react'
+import { Clock, Calendar, CheckCircle2, XCircle } from 'lucide-react'
 
 interface ProgramDayDisplayProps {
   day: WorkoutDay
@@ -48,6 +48,25 @@ export function ProgramDayDisplay({
       cd.phaseIndex === phaseIndex && cd.weekIndex === weekIndex && cd.dayOfWeek === day.dayOfWeek
   )
 
+  // Check if this workout was missed (past date and not completed)
+  const isMissed = (() => {
+    if (day.isRestDay || isCompleted) return false
+    
+    // For MVP, we're using first phase, first week
+    // In a real implementation, you'd calculate the actual workout date based on program start date
+    // For now, we'll use a simple heuristic: if it's not the current week (week 0), it's in the past
+    const today = new Date()
+    const currentDayOfWeek = ((today.getDay() + 6) % 7) + 1 // Convert Sunday=0 to Monday=1 format
+    
+    // If this is week 0 (current week), check if the day has passed
+    if (weekIndex === 0) {
+      return day.dayOfWeek < currentDayOfWeek
+    }
+    
+    // If this is a past week (weekIndex > 0), it's missed
+    return weekIndex > 0
+  })()
+
   return (
     <div className="space-y-4">
       {/* Day Header */}
@@ -61,14 +80,26 @@ export function ProgramDayDisplay({
                 {day.focus}
               </Badge>
             )}
-            {/* Completion Indicator - only show for non-rest days */}
-            {isCompleted && !day.isRestDay && (
-              <div className="flex items-center space-x-2">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
-                  Completed
-                </Badge>
-              </div>
+            {/* Adherence Indicators - only show for non-rest days */}
+            {!day.isRestDay && (
+              <>
+                {isCompleted && (
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
+                      Completed
+                    </Badge>
+                  </div>
+                )}
+                {isMissed && (
+                  <div className="flex items-center space-x-2">
+                    <XCircle className="h-5 w-5 text-gray-400" />
+                    <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-300">
+                      Missed
+                    </Badge>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

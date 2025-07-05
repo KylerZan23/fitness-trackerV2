@@ -555,6 +555,49 @@ export async function getUserProfile(client?: SupabaseClient) {
 }
 
 /**
+ * Creates a community feed event for the authenticated user
+ * @param eventType - Type of event (WORKOUT_COMPLETED, NEW_PB, STREAK_MILESTONE)
+ * @param metadata - Event-specific data
+ * @returns Success status
+ */
+export async function createCommunityFeedEvent(
+  eventType: 'WORKOUT_COMPLETED' | 'NEW_PB' | 'STREAK_MILESTONE',
+  metadata: Record<string, any>
+): Promise<boolean> {
+  try {
+    const {
+      data: { session },
+    } = await browserSupabaseClient.auth.getSession()
+
+    if (!session?.user) {
+      console.log('No active session found when creating community feed event')
+      return false
+    }
+
+    console.log(`Creating community feed event: ${eventType}`, metadata)
+
+    const { error } = await browserSupabaseClient
+      .from('community_feed_events')
+      .insert({
+        user_id: session.user.id,
+        event_type: eventType,
+        metadata: metadata,
+      })
+
+    if (error) {
+      console.error('Error creating community feed event:', error)
+      return false
+    }
+
+    console.log(`Community feed event created successfully: ${eventType}`)
+    return true
+  } catch (error) {
+    console.error('Error in createCommunityFeedEvent:', error)
+    return false
+  }
+}
+
+/**
  * Logs a workout group with multiple exercises for the authenticated user
  * @param workoutGroup - The workout group data containing multiple exercises
  * @returns The newly created workout group or null if there's an error
@@ -652,6 +695,14 @@ export async function logWorkoutGroup(
       }
 
       console.log('Created workout exercises:', exercisesResult)
+
+      // Create community feed event for workout completion
+      await createCommunityFeedEvent('WORKOUT_COMPLETED', {
+        workoutName: workoutGroup.name,
+        exerciseCount: workoutGroup.exercises.length,
+        duration: workoutGroup.duration,
+        exercises: workoutGroup.exercises.map(ex => ex.exerciseName),
+      })
 
       // Return the complete workout group with exercises
       return {
@@ -1029,6 +1080,90 @@ export async function getLocalStravaRunsForYear(
 }
 
 // Function to get weekly muscle comparison data
+/**
+ * Calculates the current workout streak for a user
+ * Counts consecutive days with at least one workout logged
+ * @param userId - The user ID to calculate streak for
+ * @param supabaseClient - Optional Supabase client
+ * @returns The current workout streak in days
+ */
+export async function calculateWorkoutStreak(
+  userId: string,
+  supabaseClient: SupabaseClient = browserSupabaseClient
+): Promise<number> {
+  try {
+    console.log(`Calculating workout streak for user: ${userId}`)
+
+    // Get all workout groups for the user, ordered by date (most recent first)
+    const { data: workoutGroups, error } = await supabaseClient
+      .from('workout_groups')
+      .select('created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching workout groups for streak calculation:', error)
+      return 0
+    }
+
+    if (!workoutGroups || workoutGroups.length === 0) {
+      console.log('No workout groups found for user')
+      return 0
+    }
+
+    // Convert dates to local date strings for comparison
+    const workoutDates = workoutGroups.map(group => {
+      const date = new Date(group.created_at)
+      return date.toISOString().split('T')[0] // Get YYYY-MM-DD format
+    })
+
+    // Remove duplicates (multiple workouts on same day count as one)
+    const uniqueWorkoutDates = Array.from(new Set(workoutDates))
+
+    // Sort dates in descending order (most recent first)
+    uniqueWorkoutDates.sort((a, b) => b.localeCompare(a))
+
+    console.log('Unique workout dates:', uniqueWorkoutDates)
+
+    // Calculate streak starting from today
+    const today = new Date()
+    const todayString = today.toISOString().split('T')[0]
+    
+    let streak = 0
+    let currentDate = new Date(today)
+
+    // Check each day backwards from today
+    for (let i = 0; i < 365; i++) { // Max 365 days to prevent infinite loop
+      const checkDateString = currentDate.toISOString().split('T')[0]
+      
+      if (uniqueWorkoutDates.includes(checkDateString)) {
+        streak++
+        console.log(`Found workout on ${checkDateString}, streak: ${streak}`)
+      } else {
+        // If we haven't started the streak yet (no workout today), continue checking
+        if (streak === 0 && checkDateString === todayString) {
+          // No workout today, but continue checking yesterday
+        } else if (streak === 0) {
+          // Still no workout found, continue checking
+        } else {
+          // Streak is broken
+          console.log(`Streak broken on ${checkDateString}, final streak: ${streak}`)
+          break
+        }
+      }
+
+      // Move to previous day
+      currentDate.setDate(currentDate.getDate() - 1)
+    }
+
+    console.log(`Final workout streak: ${streak} days`)
+    return streak
+  } catch (error) {
+    console.error('Error calculating workout streak:', error)
+    return 0
+  }
+}
+
 export async function getWeeklyMuscleComparisonData(
   userId: string,
   userTimezone: string,

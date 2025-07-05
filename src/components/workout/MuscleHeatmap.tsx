@@ -12,7 +12,6 @@ import {
 } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { MuscleGroup } from '@/lib/types'
-import Link from 'next/link'
 
 interface MuscleData {
   muscleGroup: string
@@ -236,9 +235,9 @@ export function MuscleHeatmap({ userId }: MuscleHeatmapProps) {
     <div className="bg-black text-white min-h-screen">
       <header className="flex justify-between items-center py-4 px-6 border-b border-white/10">
         <div className="flex items-center space-x-4">
-          <Link href="/dashboard" className="text-white/70 hover:text-white">
+          <button onClick={() => window.history.back()} className="text-white/70 hover:text-white">
             ←
-          </Link>
+          </button>
           <h1 className="text-2xl font-bold">Muscle Heatmap</h1>
         </div>
 
@@ -331,12 +330,9 @@ export function MuscleHeatmap({ userId }: MuscleHeatmapProps) {
                 muscle heatmap!
               </p>
 
-              <Link
-                href="/workout/new"
-                className="px-6 py-3 bg-white text-black font-medium rounded-full hover:bg-white/90 transition-colors"
-              >
-                Log a Workout
-              </Link>
+              <div className="px-6 py-3 bg-white/20 text-white/70 font-medium rounded-full cursor-not-allowed">
+                No Data Available
+              </div>
             </div>
           </div>
         ) : (

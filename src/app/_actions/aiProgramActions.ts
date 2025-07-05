@@ -658,3 +658,540 @@ export interface CompletedDayIdentifier {
   weekIndex: number // Index of the week within that phase (0-based)
   dayOfWeek: number // 1-7, matching DayOfWeek enum
 }
+
+/**
+ * Adapt the next week's training program based on user feedback
+ * This creates a dynamic, responsive coaching experience
+ */
+export async function adaptNextWeek(
+  feedback: 'easy' | 'good' | 'hard'
+): Promise<{ success: boolean; error?: string; adaptedWeek?: TrainingWeek }> {
+  try {
+    const supabase = await createClient()
+
+    // Get authenticated user
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !session?.user?.id) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const userId = session.user.id
+
+    // Fetch user's active training program
+    const { data: programData, error: programError } = await supabase
+      .from('training_programs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .single()
+
+    if (programError || !programData) {
+      return { success: false, error: 'No active training program found' }
+    }
+
+    // Parse the program details
+    const program: TrainingProgram = programData.program_details as TrainingProgram
+
+    // For MVP, we're working with first phase, first week (can be enhanced later)
+    const currentPhaseIndex = 0
+    const currentWeekIndex = 0
+    const nextWeekIndex = 1
+
+    if (!program.phases[currentPhaseIndex]) {
+      return { success: false, error: 'Invalid program structure - no phases found' }
+    }
+
+    const currentPhase = program.phases[currentPhaseIndex]
+    
+    // Check if there's a next week to adapt
+    if (!currentPhase.weeks[nextWeekIndex]) {
+      return { success: false, error: 'No next week found to adapt' }
+    }
+
+    const nextWeek = currentPhase.weeks[nextWeekIndex]
+
+    // Fetch logged workouts from the last 7 days for context
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+    const { data: recentWorkouts, error: workoutError } = await supabase
+      .from('workout_groups')
+      .select(`
+        created_at,
+        linked_program_day_of_week,
+        workouts (
+          exercise_name,
+          sets,
+          reps,
+          weight
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('linked_program_id', programData.id)
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .order('created_at', { ascending: false })
+
+    if (workoutError) {
+      console.error('Error fetching recent workouts:', workoutError)
+      // Continue without workout data - adaptation can still work with just feedback
+    }
+
+    // Construct LLM prompt for program adaptation
+    const adaptationPrompt = constructAdaptationPrompt(feedback, nextWeek, recentWorkouts || [])
+
+    // Call LLM to adapt the program
+    const adaptedWeekResponse = await callLLM(adaptationPrompt, 'user', {
+      model: 'gpt-4o-mini',
+      temperature: 0.3, // Lower temperature for more consistent results
+      response_format: { type: 'json_object' }
+    })
+
+    // Validate the adapted week
+    let adaptedWeek: TrainingWeek
+    try {
+      adaptedWeek = TrainingWeekSchema.parse(adaptedWeekResponse)
+    } catch (validationError) {
+      console.error('LLM returned invalid TrainingWeek structure:', validationError)
+      return { success: false, error: 'Failed to generate valid program adaptation' }
+    }
+
+    // Update the program in the database
+    const updatedProgram = { ...program }
+    updatedProgram.phases[currentPhaseIndex].weeks[nextWeekIndex] = adaptedWeek
+
+    const { error: updateError } = await supabase
+      .from('training_programs')
+      .update({
+        program_details: updatedProgram,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', programData.id)
+
+    if (updateError) {
+      console.error('Error updating program:', updateError)
+      return { success: false, error: 'Failed to save program adaptation' }
+    }
+
+    console.log(`Successfully adapted week ${nextWeek.weekNumber} based on '${feedback}' feedback`)
+
+    return {
+      success: true,
+      adaptedWeek: adaptedWeek
+    }
+
+  } catch (error) {
+    console.error('Error in adaptNextWeek:', error)
+    return {
+      success: false,
+      error: 'An unexpected error occurred while adapting your program'
+    }
+  }
+}
+
+/**
+ * Construct the LLM prompt for program adaptation
+ */
+/**
+ * Creates a community feed event for the authenticated user (server-side version)
+ * @param eventType - Type of event (WORKOUT_COMPLETED, NEW_PB, STREAK_MILESTONE)
+ * @param metadata - Event-specific data
+ * @param supabase - Supabase client instance
+ * @returns Success status
+ */
+async function createCommunityFeedEventServer(
+  eventType: 'WORKOUT_COMPLETED' | 'NEW_PB' | 'STREAK_MILESTONE',
+  metadata: Record<string, any>,
+  supabase: any
+): Promise<boolean> {
+  try {
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      console.log('No active user found when creating community feed event')
+      return false
+    }
+
+    console.log(`Creating community feed event: ${eventType}`, metadata)
+
+    const { error } = await supabase
+      .from('community_feed_events')
+      .insert({
+        user_id: user.id,
+        event_type: eventType,
+        metadata: metadata,
+      })
+
+    if (error) {
+      console.error('Error creating community feed event:', error)
+      return false
+    }
+
+    console.log(`Community feed event created successfully: ${eventType}`)
+    return true
+  } catch (error) {
+    console.error('Error in createCommunityFeedEventServer:', error)
+    return false
+  }
+}
+
+/**
+ * Checks if a logged set is a personal best and registers it
+ * @param exerciseName - Name of the exercise
+ * @param weight - Weight lifted
+ * @param reps - Number of reps performed
+ * @returns Object indicating if it's a PB and details
+ */
+export async function checkAndRegisterPB(
+  exerciseName: string,
+  weight: number,
+  reps: number
+): Promise<{ isPB: boolean; pbType?: string; previousBest?: { weight: number; reps: number } }> {
+  try {
+    const supabase = await createClient()
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      console.error('Error getting user for PB check:', userError)
+      return { isPB: false }
+    }
+
+    // Query user's workout history for this exercise
+    const { data: workouts, error: workoutsError } = await supabase
+      .from('workouts')
+      .select('weight, reps')
+      .eq('user_id', user.id)
+      .eq('exercise_name', exerciseName)
+      .order('created_at', { ascending: false })
+
+    if (workoutsError) {
+      console.error('Error fetching workout history for PB check:', workoutsError)
+      return { isPB: false }
+    }
+
+    if (!workouts || workouts.length === 0) {
+      // First time doing this exercise - it's a PB by default
+      console.log(`First time performing ${exerciseName} - automatic PB!`)
+      
+      // Create community feed event for first-time PB
+      await createCommunityFeedEventServer('NEW_PB', {
+        exerciseName,
+        weight,
+        reps,
+        pbType: 'first-time',
+        isFirstTime: true,
+      }, supabase)
+      
+      return { isPB: true, pbType: 'first-time' }
+    }
+
+    // Find the best previous performance
+    let bestWeight = 0
+    let bestRepsAtWeight = 0
+    let bestWeightAtReps = 0
+    let bestReps = 0
+    let previousBest = { weight: 0, reps: 0 }
+
+    workouts.forEach(workout => {
+      const workoutWeight = parseFloat(workout.weight.toString())
+      const workoutReps = parseInt(workout.reps.toString())
+
+      // Track absolute best weight
+      if (workoutWeight > bestWeight) {
+        bestWeight = workoutWeight
+        bestRepsAtWeight = workoutReps
+        previousBest = { weight: workoutWeight, reps: workoutReps }
+      }
+
+      // Track best reps
+      if (workoutReps > bestReps) {
+        bestReps = workoutReps
+        bestWeightAtReps = workoutWeight
+      }
+
+      // Track best weight at current rep count
+      if (workoutReps === reps && workoutWeight > bestWeightAtReps) {
+        bestWeightAtReps = workoutWeight
+      }
+    })
+
+    // Check for different types of PBs
+    const currentWeight = parseFloat(weight.toString())
+    const currentReps = parseInt(reps.toString())
+
+    // Type 1: Heaviest weight ever (regardless of reps)
+    if (currentWeight > bestWeight) {
+      console.log(`New weight PB for ${exerciseName}: ${currentWeight} (previous: ${bestWeight})`)
+      
+      // Create community feed event for weight PB
+      await createCommunityFeedEventServer('NEW_PB', {
+        exerciseName,
+        weight: currentWeight,
+        reps: currentReps,
+        pbType: 'heaviest-weight',
+        previousWeight: bestWeight,
+        previousReps: bestRepsAtWeight,
+        improvement: `${((currentWeight - bestWeight) / bestWeight * 100).toFixed(1)}%`,
+      }, supabase)
+      
+      return { 
+        isPB: true, 
+        pbType: 'heaviest-weight',
+        previousBest: { weight: bestWeight, reps: bestRepsAtWeight }
+      }
+    }
+
+    // Type 2: Most reps ever (regardless of weight)
+    if (currentReps > bestReps) {
+      console.log(`New reps PB for ${exerciseName}: ${currentReps} (previous: ${bestReps})`)
+      
+      // Create community feed event for reps PB
+      await createCommunityFeedEventServer('NEW_PB', {
+        exerciseName,
+        weight: currentWeight,
+        reps: currentReps,
+        pbType: 'most-reps',
+        previousWeight: bestWeightAtReps,
+        previousReps: bestReps,
+        improvement: `${currentReps - bestReps} more reps`,
+      }, supabase)
+      
+      return { 
+        isPB: true, 
+        pbType: 'most-reps',
+        previousBest: { weight: bestWeightAtReps, reps: bestReps }
+      }
+    }
+
+    // Type 3: Heaviest weight at this rep count
+    if (currentWeight > bestWeightAtReps) {
+      console.log(`New weight PB for ${exerciseName} at ${currentReps} reps: ${currentWeight} (previous: ${bestWeightAtReps})`)
+      
+      // Create community feed event for weight-at-reps PB
+      await createCommunityFeedEventServer('NEW_PB', {
+        exerciseName,
+        weight: currentWeight,
+        reps: currentReps,
+        pbType: 'weight-at-reps',
+        previousWeight: bestWeightAtReps,
+        previousReps: currentReps,
+        improvement: `${((currentWeight - bestWeightAtReps) / bestWeightAtReps * 100).toFixed(1)}%`,
+      }, supabase)
+      
+      return { 
+        isPB: true, 
+        pbType: 'weight-at-reps',
+        previousBest: { weight: bestWeightAtReps, reps: currentReps }
+      }
+    }
+
+    // No PB achieved
+    return { isPB: false }
+
+  } catch (error) {
+    console.error('Error checking for personal best:', error)
+    return { isPB: false }
+  }
+}
+
+function constructAdaptationPrompt(
+  feedback: 'easy' | 'good' | 'hard',
+  nextWeek: TrainingWeek,
+  recentWorkouts: any[]
+): string {
+  const feedbackInstructions = {
+    easy: `The user said last week was "Too Easy". Please increase the difficulty by:
+- Increasing weights by 5-10% where applicable
+- Adding 1-2 extra sets to compound exercises
+- Slightly increasing RPE targets by 0.5-1 point
+- Adding more challenging exercise variations where appropriate`,
+    
+    good: `The user said last week was "Just Right". Please make minor progressive adjustments:
+- Increase weights by 2.5-5% where applicable
+- Maintain current set/rep schemes
+- Keep RPE targets similar or increase slightly by 0.5 points
+- Focus on maintaining the current challenge level with slight progression`,
+    
+    hard: `The user said last week was "Too Hard". Please reduce the difficulty by:
+- Decreasing weights by 5-10% where applicable
+- Reducing sets by 1 on accessory exercises
+- Lowering RPE targets by 0.5-1 point
+- Simplifying exercise variations to more basic movements`
+  }
+
+  const workoutContext = recentWorkouts.length > 0 
+    ? `Recent workout performance data: ${JSON.stringify(recentWorkouts.slice(0, 3), null, 2)}`
+    : 'No recent workout data available.'
+
+  return `You are an AI fitness coach adapting a training program based on user feedback.
+
+FEEDBACK: ${feedback.toUpperCase()}
+
+ADAPTATION INSTRUCTIONS:
+${feedbackInstructions[feedback]}
+
+CURRENT NEXT WEEK PLAN:
+${JSON.stringify(nextWeek, null, 2)}
+
+${workoutContext}
+
+REQUIREMENTS:
+1. Return ONLY a valid TrainingWeek JSON object
+2. Maintain the same structure and exercise selections
+3. Adjust sets, reps, weights, and RPE based on the feedback
+4. Keep the same dayOfWeek values and exercise order
+5. Preserve warmUp and coolDown exercises
+6. Update any relevant notes to reflect the adaptations
+7. Ensure all changes are realistic and safe
+
+${getTypeScriptInterfaceDefinitions()}
+
+Return the adapted TrainingWeek as a JSON object:`
+}
+
+/**
+ * Adapt a planned workout based on user's daily readiness (sleep quality and energy levels)
+ * This creates a real-time adaptive training experience
+ * @param plannedWorkout - The original planned workout for today
+ * @param readiness - User's sleep quality and energy level data
+ * @returns Adapted workout or error
+ */
+export async function getDailyAdaptedWorkout(
+  plannedWorkout: WorkoutDay,
+  readiness: { sleep: 'Poor' | 'Average' | 'Great'; energy: 'Sore/Tired' | 'Feeling Good' | 'Ready to Go' }
+): Promise<{ success: boolean; error?: string; adaptedWorkout?: WorkoutDay }> {
+  try {
+    console.log('Adapting workout based on readiness:', readiness)
+    console.log('Original planned workout:', plannedWorkout)
+
+    // Construct LLM prompt for daily workout adaptation
+    const adaptationPrompt = constructDailyAdaptationPrompt(plannedWorkout, readiness)
+
+    // Call LLM to adapt the workout
+    const adaptedWorkoutResponse = await callLLM(adaptationPrompt, 'user', {
+      model: 'gpt-4o-mini',
+      temperature: 0.2, // Lower temperature for more consistent, conservative adaptations
+      response_format: { type: 'json_object' },
+      max_tokens: 2000 // Increase token limit for complex workouts
+    })
+
+    // Validate the adapted workout
+    let adaptedWorkout: WorkoutDay
+    try {
+      adaptedWorkout = WorkoutDaySchema.parse(adaptedWorkoutResponse)
+    } catch (validationError) {
+      console.error('LLM returned invalid WorkoutDay structure:', validationError)
+      console.error('Raw LLM response:', adaptedWorkoutResponse)
+      return { success: false, error: 'Failed to generate valid workout adaptation' }
+    }
+
+    console.log('Successfully adapted workout:', adaptedWorkout)
+
+    return {
+      success: true,
+      adaptedWorkout: adaptedWorkout
+    }
+
+  } catch (error) {
+    console.error('Error in getDailyAdaptedWorkout:', error)
+    return {
+      success: false,
+      error: 'An unexpected error occurred while adapting your workout'
+    }
+  }
+}
+
+/**
+ * Construct the LLM prompt for daily workout adaptation based on readiness
+ */
+function constructDailyAdaptationPrompt(
+  plannedWorkout: WorkoutDay,
+  readiness: { sleep: 'Poor' | 'Average' | 'Great'; energy: 'Sore/Tired' | 'Feeling Good' | 'Ready to Go' }
+): string {
+  // Define adaptation guidelines based on readiness levels
+  const adaptationGuidelines = {
+    sleep: {
+      'Poor': 'User had poor sleep (restless, less than 6 hours). Reduce intensity and volume.',
+      'Average': 'User had average sleep (6-7 hours with some interruptions). Make minor adjustments.',
+      'Great': 'User had great sleep (7+ hours, restful). Can maintain or slightly increase intensity.'
+    },
+    energy: {
+      'Sore/Tired': 'User is feeling sore or tired. Significantly reduce intensity and focus on recovery.',
+      'Feeling Good': 'User has normal energy levels. Maintain planned intensity.',
+      'Ready to Go': 'User has high energy and feels strong. Can increase intensity slightly.'
+    }
+  }
+
+  // Determine overall adaptation strategy
+  const sleepImpact = readiness.sleep === 'Poor' ? 'reduce' : readiness.sleep === 'Great' ? 'maintain' : 'slight_reduce'
+  const energyImpact = readiness.energy === 'Sore/Tired' ? 'reduce' : readiness.energy === 'Ready to Go' ? 'increase' : 'maintain'
+
+  let adaptationStrategy: 'REDUCE_INTENSITY' | 'SLIGHT_INCREASE' | 'MAINTAIN_WITH_MINOR_ADJUSTMENTS'
+  if (sleepImpact === 'reduce' || energyImpact === 'reduce') {
+    adaptationStrategy = 'REDUCE_INTENSITY'
+  } else if (sleepImpact === 'maintain' && energyImpact === 'increase') {
+    adaptationStrategy = 'SLIGHT_INCREASE'
+  } else {
+    adaptationStrategy = 'MAINTAIN_WITH_MINOR_ADJUSTMENTS'
+  }
+
+  const strategyInstructions = {
+    'REDUCE_INTENSITY': `
+- Reduce sets by 1 on main compound exercises (minimum 2 sets)
+- Lower RPE targets by 1-2 points (minimum RPE 5)
+- Reduce weight recommendations by 5-10%
+- Add extra rest time between sets
+- Consider replacing high-intensity exercises with lower-intensity alternatives
+- Focus on form and mind-muscle connection rather than heavy loads`,
+    
+    'SLIGHT_INCREASE': `
+- Maintain current set/rep schemes
+- Increase RPE targets by 0.5-1 point (maximum RPE 9)
+- Consider adding 1 optional extra set to main exercises
+- Suggest slightly heavier weights where appropriate
+- Maintain current exercise selection`,
+    
+    'MAINTAIN_WITH_MINOR_ADJUSTMENTS': `
+- Keep the same exercise selection and structure
+- Make minimal adjustments to sets/reps (±1 set maximum)
+- Adjust RPE targets by ±0.5 points
+- Keep weight recommendations similar
+- Focus on maintaining the planned intensity`
+  }
+
+  return `You are an AI fitness coach adapting today's workout based on the user's daily readiness check.
+
+USER READINESS:
+- Sleep Quality: ${readiness.sleep}
+- Energy/Soreness: ${readiness.energy}
+
+READINESS ANALYSIS:
+- Sleep Impact: ${adaptationGuidelines.sleep[readiness.sleep]}
+- Energy Impact: ${adaptationGuidelines.energy[readiness.energy]}
+
+ADAPTATION STRATEGY: ${adaptationStrategy}
+${strategyInstructions[adaptationStrategy]}
+
+ORIGINAL PLANNED WORKOUT:
+${JSON.stringify(plannedWorkout, null, 2)}
+
+REQUIREMENTS:
+1. Return ONLY a valid WorkoutDay JSON object
+2. Maintain the same dayOfWeek and basic structure
+3. Keep the same exercise selections unless substitution is necessary for recovery
+4. Adjust sets, reps, weights, RPE, and rest periods based on readiness
+5. Update notes to explain the adaptations made
+6. Preserve warmUp and coolDown exercises (these are crucial for recovery)
+7. All changes must be realistic, safe, and appropriate for the user's current state
+8. If reducing intensity significantly, focus on movement quality and recovery
+
+ADAPTATION PRINCIPLES:
+- Safety first: Never compromise form or safety for intensity
+- Progressive overload: Maintain some challenge even when reducing intensity
+- Recovery focus: When in doubt, err on the side of caution
+- Personalization: Adapt to the individual's current state
+
+${getTypeScriptInterfaceDefinitions()}
+
+Return the adapted WorkoutDay as a JSON object:`
+}

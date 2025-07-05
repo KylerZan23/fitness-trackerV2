@@ -30,7 +30,7 @@ function LoginContent() {
   // Check if the page was accessed with a force_login parameter
   const forceLogin = searchParams?.get('force_login') === 'true'
   // Check if there's a redirect URL
-  const redirectTo = searchParams?.get('redirectTo') || '/dashboard'
+  const redirectTo = searchParams?.get('redirectTo') || '/program'
 
   // If accessed with bypass, show a notice about being logged in
   useEffect(() => {
@@ -385,11 +385,11 @@ function LoginContent() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => router.push('/program')}
                   variant="outline"
                   className="w-full sm:w-auto"
                 >
-                  Continue to Dashboard
+                  Continue to Program
                 </Button>
                 <Button
                   onClick={handleForceLogout}

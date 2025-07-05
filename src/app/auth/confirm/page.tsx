@@ -76,8 +76,8 @@ function ConfirmContent() {
 
         // Redirect based on onboarding status
         if (profile?.onboarding_completed) {
-          console.log('User has completed onboarding, redirecting to dashboard')
-          router.push('/dashboard')
+          console.log('User has completed onboarding, redirecting to program')
+          router.push('/program')
         } else {
           console.log('User has not completed onboarding, redirecting to onboarding')
           router.push('/onboarding')

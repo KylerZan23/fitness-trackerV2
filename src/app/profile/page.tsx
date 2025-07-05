@@ -6,13 +6,13 @@ import { supabase } from '@/lib/supabase'
 import { getWorkouts, type Workout } from '@/lib/db'
 import { Error } from '@/components/ui/error'
 import Link from 'next/link'
-import { UserAvatar } from '@/components/ui/UserAvatar'
 import { ProfilePictureUpload } from '@/components/profile/ProfilePictureUpload'
 import { SqlMigrationRunner } from '@/components/admin/SqlMigrationRunner'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/Icon'
 import { Label } from '@/components/ui/label'
+import { Share2 } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -363,6 +363,38 @@ export default function ProfilePage() {
     }
   }
 
+  const handleShareProfile = async () => {
+    if (!profile) return
+
+    const publicProfileUrl = `${window.location.origin}/p/${profile.id}`
+    
+    // Try to use Web Share API if available
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${profile.name}'s Fitness Profile`,
+          text: `Check out ${profile.name}'s fitness achievements!`,
+          url: publicProfileUrl,
+        })
+        return
+      } catch (err) {
+        // If sharing was cancelled or failed, fall back to clipboard
+        console.log('Share cancelled or failed, falling back to clipboard')
+      }
+    }
+
+    // Fallback to clipboard
+    try {
+      await navigator.clipboard.writeText(publicProfileUrl)
+      // Note: useToast should be called as a hook at the top level
+      // For now, we'll use a simple alert
+      alert('Profile link copied to clipboard!')
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err)
+      alert('Failed to copy profile link. Please try again.')
+    }
+  }
+
   // Prepare props for the Sidebar
   const sidebarProps = {
     userName: profile?.name,
@@ -513,6 +545,21 @@ export default function ProfilePage() {
                 {isUpdating ? 'Updating...' : `Use ${profile?.weight_unit === 'kg' ? 'lbs' : 'kg'}`}
               </Button>
             </div>
+          </div>
+
+          {/* Share Profile Card */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Share Your Profile</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Share your fitness achievements with friends and family! Your public profile showcases your workout streak, personal bests, and fitness stats.
+            </p>
+            <Button
+              onClick={handleShareProfile}
+              className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+            >
+              <Share2 className="w-4 h-4" />
+              <span>Share My Profile</span>
+            </Button>
           </div>
 
           {/* Edit Profile Details Card - NEW */}
