@@ -4,7 +4,7 @@ import React from 'react'
 import { BaseQuestionLayout } from './questions/BaseQuestionLayout'
 import { PrimaryGoalQuestion } from './questions/PrimaryGoalQuestion'
 import { SecondaryGoalQuestion } from './questions/SecondaryGoalQuestion'
-import { PrimaryTrainingFocusQuestion } from './questions/PrimaryTrainingFocusQuestion'
+
 import { ExperienceLevelQuestion } from './questions/ExperienceLevelQuestion'
 import { SessionDurationQuestion } from './questions/SessionDurationQuestion'
 import { TrainingFrequencyQuestion } from './questions/TrainingFrequencyQuestion'
@@ -243,8 +243,6 @@ function QuestionRenderer({ question, value, onChange, error, allAnswers }: {
       return <PrimaryGoalQuestion {...questionProps} />
     case 'secondaryGoal':
       return <SecondaryGoalQuestion {...questionProps} />
-    case 'primaryTrainingFocus':
-      return <PrimaryTrainingFocusQuestion {...questionProps} />
     case 'experienceLevel':
       return <ExperienceLevelQuestion {...questionProps} />
     case 'weightUnit':
@@ -440,12 +438,23 @@ export function IndividualQuestionPage({ onComplete, onError }: IndividualQuesti
 
   const handleBackToQuestions = () => {
     setShowReview(false)
-    // Go back to the last question to continue the flow
+    
     const questionsToShow = state.questionsToShow
-    if (questionsToShow.length > 0) {
-      const lastQuestionIndex = questionsToShow.length - 1
-      // Set the current index to the last question so user can continue
-      goToQuestion(questionsToShow[lastQuestionIndex].id)
+    if (questionsToShow.length === 0) return
+    
+    // Find the first unanswered question
+    const firstUnansweredQuestion = questionsToShow.find(question => {
+      const answer = state.answers[question.id]
+      return answer === undefined || answer === null || answer === '' || 
+             (Array.isArray(answer) && answer.length === 0)
+    })
+    
+    if (firstUnansweredQuestion) {
+      // Go to the first unanswered question
+      goToQuestion(firstUnansweredQuestion.id)
+    } else {
+      // All questions are answered, go to the first question for editing
+      goToQuestion(questionsToShow[0].id)
     }
   }
 

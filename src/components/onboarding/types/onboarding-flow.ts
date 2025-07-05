@@ -7,7 +7,6 @@ import { type OnboardingData } from '@/lib/types/onboarding'
 
 // Re-create the onboarding form data type based on the schema structure
 export type OnboardingFormData = OnboardingData & {
-  primaryTrainingFocus: string
   experienceLevel: string
 }
 

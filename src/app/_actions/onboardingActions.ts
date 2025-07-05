@@ -3,13 +3,13 @@
 import { createClient } from '@/utils/supabase/server'
 import { type OnboardingData } from '@/lib/types/onboarding'
 import { generateTrainingProgram } from './aiProgramActions'
+import { mapGoalToTrainingFocus } from '@/lib/utils/goalToFocusMapping'
 
 /**
  * Combined type for onboarding data submission
  * Includes OnboardingData fields plus the profile fields that go in separate columns
  */
 export interface OnboardingAndProfileData extends OnboardingData {
-  primaryTrainingFocus: string
   experienceLevel: string
 }
 
@@ -61,7 +61,10 @@ export async function saveOnboardingData(
     }
 
     // Separate the data: profile fields vs onboarding responses
-    const { primaryTrainingFocus, experienceLevel, weightUnit, ...onboardingResponses } = formData
+    const { experienceLevel, weightUnit, ...onboardingResponses } = formData
+    
+    // Derive training focus from primary goal
+    const primaryTrainingFocus = mapGoalToTrainingFocus(formData.primaryGoal)
 
     // Prepare the update object
     const updateData = {

@@ -82,7 +82,7 @@ export class OnboardingFlowEngine {
    */
   goToNext(): boolean {
     const questionsToShow = this.getQuestionsToShow()
-    if (this.currentIndex < questionsToShow.length - 1) {
+    if (this.currentIndex < questionsToShow.length) {
       this.currentIndex++
       return true
     }
@@ -179,8 +179,8 @@ export class OnboardingFlowEngine {
       return answer !== undefined && answer !== null && answer !== ''
     })
     
-    // Only consider complete if we've reached the end of all questions AND all required are answered
-    const hasReachedEnd = this.currentIndex >= questionsToShow.length - 1
+    // Only consider complete if we've gone past the last question AND all required are answered
+    const hasReachedEnd = this.currentIndex >= questionsToShow.length
     
     return allRequiredAnswered && hasReachedEnd
   }

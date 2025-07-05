@@ -67,7 +67,7 @@ export interface ExerciseDetail {
   weight?: string
 
   /** Optional exercise category for organization */
-  category?: 'Compound' | 'Isolation' | 'Cardio' | 'Mobility' | 'Core' | 'Warm-up' | 'Cool-down'
+  category?: 'Compound' | 'Isolation' | 'Cardio' | 'Mobility' | 'Core' | 'Warm-up' | 'Cool-down' | 'Power'
 }
 
 /**

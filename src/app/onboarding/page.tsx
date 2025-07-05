@@ -40,7 +40,6 @@ export default function OnboardingPage() {
         strengthAssessmentType: data.strengthAssessmentType,
         
         // Profile fields that go in separate columns
-        primaryTrainingFocus: data.primaryTrainingFocus,
         experienceLevel: data.experienceLevel,
       }
 

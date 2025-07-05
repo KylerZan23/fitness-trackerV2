@@ -290,7 +290,6 @@ export default function OnboardingPage() {
       // Prepare the data for the server action
       const onboardingAndProfileData: FullOnboardingAnswers = {
         ...data,
-        primaryTrainingFocus: data.primaryTrainingFocus,
         experienceLevel: data.experienceLevel,
         weightUnit: 'lbs', // Default to lbs for old onboarding flow
       }

@@ -46,7 +46,7 @@ const ExerciseDetailSchema = z.object({
   notes: z.string().optional(),
   weight: z.string().optional(),
   category: z
-    .enum(['Compound', 'Isolation', 'Cardio', 'Mobility', 'Core', 'Warm-up', 'Cool-down'])
+    .enum(['Compound', 'Isolation', 'Cardio', 'Mobility', 'Core', 'Warm-up', 'Cool-down', 'Power'])
     .optional(),
 })
 
@@ -159,7 +159,7 @@ interface ExerciseDetail {
   rpe?: number; // 1-10 scale
   notes?: string;
   weight?: string;
-  category?: "Compound" | "Isolation" | "Cardio" | "Mobility" | "Core" | "Warm-up" | "Cool-down";
+  category?: "Compound" | "Isolation" | "Cardio" | "Mobility" | "Core" | "Warm-up" | "Cool-down" | "Power";
 }
 
 interface WorkoutDay {
@@ -306,15 +306,15 @@ USER STRENGTH ESTIMATES (in ${weightUnit}):
 
   const instructions = `
 PROGRAM GENERATION INSTRUCTIONS:
-1.  **Prioritize Expert Guidelines**: Generate a comprehensive 4-6 week training program. Base this program PRIMARILY on the "EXPERT GUIDELINES FOR ${profile.primary_training_focus?.toUpperCase() || 'USER\'S GOAL'} - ${profile.experience_level?.toUpperCase() || 'USER\'S LEVEL'}" provided below. These guidelines are CRITICAL.
-2.  **Adapt to User Specifics**: You MUST adapt the expert guidelines and any example plans within them to the user's specific "Available Equipment" (${onboarding.equipment.join(', ')}), "Training Frequency" (${onboarding.trainingFrequencyDays} days/week), and "Session Duration" (${onboarding.sessionDuration}). If the user's available equipment or preferred schedule differs significantly from an example in the guidelines, modify the exercises and structure to be appropriate and safe while still adhering to the core principles (e.g., target muscle groups, progression type) from the guidelines. For instance, if guidelines suggest barbell squats but user only has dumbbells, suggest dumbbell squats or goblet squats. If guidelines suggest 5 days but user selected 3, condense the plan logically.
 
-**CRITICAL: Session Duration & Exercise Count Requirements**:
+**MANDATORY SESSION REQUIREMENTS (NON-NEGOTIABLE)**:
 Based on the user's selected session duration (${onboarding.sessionDuration}), you MUST include the following MINIMUM number of exercises per workout:
 - **30-45 minutes**: Minimum 6-8 total exercises (2-3 warm-up, 3-4 main workout, 1-2 cool-down)
 - **45-60 minutes**: Minimum 8-10 total exercises (3-4 warm-up, 4-5 main workout, 1-2 cool-down)  
 - **60-75 minutes**: Minimum 10-14 total exercises (3-4 warm-up, 6-8 main workout, 2-3 cool-down)
 - **75+ minutes**: Minimum 12-16 total exercises (4-5 warm-up, 7-9 main workout, 2-3 cool-down)
+
+**CRITICAL**: These exercise counts are ABSOLUTE MINIMUMS. If the expert guidelines below suggest fewer exercises, you MUST supplement them with appropriate additional exercises (accessory work, variations, isolation movements) to meet these requirements while maintaining the core principles of the expert guidelines.
 
 For ADVANCED users doing ATHLETIC PERFORMANCE training with 60+ minute sessions, you MUST include:
 - Complex multi-joint movements (squats, deadlifts, presses)
@@ -322,6 +322,12 @@ For ADVANCED users doing ATHLETIC PERFORMANCE training with 60+ minute sessions,
 - Speed/agility components
 - Sport-specific conditioning
 - Adequate volume to justify the time commitment
+
+**DURATION VALIDATION**: The total estimated time for all exercises (including rest periods) MUST reasonably fill the user's selected session duration. Calculate: (sets × reps × tempo) + (sets × rest time) + transition time between exercises.
+
+1.  **Expert Guidelines Integration**: Use the "EXPERT GUIDELINES FOR ${profile.primary_training_focus?.toUpperCase() || 'USER\'S GOAL'} - ${profile.experience_level?.toUpperCase() || 'USER\'S LEVEL'}" provided below as your FOUNDATION, but EXPAND upon them to meet the mandatory session requirements above. If the guidelines suggest only 3 exercises but the user needs 8-10 exercises for their session duration, ADD appropriate supplementary exercises that align with the same training principles.
+
+2.  **Adapt to User Specifics**: You MUST adapt the expert guidelines and any example plans within them to the user's specific "Available Equipment" (${onboarding.equipment.join(', ')}), "Training Frequency" (${onboarding.trainingFrequencyDays} days/week), and "Session Duration" (${onboarding.sessionDuration}). If the user's available equipment or preferred schedule differs significantly from an example in the guidelines, modify the exercises and structure to be appropriate and safe while still adhering to the core principles (e.g., target muscle groups, progression type) from the guidelines. For instance, if guidelines suggest barbell squats but user only has dumbbells, suggest dumbbell squats or goblet squats. If guidelines suggest 5 days but user selected 3, condense the plan logically.
 
 **Mandatory Injury/Limitation & Preference Handling**:
 Based on the \`USER GOALS & PREFERENCES -> Injuries/Limitations\` field (verbatim: '${onboarding.injuriesLimitations || 'None specified'}') and \`USER GOALS & PREFERENCES -> Exercise Preferences\` field (verbatim: '${onboarding.exercisePreferences || 'None specified'}'):
@@ -336,7 +342,6 @@ Based on the \`USER GOALS & PREFERENCES -> Injuries/Limitations\` field (verbati
     *   Ensure exercise names are standard and recognizable. If an exercise from the guidelines is not in the provided TypeScript \`ExerciseDetail.name\` list, use a very common, standard alternative or break it down if it's a complex movement.
     *   Include warm-up and cool-down for each training day. If guidelines are sparse on this, apply general best practices (e.g., 5-10 min light cardio and dynamic stretches for warm-up; 5-10 min static stretches for cool-down).
     *   Set \`estimatedDurationMinutes\` for each WorkoutDay to align with the user's preferred session duration, adapting the number of exercises or sets from the guidelines if necessary.
-    *   **DURATION VALIDATION**: The total estimated time for all exercises (including rest periods) MUST reasonably fill the user's selected session duration. Calculate: (sets × reps × tempo) + (sets × rest time) + transition time between exercises.
     *   For the \`notes\` field in each \`ExerciseDetail\`:
         *   If the exercise is a major compound lift (e.g., Squat, Bench Press, Deadlift, Overhead Press), ALWAYS include 1-2 concise, critical form cues. Examples: For Squat: 'Keep chest up, drive knees out, descend to at least parallel.' For Deadlift: 'Maintain neutral spine, engage lats, push through the floor.'
         *   If the user's \`Experience Level\` is 'Beginner (<6 months)', provide more detailed form cues or safety reminders for most exercises.
@@ -404,7 +409,7 @@ async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: stri
 
     const parsedProgram = await callLLM(prompt, 'user', {
       response_format: { type: 'json_object' },
-      max_tokens: 40000, // Increased for comprehensive program generation
+      max_tokens: 16000, // Reduced to stay within model limits (max 16384)
       model: 'gpt-4o', // Upgraded to more capable model for complex program generation
     })
 
