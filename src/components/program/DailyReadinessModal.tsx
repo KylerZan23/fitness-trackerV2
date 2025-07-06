@@ -83,8 +83,8 @@ export function DailyReadinessModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader className="text-center">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="text-center pr-8">
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Daily Readiness Check
           </DialogTitle>
@@ -93,7 +93,7 @@ export function DailyReadinessModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-8 py-6">
+        <div className="space-y-6 py-4">
           {/* Sleep Quality Section */}
           <Card className="border-0 shadow-sm bg-gray-50">
             <CardHeader className="pb-4">
@@ -174,7 +174,7 @@ export function DailyReadinessModal({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-between space-x-4 pt-6 border-t">
+        <div className="flex justify-between space-x-4 pt-4 border-t">
           <Button
             variant="outline"
             onClick={onClose}

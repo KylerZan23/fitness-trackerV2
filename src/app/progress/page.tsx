@@ -42,9 +42,12 @@ export default function ProgressPage() {
         if (userProfile) {
           setProfile(userProfile)
           
-          // Get workout trends data
-          const trends = await getWorkoutTrends(userProfile.id)
+          // Get workout trends data (8 weeks, user's timezone or UTC default)
+          const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+          console.log(`Fetching workout trends for user ${userProfile.id.substring(0, 6)}... with timezone: ${userTimezone}`)
+          const trends = await getWorkoutTrends(8, userTimezone)
           setWorkoutTrends(trends)
+          console.log(`Successfully fetched ${trends.length} workout trend data points`)
         } else {
           console.warn('No active session found. Redirecting to login.')
           router.push('/login')

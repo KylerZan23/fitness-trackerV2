@@ -25,10 +25,12 @@ interface CommunityFeedEvent {
 function useCommunityFeedEvents() {
   const [events, setEvents] = useState<CommunityFeedEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchEvents() {
       try {
+        setError(null)
         const { data, error } = await supabase
           .from('community_feed_events')
           .select(`
@@ -36,11 +38,12 @@ function useCommunityFeedEvents() {
             event_type,
             metadata,
             created_at,
-            user:profiles!community_feed_events_user_id_fkey (
+            user_id,
+            profiles!inner (
               id,
               name,
               email,
-              avatar_url
+              profile_picture_url
             )
           `)
           .order('created_at', { ascending: false })
@@ -48,6 +51,7 @@ function useCommunityFeedEvents() {
 
         if (error) {
           console.error('Error fetching community feed events:', error)
+          setError(`Database error: ${error.message}`)
           setEvents([])
           return
         }
@@ -58,12 +62,18 @@ function useCommunityFeedEvents() {
           event_type: item.event_type,
           metadata: item.metadata,
           created_at: item.created_at,
-          user: Array.isArray(item.user) ? item.user[0] : item.user
+          user: {
+            id: item.profiles.id,
+            name: item.profiles.name,
+            email: item.profiles.email,
+            avatar_url: item.profiles.profile_picture_url
+          }
         })) as CommunityFeedEvent[]
 
         setEvents(transformedEvents)
       } catch (error) {
         console.error('Error in fetchEvents:', error)
+        setError(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`)
         setEvents([])
       } finally {
         setLoading(false)
@@ -73,7 +83,7 @@ function useCommunityFeedEvents() {
     fetchEvents()
   }, [])
 
-  return { events, loading }
+  return { events, loading, error }
 }
 
 function getEventIcon(eventType: string) {
@@ -214,10 +224,30 @@ function CommunityFeedSkeleton() {
 }
 
 function CommunityFeed() {
-  const { events, loading } = useCommunityFeedEvents()
+  const { events, loading, error } = useCommunityFeedEvents()
 
   if (loading) {
     return <CommunityFeedSkeleton />
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Users className="w-8 h-8 text-red-600" />
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Unable to load community feed</h3>
+        <p className="text-gray-600 max-w-md mx-auto mb-4">
+          {error}
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    )
   }
 
   if (events.length === 0) {
@@ -242,14 +272,49 @@ function CommunityFeed() {
 }
 
 export default function CommunityPage() {
-  const sidebarProps = {
-    userName: 'User',
-    userEmail: undefined,
-    profilePictureUrl: null,
-    onLogout: () => {
-      // Handle logout - this will be improved when we add proper auth context
-      console.log('Logout clicked')
+  const [userProfile, setUserProfile] = useState<{
+    name: string
+    email: string
+    profile_picture_url?: string
+  } | null>(null)
+
+  useEffect(() => {
+    async function fetchUserProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name, email, profile_picture_url')
+            .eq('id', user.id)
+            .single()
+          
+          if (profile) {
+            setUserProfile(profile)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error)
+      }
     }
+    
+    fetchUserProfile()
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+      window.location.href = '/login'
+    } catch (error) {
+      console.error('Error logging out:', error)
+    }
+  }
+
+  const sidebarProps = {
+    userName: userProfile?.name || 'User',
+    userEmail: userProfile?.email || '',
+    profilePictureUrl: userProfile?.profile_picture_url || null,
+    onLogout: handleLogout
   }
 
   return (
