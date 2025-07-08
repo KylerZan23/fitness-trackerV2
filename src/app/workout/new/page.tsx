@@ -70,36 +70,51 @@ function SessionTracker() {
 
   // Parse URL parameters to get planned workout data
   useEffect(() => {
-    if (!searchParams) return
+    if (!searchParams) {
+      console.log('No searchParams available, redirecting to program')
+      router.push('/program')
+      return
+    }
     
     const workoutParam = searchParams.get('workout')
     const contextParam = searchParams.get('context')
     const readinessParam = searchParams.get('readiness')
 
-    if (workoutParam && contextParam) {
-      try {
-        const workoutData = JSON.parse(decodeURIComponent(workoutParam))
-        const contextData = JSON.parse(decodeURIComponent(contextParam))
-        const readinessData = readinessParam ? JSON.parse(decodeURIComponent(readinessParam)) : null
-        
-        setProgramContext(contextData)
-        
-        // If readiness data is provided, adapt the workout
-        if (readinessData) {
-          console.log('Adapting workout based on readiness:', readinessData)
-          adaptWorkout(workoutData, readinessData)
-        } else {
-          // No readiness data, use the original planned workout
-          setPlannedWorkout(workoutData)
-          initializeExerciseTracking(workoutData)
-        }
-      } catch (error) {
-        console.error('Error parsing workout data:', error)
-        toast.error('Failed to load workout data')
-        router.push('/program')
+    // Check if required parameters are present
+    if (!workoutParam || !contextParam) {
+      console.log('Missing required parameters (workout or context), redirecting to program')
+      router.push('/program')
+      return
+    }
+
+    try {
+      const workoutData = JSON.parse(decodeURIComponent(workoutParam))
+      const contextData = JSON.parse(decodeURIComponent(contextParam))
+      const readinessData = readinessParam ? JSON.parse(decodeURIComponent(readinessParam)) : null
+      
+      // Validate that the parsed data has the expected structure
+      if (!workoutData || typeof workoutData !== 'object') {
+        throw new Error('Invalid workout data structure')
       }
-    } else {
-      // No workout data provided, redirect back to program
+      
+      if (!contextData || typeof contextData !== 'object') {
+        throw new Error('Invalid context data structure')
+      }
+      
+      setProgramContext(contextData)
+      
+      // If readiness data is provided, adapt the workout
+      if (readinessData) {
+        console.log('Adapting workout based on readiness:', readinessData)
+        adaptWorkout(workoutData, readinessData)
+      } else {
+        // No readiness data, use the original planned workout
+        setPlannedWorkout(workoutData)
+        initializeExerciseTracking(workoutData)
+      }
+    } catch (error) {
+      console.error('Error parsing workout data:', error)
+      toast.error('Failed to load workout data')
       router.push('/program')
     }
   }, [searchParams, router])
@@ -189,20 +204,25 @@ function SessionTracker() {
   // Fetch user profile
   useEffect(() => {
     async function fetchProfileAndAuth() {
-      setIsSubmitting(true)
       try {
+        setIsSubmitting(true)
+        setError(null)
+        
         const userProfile = await getUserProfile()
         if (userProfile) {
           setProfile(userProfile)
           setWeightUnit(userProfile.weight_unit ?? 'kg')
         } else {
-          console.warn('No active session found. Redirecting to login.')
+          console.warn('No user profile found or no active session. Redirecting to login.')
           router.push('/login')
         }
       } catch (err) {
         console.error('Error fetching user profile:', err)
-        setError('Failed to load user data.')
-        router.push('/login')
+        setError('Failed to load user data. Please try logging in again.')
+        // Don't redirect immediately, let the user see the error
+        setTimeout(() => {
+          router.push('/login')
+        }, 2000)
       } finally {
         setIsSubmitting(false)
       }
@@ -303,6 +323,7 @@ function SessionTracker() {
   const adaptWorkout = async (originalWorkout: WorkoutDay, readinessData: DailyReadinessData) => {
     try {
       setIsSubmitting(true)
+      setError(null)
       
       console.log('Calling getDailyAdaptedWorkout with:', { originalWorkout, readinessData })
       
@@ -311,15 +332,15 @@ function SessionTracker() {
         energy: readinessData.energy
       })
       
-          if (result.success && result.adaptedWorkout) {
-      console.log('Successfully adapted workout:', result.adaptedWorkout)
-      setPlannedWorkout(result.adaptedWorkout)
-      initializeExerciseTracking(result.adaptedWorkout)
-      setIsWorkoutAdapted(true)
-      
-      // Show success message about adaptation
-      toast.success('Workout adapted based on your readiness!')
-    } else {
+      if (result.success && result.adaptedWorkout) {
+        console.log('Successfully adapted workout:', result.adaptedWorkout)
+        setPlannedWorkout(result.adaptedWorkout)
+        initializeExerciseTracking(result.adaptedWorkout)
+        setIsWorkoutAdapted(true)
+        
+        // Show success message about adaptation
+        toast.success('Workout adapted based on your readiness!')
+      } else {
         console.error('Failed to adapt workout:', result.error)
         // Fall back to original workout
         setPlannedWorkout(originalWorkout)
@@ -358,6 +379,17 @@ function SessionTracker() {
       <DashboardLayout sidebarProps={sidebarProps}>
         <div className="flex justify-center items-center h-screen">
           <p className="text-gray-500">Loading session data...</p>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  // Early return if searchParams is not available (prevents hydration issues)
+  if (!searchParams) {
+    return (
+      <DashboardLayout sidebarProps={sidebarProps}>
+        <div className="flex justify-center items-center h-screen">
+          <p className="text-gray-500">Loading workout parameters...</p>
         </div>
       </DashboardLayout>
     )
