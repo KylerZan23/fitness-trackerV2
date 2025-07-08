@@ -1,5 +1,5 @@
-import { supabase as browserSupabaseClient } from './supabase'
-import { WorkoutFormData, WorkoutGroupData, WorkoutExerciseData } from './schemas'
+import { supabase as browserSupabaseClient } from '../supabase'
+import { WorkoutFormData, WorkoutGroupData, WorkoutExerciseData } from '../schemas'
 import {
   startOfWeek,
   endOfWeek,
@@ -11,7 +11,7 @@ import {
   subWeeks,
 } from 'date-fns'
 import { toZonedTime, fromZonedTime, format as formatTz } from 'date-fns-tz'
-import { MuscleGroup, findMuscleGroupForExercise } from './types'
+import { MuscleGroup, findMuscleGroupForExercise } from '../types'
 import { SupabaseClient } from '@supabase/supabase-js'
 
 export interface Workout extends WorkoutFormData {

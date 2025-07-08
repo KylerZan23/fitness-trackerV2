@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { HistoricalWorkout } from '@/lib/db'
+import { HistoricalWorkout } from '@/lib/db/index'
 
 interface MonthLogCardProps {
   monthName: string

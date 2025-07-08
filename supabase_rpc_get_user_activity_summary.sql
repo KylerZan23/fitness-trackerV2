@@ -173,7 +173,14 @@ BEGIN
             (SELECT di.sets || 'x' || di.reps || '@' || di.weight || v_user_weight_unit FROM daily_exercise_sessions_intermediate di
              WHERE di.exercise_name = dei.exercise_name AND di.session_date = dei.session_date AND di.rn_in_day = 1 LIMIT 1) as performance_string,
             (SELECT di.notes FROM daily_exercise_sessions_intermediate di
-             WHERE di.exercise_name = dei.exercise_name AND di.session_date = dei.session_date AND di.rn_in_day = 1 LIMIT 1) as notes_string
+             WHERE di.exercise_name = dei.exercise_name AND di.session_date = dei.session_date AND di.rn_in_day = 1 LIMIT 1) as notes_string,
+            -- Calculate e1RM for the best set of the day (highest weight)
+            (SELECT calculate_e1rm(di.weight, di.reps) FROM daily_exercise_sessions_intermediate di
+             WHERE di.exercise_name = dei.exercise_name AND di.session_date = dei.session_date AND di.rn_in_day = 1 
+             AND is_valid_for_e1rm(di.weight, di.reps) LIMIT 1) as e1rm_value,
+            (SELECT get_e1rm_confidence(di.reps) FROM daily_exercise_sessions_intermediate di
+             WHERE di.exercise_name = dei.exercise_name AND di.session_date = dei.session_date AND di.rn_in_day = 1 
+             AND is_valid_for_e1rm(di.weight, di.reps) LIMIT 1) as e1rm_confidence
         FROM daily_exercise_sessions_intermediate dei
         GROUP BY dei.exercise_name, dei.session_date
     ),
@@ -191,7 +198,12 @@ BEGIN
                 jsonb_build_object(
                     'date', TO_CHAR(session_date, 'YYYY-MM-DD'),
                     'performance', performance_string,
-                    'notes', notes_string
+                    'notes', notes_string,
+                    'e1rm', CASE 
+                        WHEN e1rm_value IS NOT NULL THEN ROUND(e1rm_value, 1) 
+                        ELSE NULL 
+                    END,
+                    'e1rm_confidence', e1rm_confidence
                 ) ORDER BY session_date DESC
             ) AS last_sessions_array
         FROM ranked_daily_sessions

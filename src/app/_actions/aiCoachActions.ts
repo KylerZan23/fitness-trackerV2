@@ -2,9 +2,9 @@
 
 import { cookies } from 'next/headers'
 import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
-import { getUserProfile } from '@/lib/db'
-import { fetchCurrentWeekGoalsWithProgress } from '@/lib/goalsDb'
-import { getActiveTrainingProgram, type TrainingProgramWithId } from '@/lib/programDb'
+import { getUserProfile } from '@/lib/db/index'
+import { fetchCurrentWeekGoalsWithProgress } from '@/lib/db/goals'
+import { getActiveTrainingProgram, type TrainingProgramWithId } from '@/lib/db/program'
 import type { GoalWithProgress } from '@/lib/types'
 import type { DayOfWeek } from '@/lib/types/program'
 import { callLLM } from '@/lib/llmService'

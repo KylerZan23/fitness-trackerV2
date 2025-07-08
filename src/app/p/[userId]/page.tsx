@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
-import { calculateWorkoutStreak } from '@/lib/db'
+import { calculateWorkoutStreak } from '@/lib/db/index'
 import { notFound } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { UserAvatar } from '@/components/ui/UserAvatar'

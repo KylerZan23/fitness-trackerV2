@@ -8,7 +8,7 @@ import {
   getUserProfile,
   HistoricalWorkout,
   getLocalStravaRunsForYear,
-} from '@/lib/db'
+} from '@/lib/db/index'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'

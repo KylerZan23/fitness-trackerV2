@@ -1,10 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { WorkoutLog } from '@/components/workout/WorkoutLog'
-import { logWorkout } from '@/lib/db'
+import { logWorkout } from '@/lib/db/index'
 
 // Mock the db functions
-jest.mock('@/lib/db', () => ({
+jest.mock('@/lib/db/index', () => ({
   logWorkout: jest.fn(),
 }))
 

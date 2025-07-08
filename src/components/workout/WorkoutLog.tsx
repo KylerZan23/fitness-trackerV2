@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { WorkoutFormData, workoutSchema } from '@/lib/schemas'
-import { logWorkout } from '@/lib/db'
+import { logWorkout } from '@/lib/db/index'
 
 interface WorkoutLogProps {
   onSuccess?: () => void

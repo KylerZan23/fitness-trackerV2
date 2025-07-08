@@ -353,7 +353,32 @@ Based on the \`USER GOALS & PREFERENCES -> Injuries/Limitations\` field (verbati
     *   Set \`generatedAt\` to the current ISO date string.
     *   Include appropriate tags based on goals and focus.
     *   For the \`generalAdvice\` field: Provide a brief (2-3 sentences) explanation of the program's overall structure and how it aligns with the user's \`Primary Goal\`, \`Experience Level\`, and \`Available Equipment\`. Example: 'This 4-week program focuses on Full Body workouts 3 times per week, which is ideal for your 'Beginner' experience level and 'General Fitness' goal, utilizing the Dumbbells and Bodyweight exercises you have available. The primary aim is to build foundational strength and improve movement patterns.'
-5.  **Focus Field**: For the \`focus\` field in WorkoutDay objects, you MUST strictly use one of the predefined values listed in the TypeScript interface. Do not combine terms or create new focus categories. If more specificity is needed, use the notes field of the WorkoutDay.
+5.  **Focus Field**: For the \`focus\` field in WorkoutDay objects, you MUST strictly use ONLY one of these exact predefined values from the TypeScript interface:
+    - "Upper Body" (for bench press, overhead press, upper body days)
+    - "Lower Body" (for squat, deadlift, leg-focused days)  
+    - "Push" (for pressing movements)
+    - "Pull" (for pulling movements)
+    - "Legs" (alternative to Lower Body)
+    - "Full Body" (for full body workouts)
+    - "Cardio"
+    - "Core"
+    - "Arms"
+    - "Back"
+    - "Chest"
+    - "Shoulders"
+    - "Glutes"
+    - "Recovery/Mobility"
+    - "Sport-Specific"
+    - "Rest Day"
+    - "Lower Body Endurance"
+    
+    **CRITICAL**: Do NOT use exercise names like "Squat", "Bench", "Deadlift" or "Overhead Press" as focus values. These are exercise names, not focus categories. For powerlifting programs:
+    - Squat day = "Lower Body"
+    - Bench day = "Upper Body" or "Push"
+    - Deadlift day = "Lower Body" or "Pull"
+    - Overhead Press day = "Upper Body" or "Push"
+    
+    If more specificity is needed, use the notes field of the WorkoutDay.
 6.  **Weight Prescription**:
     *   Utilize the "USER STRENGTH ESTIMATES" provided. The unit for these estimates is ${weightUnit}.
     *   For core compound exercises (Squat, Bench Press, Deadlift, Overhead Press if applicable) where a 1RM/e1RM is provided by the user:
@@ -605,7 +630,7 @@ export async function fetchActiveProgramAction(): Promise<{
 }> {
   try {
     // Import here to avoid circular dependencies
-    const { getActiveTrainingProgram } = await import('@/lib/programDb')
+    const { getActiveTrainingProgram } = await import('@/lib/db/program')
 
     const program = await getActiveTrainingProgram()
 
@@ -692,23 +717,49 @@ export async function adaptNextWeek(
     // Parse the program details
     const program: TrainingProgram = programData.program_details as TrainingProgram
 
-    // For MVP, we're working with first phase, first week (can be enhanced later)
-    const currentPhaseIndex = 0
-    const currentWeekIndex = 0
-    const nextWeekIndex = 1
-
-    if (!program.phases[currentPhaseIndex]) {
-      return { success: false, error: 'Invalid program structure - no phases found' }
+    // Get current week number from the database
+    const currentWeekNumber = programData.current_week || 1
+    
+    // Find the current phase and week index based on current week number
+    let currentPhaseIndex = 0
+    let currentWeekIndex = 0
+    let totalWeeksProcessed = 0
+    
+    for (let phaseIdx = 0; phaseIdx < program.phases.length; phaseIdx++) {
+      const phase = program.phases[phaseIdx]
+      if (totalWeeksProcessed + phase.durationWeeks >= currentWeekNumber) {
+        currentPhaseIndex = phaseIdx
+        currentWeekIndex = currentWeekNumber - totalWeeksProcessed - 1
+        break
+      }
+      totalWeeksProcessed += phase.durationWeeks
     }
 
     const currentPhase = program.phases[currentPhaseIndex]
+    if (!currentPhase) {
+      return { success: false, error: 'Invalid program structure - no phases found' }
+    }
     
-    // Check if there's a next week to adapt
-    if (!currentPhase.weeks[nextWeekIndex]) {
+    // Calculate next week indices
+    const nextWeekIndex = currentWeekIndex + 1
+    let nextPhaseIndex = currentPhaseIndex
+    
+    // Check if we need to move to the next phase
+    if (nextWeekIndex >= currentPhase.weeks.length) {
+      nextPhaseIndex = currentPhaseIndex + 1
+      if (nextPhaseIndex >= program.phases.length) {
+        return { success: false, error: 'Program completed - no next week to adapt' }
+      }
+    }
+    
+    // Get the next week to adapt
+    const nextWeek = nextWeekIndex < currentPhase.weeks.length 
+      ? currentPhase.weeks[nextWeekIndex]
+      : program.phases[nextPhaseIndex].weeks[0]
+      
+    if (!nextWeek) {
       return { success: false, error: 'No next week found to adapt' }
     }
-
-    const nextWeek = currentPhase.weeks[nextWeekIndex]
 
     // Fetch logged workouts from the last 7 days for context
     const sevenDaysAgo = new Date()
@@ -757,7 +808,15 @@ export async function adaptNextWeek(
 
     // Update the program in the database
     const updatedProgram = { ...program }
-    updatedProgram.phases[currentPhaseIndex].weeks[nextWeekIndex] = adaptedWeek
+    
+    // Update the correct week in the correct phase
+    if (nextWeekIndex < currentPhase.weeks.length) {
+      // Update within current phase
+      updatedProgram.phases[currentPhaseIndex].weeks[nextWeekIndex] = adaptedWeek
+    } else {
+      // Update first week of next phase
+      updatedProgram.phases[nextPhaseIndex].weeks[0] = adaptedWeek
+    }
 
     const { error: updateError } = await supabase
       .from('training_programs')
@@ -999,54 +1058,34 @@ function constructAdaptationPrompt(
   nextWeek: TrainingWeek,
   recentWorkouts: any[]
 ): string {
-  const feedbackInstructions = {
-    easy: `The user said last week was "Too Easy". Please increase the difficulty by:
-- Increasing weights by 5-10% where applicable
-- Adding 1-2 extra sets to compound exercises
-- Slightly increasing RPE targets by 0.5-1 point
-- Adding more challenging exercise variations where appropriate`,
-    
-    good: `The user said last week was "Just Right". Please make minor progressive adjustments:
-- Increase weights by 2.5-5% where applicable
-- Maintain current set/rep schemes
-- Keep RPE targets similar or increase slightly by 0.5 points
-- Focus on maintaining the current challenge level with slight progression`,
-    
-    hard: `The user said last week was "Too Hard". Please reduce the difficulty by:
-- Decreasing weights by 5-10% where applicable
-- Reducing sets by 1 on accessory exercises
-- Lowering RPE targets by 0.5-1 point
-- Simplifying exercise variations to more basic movements`
+  const currentWeekNumber = nextWeek.weekNumber - 1
+  const nextWeekNumber = nextWeek.weekNumber
+  
+  // Map feedback to user-friendly terms
+  const feedbackMap = {
+    easy: 'Too Easy',
+    good: 'Just Right', 
+    hard: 'Too Hard'
+  }
+
+  const adaptationInstructions = {
+    easy: 'If "Too Easy", increase weights by 2.5-5% or add one accessory set.',
+    good: 'If "Just Right", apply standard linear progression by increasing the weight on the primary compound lift by 2.5%.',
+    hard: 'If "Too Hard", decrease weights by 5-10% or remove one set from the final accessory exercise.'
   }
 
   const workoutContext = recentWorkouts.length > 0 
-    ? `Recent workout performance data: ${JSON.stringify(recentWorkouts.slice(0, 3), null, 2)}`
-    : 'No recent workout data available.'
+    ? `\n\nRecent workout performance data: ${JSON.stringify(recentWorkouts.slice(0, 3), null, 2)}`
+    : ''
 
-  return `You are an AI fitness coach adapting a training program based on user feedback.
+  return `You are an AI Strength Coach. A user has just completed Week ${currentWeekNumber} of their program and said it was '${feedbackMap[feedback]}'. Here is the plan for Week ${nextWeekNumber}. Your task is to modify this plan based on their feedback and return the updated JSON for the week. ${adaptationInstructions[feedback]}
 
-FEEDBACK: ${feedback.toUpperCase()}
-
-ADAPTATION INSTRUCTIONS:
-${feedbackInstructions[feedback]}
-
-CURRENT NEXT WEEK PLAN:
-${JSON.stringify(nextWeek, null, 2)}
-
-${workoutContext}
-
-REQUIREMENTS:
-1. Return ONLY a valid TrainingWeek JSON object
-2. Maintain the same structure and exercise selections
-3. Adjust sets, reps, weights, and RPE based on the feedback
-4. Keep the same dayOfWeek values and exercise order
-5. Preserve warmUp and coolDown exercises
-6. Update any relevant notes to reflect the adaptations
-7. Ensure all changes are realistic and safe
+Week ${nextWeekNumber} Plan:
+${JSON.stringify(nextWeek, null, 2)}${workoutContext}
 
 ${getTypeScriptInterfaceDefinitions()}
 
-Return the adapted TrainingWeek as a JSON object:`
+Return the adapted TrainingWeek as a valid JSON object:`
 }
 
 /**

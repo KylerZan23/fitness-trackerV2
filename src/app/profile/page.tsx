@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getWorkouts, type Workout } from '@/lib/db'
+import { getWorkouts, type Workout } from '@/lib/db/index'
 import { Error } from '@/components/ui/error'
 import Link from 'next/link'
 import { ProfilePictureUpload } from '@/components/profile/ProfilePictureUpload'

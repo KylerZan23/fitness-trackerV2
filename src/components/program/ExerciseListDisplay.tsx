@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Lightbulb } from 'lucide-react'
 
 interface ExerciseListDisplayProps {
   exercises: ExerciseDetail[]
@@ -42,6 +43,14 @@ export function ExerciseListDisplay({ exercises, listTitle }: ExerciseListDispla
                 <TableCell className="font-medium">
                   <div className="space-y-1">
                     <div className="font-semibold text-gray-900">{exercise.name}</div>
+                    {exercise.notes && (
+                      <div className="flex items-start space-x-1.5 mt-2">
+                        <Lightbulb className="h-3 w-3 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <div className="text-xs italic text-muted-foreground leading-relaxed">
+                          {exercise.notes}
+                        </div>
+                      </div>
+                    )}
                     {exercise.category && (
                       <Badge variant="secondary" className="text-xs">
                         {exercise.category}
@@ -75,11 +84,6 @@ export function ExerciseListDisplay({ exercises, listTitle }: ExerciseListDispla
                     {exercise.rpe && (
                       <div className="text-gray-600">
                         <span className="font-medium">RPE:</span> {exercise.rpe}/10
-                      </div>
-                    )}
-                    {exercise.notes && (
-                      <div className="text-xs text-gray-500 mt-1 italic">
-                        <span className="font-semibold">Note:</span> {exercise.notes}
                       </div>
                     )}
                   </div>

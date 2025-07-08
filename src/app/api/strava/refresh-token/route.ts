@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { saveTokensToDatabase } from '@/lib/strava-token-store'
+import { saveTokensToDatabase } from '@/lib/strava/token-store'
 
 export interface StravaTokens {
   access_token: string

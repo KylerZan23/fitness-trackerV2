@@ -5,7 +5,7 @@ import {
   StravaTokens,
   refreshStravaToken,
   getValidStravaToken,
-} from './strava' // Assuming getValidStravaToken is exported or we replicate logic
+} from './index' // Assuming getValidStravaToken is exported or we replicate logic
 
 // Interface matching the public.user_strava_activities table structure
 export interface UserStravaActivity {

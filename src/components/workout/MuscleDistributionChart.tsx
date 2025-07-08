@@ -52,6 +52,7 @@ export function MuscleDistributionChart({
   const [muscleData, setMuscleData] = useState<Record<string, MuscleData>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'sets' | 'volume'>('sets')
 
   // Calculate date range based on period - Memoized with useCallback
   const getDateRange = useCallback(() => {
@@ -149,7 +150,7 @@ export function MuscleDistributionChart({
 
             aggregatedData[muscleGroup].sets += workout.sets ?? 0
             aggregatedData[muscleGroup].reps += (workout.sets ?? 0) * (workout.reps ?? 0)
-            aggregatedData[muscleGroup].weight += workout.weight ?? 0
+            aggregatedData[muscleGroup].weight += (workout.sets ?? 0) * (workout.reps ?? 0) * (workout.weight ?? 0)
           })
         } else {
           // console.log('No workout data found for the selected period')
@@ -173,17 +174,20 @@ export function MuscleDistributionChart({
   }, [userId, period, currentDate, getDateRange]) // getDateRange is now stable due to useCallback
 
   const sortedMuscleGroups = Object.values(muscleData)
-    .filter(data => data.sets > 0) // Filter out groups with 0 sets for the pie chart
-    .sort((a, b) => b.sets - a.sets)
+    .filter(data => viewMode === 'sets' ? data.sets > 0 : data.weight > 0)
+    .sort((a, b) => viewMode === 'sets' ? b.sets - a.sets : b.weight - a.weight)
 
-  const totalSetsAllGroups = sortedMuscleGroups.reduce((sum, group) => sum + group.sets, 0)
+  const totalValue = sortedMuscleGroups.reduce(
+    (sum, group) => sum + (viewMode === 'sets' ? group.sets : group.weight), 
+    0
+  )
 
   const pieChartData = {
     labels: sortedMuscleGroups.map(data => data.muscleGroup),
     datasets: [
       {
-        label: '# of Sets',
-        data: sortedMuscleGroups.map(data => data.sets),
+        label: viewMode === 'sets' ? '# of Sets' : 'Total Volume',
+        data: sortedMuscleGroups.map(data => viewMode === 'sets' ? data.sets : data.weight),
         backgroundColor: sortedMuscleGroups.map(
           (_, index) => PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]
         ),
@@ -213,13 +217,20 @@ export function MuscleDistributionChart({
             const reps = currentMuscleGroupData.reps
             const weight = currentMuscleGroupData.weight
 
+            const currentValue = viewMode === 'sets' ? sets : weight
             const percentage =
-              totalSetsAllGroups > 0 ? ((sets / totalSetsAllGroups) * 100).toFixed(1) : 0
+              totalValue > 0 ? ((currentValue / totalValue) * 100).toFixed(1) : 0
 
-            const labelText = `${muscleGroup}: ${sets} sets (${percentage}%)` // Renamed from label to avoid conflict
+            const labelText = viewMode === 'sets' 
+              ? `${muscleGroup}: ${sets} sets (${percentage}%)`
+              : `${muscleGroup}: ${Math.round(weight)} ${weightUnit} (${percentage}%)`
             const details = []
             details.push(`Total Reps: ${reps}`)
-            details.push(`Total Weight: ${Math.round(weight)} ${weightUnit}`)
+            if (viewMode === 'sets') {
+              details.push(`Total Volume: ${Math.round(weight)} ${weightUnit}`)
+            } else {
+              details.push(`Total Sets: ${sets}`)
+            }
             return [labelText, ...details]
           },
         },
@@ -267,6 +278,22 @@ export function MuscleDistributionChart({
             onClick={() => setPeriod('month')}
           >
             Month
+          </button>
+        </div>
+
+        {/* View mode toggle */}
+        <div className="flex space-x-2 mb-4 sm:mb-0">
+          <button
+            className={`px-3 py-1 rounded-lg text-sm ${viewMode === 'sets' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            onClick={() => setViewMode('sets')}
+          >
+            Sets
+          </button>
+          <button
+            className={`px-3 py-1 rounded-lg text-sm ${viewMode === 'volume' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            onClick={() => setViewMode('volume')}
+          >
+            Volume
           </button>
         </div>
 
@@ -342,7 +369,7 @@ export function MuscleDistributionChart({
           {' '}
           {/* Wrapper for text and chart */}
           <p className="text-center text-xs text-gray-500 dark:text-gray-400 mb-2">
-            Distribution by # of Sets
+            Distribution by {viewMode === 'sets' ? '# of Sets' : `Total Volume (${weightUnit})`}
           </p>
           <div className="relative mx-auto" style={{ height: '300px', maxWidth: '400px' }}>
             <Pie data={pieChartData} options={pieChartOptions} />

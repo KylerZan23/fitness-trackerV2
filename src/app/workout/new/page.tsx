@@ -4,13 +4,17 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
-import { logWorkoutGroup, getUserProfile } from '@/lib/db'
-import { Play, Pause, Square, Clock, CheckCircle } from 'lucide-react'
+import { logWorkoutGroup, getUserProfile } from '@/lib/db/index'
+import { Play, Pause, Square, Clock, CheckCircle, LayoutGrid, Focus, ChevronLeft, ChevronRight, Target } from 'lucide-react'
 
 // Import UI Components
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+// Import workout feedback actions
+import { submitWorkoutFeedback, type WorkoutFeedback } from '@/app/_actions/workoutFeedbackActions'
 
 // Import program types and components
 import {
@@ -39,6 +43,9 @@ interface ActualExerciseData {
   }>
 }
 
+// View modes for workout display
+type WorkoutViewMode = 'full' | 'focused'
+
 // Session tracker component wrapped in Suspense
 function SessionTracker() {
   const router = useRouter()
@@ -62,6 +69,15 @@ function SessionTracker() {
   
   // Exercise tracking state
   const [actualExerciseData, setActualExerciseData] = useState<ActualExerciseData[]>([])
+  
+  // View mode and navigation state
+  const [viewMode, setViewMode] = useState<WorkoutViewMode>('full')
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0)
+  
+  // Post-workout feedback state
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [workoutGroupId, setWorkoutGroupId] = useState<string | null>(null)
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
 
   const getTodayDateString = () => {
     const today = new Date()
@@ -141,6 +157,59 @@ function SessionTracker() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
+  // Get all exercises for the session
+  const getAllExercises = (workout: WorkoutDay): ExerciseDetail[] => {
+    const allExercises: ExerciseDetail[] = []
+    if (workout.warmUp) allExercises.push(...workout.warmUp)
+    if (workout.exercises) allExercises.push(...workout.exercises)
+    if (workout.coolDown) allExercises.push(...workout.coolDown)
+    return allExercises
+  }
+
+  // Check if current exercise is completed (all sets have weight and reps)
+  const isCurrentExerciseCompleted = (exerciseIndex: number): boolean => {
+    if (!plannedWorkout) return false
+    
+    const allExercises = getAllExercises(plannedWorkout)
+    const exercise = allExercises[exerciseIndex]
+    const actualData = actualExerciseData[exerciseIndex]
+    
+    if (!exercise || !actualData) return false
+    
+    // Check if all required sets are completed with weight and reps
+    const completedSets = actualData.sets.filter(set => set.weight > 0 && set.reps > 0).length
+    return completedSets >= exercise.sets
+  }
+
+  // Auto-advance to next exercise when current one is completed
+  useEffect(() => {
+    if (viewMode === 'focused' && plannedWorkout) {
+      const allExercises = getAllExercises(plannedWorkout)
+      
+      // Check if current exercise is completed and we're not on the last exercise
+      if (isCurrentExerciseCompleted(currentExerciseIndex) && currentExerciseIndex < allExercises.length - 1) {
+        // Auto-advance after a short delay
+        const timer = setTimeout(() => {
+          setCurrentExerciseIndex(prev => prev + 1)
+          toast.success('Great job! Moving to next exercise.')
+        }, 1500)
+        
+        return () => clearTimeout(timer)
+      }
+      
+      // Check if we just completed the last exercise
+      if (isCurrentExerciseCompleted(currentExerciseIndex) && currentExerciseIndex === allExercises.length - 1) {
+        // Move to completion view after a short delay
+        const timer = setTimeout(() => {
+          setCurrentExerciseIndex(allExercises.length) // Set to length to show completion view
+          toast.success('🎉 Workout complete! Time to finish up.')
+        }, 1500)
+        
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [actualExerciseData, currentExerciseIndex, viewMode, plannedWorkout])
+
   // Session control functions
   const startSession = () => {
     if (!sessionStartTime) {
@@ -161,6 +230,21 @@ function SessionTracker() {
   const endSession = () => {
     setIsSessionActive(false)
     setIsPaused(false)
+  }
+
+  // View mode controls
+  const toggleViewMode = () => {
+    setViewMode(prev => prev === 'full' ? 'focused' : 'full')
+  }
+
+  const goToPreviousExercise = () => {
+    setCurrentExerciseIndex(prev => Math.max(0, prev - 1))
+  }
+
+  const goToNextExercise = () => {
+    if (!plannedWorkout) return
+    const allExercises = getAllExercises(plannedWorkout)
+    setCurrentExerciseIndex(prev => Math.min(allExercises.length, prev + 1))
   }
 
   // Handle exercise set completion
@@ -188,6 +272,43 @@ function SessionTracker() {
       updated[exerciseIndex].sets[setIndex] = { weight: 0, reps: 0 }
       return updated
     })
+  }
+
+  // Handle workout feedback submission
+  const handleWorkoutFeedback = async (feedback: WorkoutFeedback) => {
+    if (!workoutGroupId) {
+      toast.error('No workout session found')
+      return
+    }
+
+    setIsSubmittingFeedback(true)
+    
+    try {
+      const result = await submitWorkoutFeedback({
+        workoutGroupId,
+        feedback
+      })
+
+      if (result.success) {
+        toast.success('Thank you for your feedback!')
+        setShowFeedbackModal(false)
+        // Now navigate to program page
+        router.push('/program')
+      } else {
+        toast.error(result.error || 'Failed to submit feedback')
+      }
+    } catch (error) {
+      console.error('Error submitting workout feedback:', error)
+      toast.error('Failed to submit feedback. Please try again.')
+    } finally {
+      setIsSubmittingFeedback(false)
+    }
+  }
+
+  // Handle skipping feedback
+  const handleSkipFeedback = () => {
+    setShowFeedbackModal(false)
+    router.push('/program')
   }
 
   // Handle PB checking
@@ -271,14 +392,20 @@ function SessionTracker() {
         linked_program_day_of_week: programContext.dayOfWeek,
       }
 
-      await logWorkoutGroup(workoutPayload)
+      const result = await logWorkoutGroup(workoutPayload)
+      
+      // Extract workout_group_id from the result for feedback linking
+      if (result && result.id) {
+        setWorkoutGroupId(result.id)
+      }
+      
       toast.success('Workout completed successfully!')
       
       // End the session
       endSession()
       
-      // Navigate back to program page
-      router.push('/program')
+      // Show feedback modal instead of redirecting immediately
+      setShowFeedbackModal(true)
     } catch (err: any) {
       console.error('Error completing workout:', err)
       const message = err.message || 'Failed to save workout. Please try again.'
@@ -360,10 +487,7 @@ function SessionTracker() {
 
   // Function to initialize exercise tracking data
   const initializeExerciseTracking = (workoutData: WorkoutDay) => {
-    const allExercises: ExerciseDetail[] = []
-    if (workoutData.warmUp) allExercises.push(...workoutData.warmUp)
-    if (workoutData.exercises) allExercises.push(...workoutData.exercises)
-    if (workoutData.coolDown) allExercises.push(...workoutData.coolDown)
+    const allExercises = getAllExercises(workoutData)
     
     setActualExerciseData(
       allExercises.map(exercise => ({
@@ -422,10 +546,7 @@ function SessionTracker() {
   }
 
   // Get all exercises for the session
-  const allExercises: ExerciseDetail[] = []
-  if (plannedWorkout.warmUp) allExercises.push(...plannedWorkout.warmUp)
-  if (plannedWorkout.exercises) allExercises.push(...plannedWorkout.exercises)
-  if (plannedWorkout.coolDown) allExercises.push(...plannedWorkout.coolDown)
+  const allExercises = getAllExercises(plannedWorkout)
 
   // Main session tracker render
   return (
@@ -462,99 +583,308 @@ function SessionTracker() {
 
         {/* Session Controls */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-center space-x-4">
-            {!isSessionActive ? (
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            {/* Session Control Buttons */}
+            <div className="flex items-center space-x-4">
+              {!isSessionActive ? (
+                <Button
+                  onClick={startSession}
+                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+                >
+                  <Play className="w-5 h-5 mr-2" />
+                  Start Session
+                </Button>
+              ) : (
+                <div className="flex space-x-4">
+                  {!isPaused ? (
                     <Button
-                onClick={startSession}
-                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
-              >
-                <Play className="w-5 h-5 mr-2" />
-                Start Session
+                      onClick={pauseSession}
+                      variant="outline"
+                      className="px-6 py-2"
+                    >
+                      <Pause className="w-4 h-4 mr-2" />
+                      Pause
                     </Button>
-            ) : (
-              <div className="flex space-x-4">
-                {!isPaused ? (
+                  ) : (
+                    <Button
+                      onClick={resumeSession}
+                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Resume
+                    </Button>
+                  )}
                   <Button
-                    onClick={pauseSession}
-                    variant="outline"
+                    onClick={endSession}
+                    variant="destructive"
                     className="px-6 py-2"
                   >
-                    <Pause className="w-4 h-4 mr-2" />
-                    Pause
+                    <Square className="w-4 h-4 mr-2" />
+                    End Session
                   </Button>
+                </div>
+              )}
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm font-medium text-gray-700">View:</span>
+              <Button
+                onClick={toggleViewMode}
+                variant={viewMode === 'focused' ? 'default' : 'outline'}
+                className="px-4 py-2 text-sm"
+              >
+                {viewMode === 'focused' ? (
+                  <>
+                    <Focus className="w-4 h-4 mr-2" />
+                    Focused
+                  </>
                 ) : (
-                  <Button
-                    onClick={resumeSession}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Resume
-                  </Button>
+                  <>
+                    <LayoutGrid className="w-4 h-4 mr-2" />
+                    Full View
+                  </>
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Focused View Navigation */}
+        {viewMode === 'focused' && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
                 <Button
-                  onClick={endSession}
-                  variant="destructive"
-                  className="px-6 py-2"
+                  onClick={goToPreviousExercise}
+                  disabled={currentExerciseIndex === 0}
+                  variant="outline"
+                  className="px-3 py-2"
                 >
-                  <Square className="w-4 h-4 mr-2" />
-                  End Session
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                <div className="flex items-center space-x-2">
+                  {currentExerciseIndex < allExercises.length ? (
+                    <>
+                      <Target className="w-5 h-5 text-blue-600" />
+                      <span className="font-medium text-gray-900">
+                        Exercise {currentExerciseIndex + 1} of {allExercises.length}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <span className="font-medium text-gray-900">
+                        Session Complete
+                      </span>
+                    </>
+                  )}
+                </div>
+                <Button
+                  onClick={goToNextExercise}
+                  disabled={currentExerciseIndex >= allExercises.length - 1}
+                  variant="outline"
+                  className="px-3 py-2"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
-            )}
+              
+                             {/* Progress Indicator */}
+               <div className="flex items-center space-x-2">
+                 <span className="text-sm text-gray-600">Progress:</span>
+                 <div className="flex space-x-1">
+                   {allExercises.map((_, index) => (
+                     <div
+                       key={index}
+                       className={`w-3 h-3 rounded-full transition-colors ${
+                         index === currentExerciseIndex
+                           ? 'bg-blue-600'
+                           : isCurrentExerciseCompleted(index)
+                           ? 'bg-green-500'
+                           : 'bg-gray-300'
+                       }`}
+                     />
+                   ))}
+                   {/* Completion indicator */}
+                   <div
+                     className={`w-3 h-3 rounded-full transition-colors ${
+                       currentExerciseIndex >= allExercises.length
+                         ? 'bg-green-600'
+                         : 'bg-gray-300'
+                     }`}
+                   />
+                 </div>
+               </div>
+            </div>
           </div>
-              </div>
+        )}
 
         {/* Exercise Tracking */}
         <div className="space-y-6">
-          {allExercises.map((exercise, index) => (
-            <TrackedExercise
-              key={`${exercise.name}-${index}`}
-              exercise={exercise}
-              onSetComplete={(setIndex, weight, reps) => handleSetComplete(index, setIndex, weight, reps)}
-              onSetUncomplete={(setIndex) => handleSetUncomplete(index, setIndex)}
-              onPBCheck={handlePBCheck}
-            />
-          ))}
-              </div>
+          {viewMode === 'full' ? (
+            // Full view - show all exercises
+            allExercises.map((exercise, index) => (
+              <TrackedExercise
+                key={`${exercise.name}-${index}`}
+                exercise={exercise}
+                onSetComplete={(setIndex, weight, reps) => handleSetComplete(index, setIndex, weight, reps)}
+                onSetUncomplete={(setIndex) => handleSetUncomplete(index, setIndex)}
+                onPBCheck={handlePBCheck}
+              />
+            ))
+          ) : (
+            // Focused view - show current exercise or completion card
+            currentExerciseIndex < allExercises.length ? (
+              <TrackedExercise
+                key={`${allExercises[currentExerciseIndex].name}-${currentExerciseIndex}`}
+                exercise={allExercises[currentExerciseIndex]}
+                onSetComplete={(setIndex, weight, reps) => handleSetComplete(currentExerciseIndex, setIndex, weight, reps)}
+                onSetUncomplete={(setIndex) => handleSetUncomplete(currentExerciseIndex, setIndex)}
+                onPBCheck={handlePBCheck}
+              />
+            ) : (
+              // Show completion card when all exercises are done in focused view
+              <div className="space-y-6">
+                {/* Session Notes */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold mb-4">Session Notes</h3>
+                  <Textarea
+                    value={notes}
+                    onChange={handleNotesChange}
+                    placeholder="How did the session feel? Any observations or adjustments needed?"
+                    className="min-h-[100px]"
+                  />
+                </div>
 
-        {/* Session Notes */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
-          <h3 className="text-lg font-semibold mb-4">Session Notes</h3>
-          <Textarea
-            value={notes}
-            onChange={handleNotesChange}
-            placeholder="How did the session feel? Any observations or adjustments needed?"
-            className="min-h-[100px]"
-                />
+                {/* Finish Workout Button */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
+                  <h3 className="text-lg font-semibold mb-4">🎉 Great Work! Ready to Complete Your Session?</h3>
+                  <p className="text-gray-600 mb-6">
+                    You've completed all exercises! Add any notes above and finish your workout to save your progress.
+                  </p>
+                  <Button
+                    onClick={handleFinishWorkout}
+                    disabled={isSubmitting || !isSessionActive}
+                    className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Clock className="w-5 h-5 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5 mr-2" />
+                        Finish Workout
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
+            )
+          )}
+        </div>
 
-        {/* Finish Workout Button */}
-        <div className="mt-8 pb-8">
-          <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
-            <h3 className="text-lg font-semibold mb-4">Ready to Complete Your Session?</h3>
-            <p className="text-gray-600 mb-6">
-              Make sure you've tracked all your sets before finishing. This will save your workout and update your program progress.
-            </p>
+        {/* Session Notes and Finish Workout - Only shown in Full View */}
+        {viewMode === 'full' && (
+          <>
+            {/* Session Notes */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
+              <h3 className="text-lg font-semibold mb-4">Session Notes</h3>
+              <Textarea
+                value={notes}
+                onChange={handleNotesChange}
+                placeholder="How did the session feel? Any observations or adjustments needed?"
+                className="min-h-[100px]"
+              />
+            </div>
+
+            {/* Finish Workout Button */}
+            <div className="mt-8 pb-8">
+              <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
+                <h3 className="text-lg font-semibold mb-4">Ready to Complete Your Session?</h3>
+                <p className="text-gray-600 mb-6">
+                  Make sure you've tracked all your sets before finishing. This will save your workout and update your program progress.
+                </p>
+                <Button
+                  onClick={handleFinishWorkout}
+                  disabled={isSubmitting || !isSessionActive}
+                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Clock className="w-5 h-5 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5 mr-2" />
+                      Finish Workout
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Post-Workout Feedback Modal */}
+      <Dialog open={showFeedbackModal} onOpenChange={setShowFeedbackModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-center">
+              Workout Logged! 🎉
+            </DialogTitle>
+            <DialogDescription className="text-center text-base">
+              How did that session feel?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-3 py-4">
             <Button
-              onClick={handleFinishWorkout}
-              disabled={isSubmitting || !isSessionActive}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+              onClick={() => handleWorkoutFeedback('easy')}
+              disabled={isSubmittingFeedback}
+              className="h-12 text-base font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 hover:border-blue-300"
+              variant="outline"
             >
-              {isSubmitting ? (
-                <>
-                  <Clock className="w-5 h-5 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-5 h-5 mr-2" />
-                  Finish Workout
-                </>
-              )}
+              😅 Too Easy
+            </Button>
+            
+            <Button
+              onClick={() => handleWorkoutFeedback('good')}
+              disabled={isSubmittingFeedback}
+              className="h-12 text-base font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300"
+              variant="outline"
+            >
+              👌 Just Right
+            </Button>
+            
+            <Button
+              onClick={() => handleWorkoutFeedback('hard')}
+              disabled={isSubmittingFeedback}
+              className="h-12 text-base font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:border-red-300"
+              variant="outline"
+            >
+              😰 Too Hard
             </Button>
           </div>
+
+          <div className="flex justify-center pt-2">
+            <Button
+              onClick={handleSkipFeedback}
+              disabled={isSubmittingFeedback}
+              variant="ghost"
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Skip for now
+            </Button>
           </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }

@@ -1,8 +1,8 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server' // Your server-side Supabase client
-import { getTokensFromDatabase } from '@/lib/strava-token-store'
-import { syncStravaActivities } from '@/lib/strava_sync'
+import { getTokensFromDatabase } from '@/lib/strava/token-store'
+import { syncStravaActivities } from '@/lib/strava/sync'
 import { revalidatePath } from 'next/cache'
 
 interface SyncResult {

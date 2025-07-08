@@ -5,12 +5,12 @@
  */
 
 import { useState, useEffect } from 'react'
-import { getStravaAuthUrl } from '@/lib/strava'
+import { getStravaAuthUrl } from '@/lib/strava/index'
 import {
   isStravaConnected,
   removeTokensFromDatabase,
   removeTokensFromLocalStorage,
-} from '@/lib/strava-token-store'
+} from '@/lib/strava/token-store'
 import { supabase } from '@/lib/supabase' // Import the browser client
 
 interface StravaConnectProps {

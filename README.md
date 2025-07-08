@@ -4,6 +4,15 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Focused Workout View (2025-01-09)**: Enhanced workout session experience with dual view modes to eliminate scrolling and maintain focus during training:
+  - **Toggle View Modes**: Switch between Full View (all exercises) and Focused View (current exercise only)
+  - **Auto-Progression**: Automatically advances to next exercise when current one is completed with smart 1.5-second delay
+  - **Navigation Controls**: Previous/Next buttons with disabled states for boundary conditions
+  - **Progress Indicators**: Visual dots showing exercise status (not started/current/completed)
+  - **Mobile-First Design**: Eliminates cognitive overload and scrolling on mobile devices during active training
+  - **Backward Compatible**: Preserves existing full view functionality while adding focused mode
+  - **Performance Optimized**: Only renders current exercise in focused mode for better performance
+
 - **AI Feedback System - Database & Backend (2025-01-06)**: Implemented comprehensive feedback collection system for AI-generated content:
   - **Database Schema**: New `ai_program_feedback` and `ai_coach_feedback` tables with proper foreign keys and RLS policies
   - **Server Actions**: Type-safe feedback submission with Zod validation and ownership verification
@@ -90,6 +99,14 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - **Analytics-ready data structure** for continuous AI model improvement
 - **Type-safe submission process** with comprehensive validation and error handling
 
+### 🎯 **Focused Workout Experience**
+- **Dual view modes** for workout sessions: Full View and Focused View
+- **Distraction-free training** with focused view showing only the current exercise
+- **Auto-progression** that advances to the next exercise when current one is completed
+- **Smart navigation** with Previous/Next controls and exercise progress indicators
+- **Mobile-optimized** interface eliminating the need to scroll during workouts
+- **Real-time progress tracking** with visual indicators for completed exercises
+
 ### 🔄 **Seamless Onboarding Experience**
 - Individual question-per-page design for maximum engagement
 - Real-time validation with helpful suggestions and warnings
@@ -133,6 +150,13 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 - **Comprehensive prompt engineering** with TypeScript interfaces
 - **Error handling and fallback mechanisms**
 
+### Testing Infrastructure
+- **Jest** for unit and integration testing
+- **Testing Library** for component testing
+- **Comprehensive server action testing** with proper dependency mocking
+- **Type-safe test patterns** with mock factories and TypeScript integration
+- **Authentication flow testing** ensuring proper security boundaries
+
 ## Getting Started
 
 1. **Clone the repository**
@@ -159,6 +183,39 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 5. **Open your browser**
    Navigate to `http://localhost:3000`
+
+## Testing
+
+The application includes comprehensive testing for critical business logic:
+
+### Running Tests
+```bash
+# Run all tests
+yarn test
+
+# Run tests in watch mode
+yarn test --watch
+
+# Run specific test file
+yarn test src/__tests__/actions/aiCoachActions.test.ts
+
+# Run tests with coverage
+yarn test --coverage
+```
+
+### Test Coverage
+- **Server Actions**: Comprehensive testing of authentication, error handling, and success scenarios
+- **Components**: UI component testing with user interaction simulation
+- **Database Functions**: Unit tests for data access layer
+- **Authentication Flows**: Security boundary testing
+
+### Test Patterns
+All server action tests follow a consistent pattern:
+1. **Mock Dependencies**: Supabase client, LLM service, database functions
+2. **Authentication Testing**: Verify proper handling of authenticated/unauthenticated users
+3. **Error Scenarios**: Test all failure modes (DB errors, API failures, validation errors)
+4. **Success Paths**: Verify complete happy path scenarios
+5. **Edge Cases**: Handle missing data and boundary conditions
 
 ## Environment Variables Required
 

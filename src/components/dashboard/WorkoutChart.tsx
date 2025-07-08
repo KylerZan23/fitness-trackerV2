@@ -13,7 +13,7 @@ import {
   ChartOptions,
 } from 'chart.js'
 import { Bar } from 'react-chartjs-2'
-import { WorkoutTrend } from '@/lib/db'
+import { WorkoutTrend } from '@/lib/db/index'
 import { format, parseISO, startOfWeek, addDays, addWeeks, formatISO } from 'date-fns'
 import { ChevronLeft, ChevronRight, TrendingUp, Activity, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
