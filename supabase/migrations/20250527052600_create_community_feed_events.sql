@@ -21,16 +21,15 @@ CREATE POLICY "Users can read all community feed events" ON community_feed_event
     TO authenticated
     USING (true);
 
--- RLS Policy: Only system/service role can insert community feed events
--- This prevents users from creating fake events
-CREATE POLICY "Only system can create community feed events" ON community_feed_events
+-- RLS Policy: Authenticated users can insert their own community feed events
+CREATE POLICY "Users can create their own community feed events" ON community_feed_events
     FOR INSERT
-    TO service_role
-    WITH CHECK (true);
+    TO authenticated
+    WITH CHECK (auth.uid() = user_id);
 
 -- Grant necessary permissions
 GRANT SELECT ON community_feed_events TO authenticated;
-GRANT ALL ON community_feed_events TO service_role;
+GRANT INSERT ON community_feed_events TO authenticated;
 
 -- Add comment for documentation
 COMMENT ON TABLE community_feed_events IS 'Stores community feed events for the in-app social feed';

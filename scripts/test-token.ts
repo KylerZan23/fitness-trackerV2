@@ -6,8 +6,9 @@
  * 2. Run: node scripts/test-token.js YOUR_TOKEN_HERE
  */
 
-require('dotenv').config({ path: '.env.local' })
-const { createClient } = require('@supabase/supabase-js')
+import dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
+import { createClient } from('@supabase/supabase-js')
 
 // Validate environment variables
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {

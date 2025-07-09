@@ -36,7 +36,7 @@ const CoachFeedbackSchema = z.object({
 /**
  * Response types for feedback actions
  */
-type FeedbackResponse = 
+export type FeedbackResponse = 
   | { success: true; id: string }
   | { success: false; error: string }
 
@@ -51,18 +51,9 @@ export async function submitProgramFeedback(
   try {
     console.log('submitProgramFeedback called with:', { programId, rating, comment })
     
-    // Validate input data
-    const validatedData = ProgramFeedbackSchema.parse({
-      programId,
-      rating,
-      comment,
-    })
-    
-    console.log('Validation passed:', validatedData)
-
     const supabase = await createClient()
 
-    // Authenticate user
+    // Authenticate user first
     const {
       data: { user },
       error: authError,
@@ -72,6 +63,15 @@ export async function submitProgramFeedback(
       console.error('Authentication error in submitProgramFeedback:', authError)
       return { success: false, error: 'Authentication required' }
     }
+    
+    // Validate input data after authentication
+    const validatedData = ProgramFeedbackSchema.parse({
+      programId,
+      rating,
+      comment,
+    })
+    
+    console.log('Validation passed:', validatedData)
     
     console.log('User authenticated:', user.id)
 

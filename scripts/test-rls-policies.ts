@@ -7,8 +7,8 @@
  * Usage: node scripts/test-rls-policies.js
  */
 
-const { createClient } = require('@supabase/supabase-js')
-const dotenv = require('dotenv')
+import { createClient } from('@supabase/supabase-js')
+const dotenv = import dotenv from 'dotenv'
 const readline = require('readline')
 
 // Load environment variables

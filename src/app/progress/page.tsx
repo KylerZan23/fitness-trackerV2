@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { StatsCard, StrengthStatsCard, StrengthVitalsGrid } from '@/components/ui/StatsCard'
 import { StrengthProgressionChart } from '@/components/progress/StrengthProgressionChart'
 import { MuscleDistributionChart } from '@/components/workout/MuscleDistributionChart'
+import { IndepthAnalysisCard } from '@/components/progress/IndepthAnalysisCard'
 
 // Import strength calculation utilities
 import {
@@ -63,6 +64,14 @@ export default function ProgressPage() {
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userTimezone, setUserTimezone] = useState<string>('UTC')
+
+  // Detect user timezone on client side
+  useEffect(() => {
+    const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    setUserTimezone(detectedTimezone)
+    console.log('Detected user timezone:', detectedTimezone)
+  }, [])
 
   // Fetch comprehensive data for strength analytics
   useEffect(() => {
@@ -209,6 +218,7 @@ export default function ProgressPage() {
           <div className="space-y-6">
             <div className="h-96 bg-gray-100 rounded-xl animate-pulse"></div>
             <div className="h-96 bg-gray-100 rounded-xl animate-pulse"></div>
+            <div className="h-64 bg-gray-100 rounded-xl animate-pulse"></div>
           </div>
         </div>
       </DashboardLayout>
@@ -364,6 +374,17 @@ export default function ProgressPage() {
               icon={<Zap className="w-5 h-5" />}
             />
           </div>
+        </div>
+
+        {/* Indepth Analysis Card */}
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Weekly Progress Analysis</h2>
+          <IndepthAnalysisCard
+            userId={profile?.id || ''}
+            weightUnit={profile?.weight_unit || 'kg'}
+            userTimezone={userTimezone}
+            className="bg-white shadow-sm border border-gray-200"
+          />
         </div>
       </div>
     </DashboardLayout>

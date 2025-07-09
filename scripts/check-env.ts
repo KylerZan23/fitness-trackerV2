@@ -1,15 +1,16 @@
 /**
  * Temporary script to verify environment variables
- * Run with: node scripts/check-env.js
+ * Run with: npx tsx scripts/check-env.ts
  */
 
 // Load environment variables
-require('dotenv').config({ path: '.env.local' })
+import dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
 
 console.log('Checking environment variables...')
 
 // Check SUPABASE_SERVICE_ROLE_KEY (showing only first/last few characters for security)
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+const serviceRoleKey: string = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 if (serviceRoleKey) {
   const firstChars = serviceRoleKey.substring(0, 10)
   const lastChars = serviceRoleKey.substring(serviceRoleKey.length - 5)
@@ -21,7 +22,7 @@ if (serviceRoleKey) {
 }
 
 // Check NEXT_PUBLIC_SUPABASE_URL
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseUrl: string = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 if (supabaseUrl) {
   console.log(`NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl}`)
 } else {
@@ -29,7 +30,7 @@ if (supabaseUrl) {
 }
 
 // Check NEXT_PUBLIC_SUPABASE_ANON_KEY
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const anonKey: string = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 if (anonKey) {
   const firstChars = anonKey.substring(0, 10)
   const lastChars = anonKey.substring(anonKey.length - 5)
@@ -41,14 +42,14 @@ if (anonKey) {
 }
 
 // Check STRAVA variables
-const stravaClientId = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID || ''
+const stravaClientId: string = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID || ''
 if (stravaClientId) {
   console.log(`NEXT_PUBLIC_STRAVA_CLIENT_ID: ${stravaClientId}`)
 } else {
   console.log('NEXT_PUBLIC_STRAVA_CLIENT_ID: NOT FOUND')
 }
 
-const stravaClientSecret = process.env.STRAVA_CLIENT_SECRET || ''
+const stravaClientSecret: string = process.env.STRAVA_CLIENT_SECRET || ''
 if (stravaClientSecret) {
   const firstChars = stravaClientSecret.substring(0, 10)
   const lastChars = stravaClientSecret.substring(stravaClientSecret.length - 5)
@@ -57,11 +58,11 @@ if (stravaClientSecret) {
   console.log('STRAVA_CLIENT_SECRET: NOT FOUND')
 }
 
-const stravaRedirectUri = process.env.NEXT_PUBLIC_STRAVA_REDIRECT_URI || ''
+const stravaRedirectUri: string = process.env.NEXT_PUBLIC_STRAVA_REDIRECT_URI || ''
 if (stravaRedirectUri) {
   console.log(`NEXT_PUBLIC_STRAVA_REDIRECT_URI: ${stravaRedirectUri}`)
 } else {
   console.log('NEXT_PUBLIC_STRAVA_REDIRECT_URI: NOT FOUND')
 }
 
-console.log('\nEnvironment check complete.')
+console.log('\nEnvironment check complete.') 

@@ -121,9 +121,8 @@ export async function logWorkout(workout: WorkoutFormData): Promise<Workout | nu
       // IMPORTANT: new Date('YYYY-MM-DD') can be problematic as it assumes UTC midnight.
       // Better: Split and construct to avoid timezone pitfalls during Date creation from string.
       const [year, month, day] = workout.workoutDate.split('-').map(Number)
-      // Create date representing noon in the *local* timezone of the server running this code.
-      // This is still not perfect, but better than UTC midnight interpretation.
-      // Ideally, we'd get the *user's* timezone here too, but logWorkout doesn't have it yet.
+      // Create date representing noon in the user's local timezone
+      // This ensures the workout is logged on the correct date regardless of timezone
       // We set it to noon to avoid most date boundary issues when converting to ISOString.
       createdAt = new Date(year, month - 1, day, 12, 0, 0)
       createdAtISO = createdAt.toISOString() // Convert to UTC ISO string for DB storage
@@ -625,7 +624,8 @@ export async function logWorkoutGroup(
 
     if (workoutGroup.workoutDate) {
       const [year, month, day] = workoutGroup.workoutDate.split('-').map(Number)
-      // Create date representing noon in the *local* timezone of the server
+      // Create date representing noon in the user's local timezone
+      // This ensures the workout is logged on the correct date regardless of timezone
       createdAt = new Date(year, month - 1, day, 12, 0, 0)
       createdAtISO = createdAt.toISOString()
       console.log(
@@ -668,19 +668,50 @@ export async function logWorkoutGroup(
       console.log('Created workout group:', groupData)
 
       // Now add all the individual exercises linked to this group
-      const exercisesData = workoutGroup.exercises.map(exercise => ({
-        user_id: session.user.id,
-        exercise_name: exercise.exerciseName,
-        sets: exercise.sets,
-        reps: exercise.reps,
-        weight: parseFloat(exercise.weight.toString()).toFixed(2),
-        duration: Math.floor(workoutGroup.duration / workoutGroup.exercises.length), // Split duration evenly
-        notes: null, // Individual exercise notes not currently captured in group mode form
-        workout_group_id: groupData.id,
-        created_at: createdAtISO, // Use the *same UTC timestamp* as the workout group
-      }))
+      const exercisesData = workoutGroup.exercises.map((exercise, index) => {
+        // Validate the exercise data before insertion
+        if (!exercise.exerciseName || exercise.exerciseName.trim() === '') {
+          console.error(`Exercise ${index} has empty or missing exerciseName:`, exercise)
+        }
+        if (typeof exercise.sets !== 'number' || exercise.sets <= 0) {
+          console.error(`Exercise ${index} has invalid sets value:`, exercise.sets)
+        }
+        if (typeof exercise.reps !== 'number' || exercise.reps <= 0) {
+          console.error(`Exercise ${index} has invalid reps value:`, exercise.reps)
+        }
+        if (typeof exercise.weight !== 'number' || exercise.weight < 0) {
+          console.error(`Exercise ${index} has invalid weight value:`, exercise.weight)
+        }
 
-      console.log('Creating workout exercises:', exercisesData)
+        return {
+          user_id: session.user.id,
+          exercise_name: exercise.exerciseName.trim(),
+          sets: exercise.sets,
+          reps: exercise.reps,
+          weight: parseFloat(exercise.weight.toString()).toFixed(2),
+          duration: Math.floor(workoutGroup.duration / workoutGroup.exercises.length), // Split duration evenly
+          notes: null, // Individual exercise notes not currently captured in group mode form
+          workout_group_id: groupData.id,
+          created_at: createdAtISO, // Use the *same UTC timestamp* as the workout group
+          // Add explicit muscle_group as fallback in case the database trigger isn't working
+          muscle_group: findMuscleGroupForExercise(exercise.exerciseName.trim()),
+        }
+      })
+
+      console.log('Creating workout exercises with data:')
+      exercisesData.forEach((exercise, index) => {
+        console.log(`  Exercise ${index}:`, {
+          exercise_name: exercise.exercise_name,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          weight: exercise.weight,
+          duration: exercise.duration,
+          muscle_group: exercise.muscle_group,
+          user_id: exercise.user_id.substring(0, 6) + '...',
+          workout_group_id: exercise.workout_group_id,
+          created_at: exercise.created_at
+        })
+      })
 
       const { data: exercisesResult, error: exercisesError } = await browserSupabaseClient
         .from('workouts')
@@ -688,7 +719,37 @@ export async function logWorkoutGroup(
         .select()
 
       if (exercisesError) {
-        console.error('Error creating workout exercises:', exercisesError)
+        console.error('Error creating workout exercises:')
+        console.error('Error object:', exercisesError)
+        console.error('Error message:', exercisesError.message || 'No message')
+        console.error('Error code:', exercisesError.code || 'No code')
+        console.error('Error details:', exercisesError.details || 'No details')
+        console.error('Error hint:', exercisesError.hint || 'No hint')
+        
+        // Log the full error object as JSON to see all properties
+        try {
+          console.error('Full error JSON:', JSON.stringify(exercisesError, null, 2))
+        } catch (jsonError) {
+          console.error('Error serializing error object:', jsonError)
+          console.error('Error object keys:', Object.keys(exercisesError))
+        }
+        
+        // Check for specific error types and provide better error messages
+        if (exercisesError.code === '23502') {
+          console.error('NOT NULL constraint violation - a required field is missing')
+          console.error('This might be due to missing muscle_group or other required fields')
+        } else if (exercisesError.code === '23503') {
+          console.error('Foreign key constraint violation - referenced record does not exist')
+          console.error('This might be due to invalid workout_group_id or user_id')
+        } else if (exercisesError.code === '23505') {
+          console.error('Unique constraint violation - record already exists')
+        } else if (exercisesError.code === '23514') {
+          console.error('Check constraint violation - value outside allowed range')
+          console.error('This might be due to invalid sets, reps, weight, or duration values')
+        } else if (exercisesError.code === '42501') {
+          console.error('Permission denied - RLS policy violation')
+        }
+        
         // Attempt to delete the workout group since the exercises failed
         await browserSupabaseClient.from('workout_groups').delete().eq('id', groupData.id)
         return null

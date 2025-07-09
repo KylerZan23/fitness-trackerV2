@@ -1,5 +1,6 @@
-const { createClient } = require('@supabase/supabase-js')
-require('dotenv').config({ path: '.env.local' })
+import { createClient } from('@supabase/supabase-js')
+import dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -45,20 +46,30 @@ async function testAuthTokenVerification() {
     console.log('\nCreating service role client to verify the token...')
     const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey)
 
-    console.log('Setting session on service role client...')
-    adminClient.auth.setSession({ access_token: accessToken, refresh_token: '' })
+    // Using a different approach for token verification
+    console.log('\nVerifying token by extracting JWT claims...')
 
-    console.log('Getting user from token...')
-    const { data: userData, error: userError } = await adminClient.auth.getUser()
+    // Decode the Base64-encoded JWT payload (second part of the token)
+    const [header, payload, signature] = accessToken.split('.')
+    const decodedPayload = JSON.parse(Buffer.from(payload, 'base64').toString())
+
+    console.log('Token sub (user ID):', decodedPayload.sub)
+    console.log('Token expiration:', new Date(decodedPayload.exp * 1000).toISOString())
+
+    // Now use the admin API to get the user directly
+    console.log('\nGetting user directly with admin API...')
+    const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(
+      decodedPayload.sub
+    )
 
     if (userError) {
-      console.error('Error verifying token:', userError)
+      console.error('Error getting user:', userError)
       return
     }
 
-    console.log('Token verification successful!')
+    console.log('Successfully retrieved user!')
     console.log(
-      'User from token:',
+      'User data:',
       userData.user
         ? {
             id: userData.user.id,

@@ -57,6 +57,10 @@ function SessionTracker() {
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof getUserProfile>> | null>(null)
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
   
+  // Add loading state for URL parameter parsing
+  const [isLoadingWorkoutData, setIsLoadingWorkoutData] = useState(true)
+  const [isRedirecting, setIsRedirecting] = useState(false)
+  
   // Session state
   const [plannedWorkout, setPlannedWorkout] = useState<WorkoutDay | null>(null)
   const [programContext, setProgramContext] = useState<ProgramContext | null>(null)
@@ -81,13 +85,21 @@ function SessionTracker() {
 
   const getTodayDateString = () => {
     const today = new Date()
-    return today.toISOString().split('T')[0]
+    // Use local timezone instead of UTC for the date string
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
   // Parse URL parameters to get planned workout data
   useEffect(() => {
+    // Set loading to true when starting to parse parameters
+    setIsLoadingWorkoutData(true)
+    
     if (!searchParams) {
       console.log('No searchParams available, redirecting to program')
+      setIsRedirecting(true)
       router.push('/program')
       return
     }
@@ -99,6 +111,7 @@ function SessionTracker() {
     // Check if required parameters are present
     if (!workoutParam || !contextParam) {
       console.log('Missing required parameters (workout or context), redirecting to program')
+      setIsRedirecting(true)
       router.push('/program')
       return
     }
@@ -131,7 +144,11 @@ function SessionTracker() {
     } catch (error) {
       console.error('Error parsing workout data:', error)
       toast.error('Failed to load workout data')
+      setIsRedirecting(true)
       router.push('/program')
+      return
+    } finally {
+      setIsLoadingWorkoutData(false)
     }
   }, [searchParams, router])
 
@@ -482,6 +499,7 @@ function SessionTracker() {
       toast.error('Failed to adapt workout, using original plan')
     } finally {
       setIsSubmitting(false)
+      setIsLoadingWorkoutData(false)
     }
   }
 
@@ -532,7 +550,23 @@ function SessionTracker() {
     )
   }
 
-  // No workout data state
+  // Loading workout data state or redirecting
+  if (isLoadingWorkoutData || isRedirecting) {
+    return (
+      <DashboardLayout sidebarProps={sidebarProps}>
+        <div className="flex justify-center items-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">
+              {isRedirecting ? 'Redirecting to program page...' : 'Loading today\'s workout session...'}
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  // No workout data state (only shown after loading is complete)
   if (!plannedWorkout) {
     return (
       <DashboardLayout sidebarProps={sidebarProps}>
@@ -765,6 +799,23 @@ function SessionTracker() {
                   <p className="text-gray-600 mb-6">
                     You've completed all exercises! Add any notes above and finish your workout to save your progress.
                   </p>
+                  
+                  {/* Show start session prompt if session not active */}
+                  {!isSessionActive ? (
+                    <div className="mb-4">
+                      <p className="text-orange-600 text-sm mb-3">
+                        You need to start your session first to track your workout time.
+                      </p>
+                      <Button
+                        onClick={startSession}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 text-base mb-3"
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        Start Session
+                      </Button>
+                    </div>
+                  ) : null}
+                  
                   <Button
                     onClick={handleFinishWorkout}
                     disabled={isSubmitting || !isSessionActive}

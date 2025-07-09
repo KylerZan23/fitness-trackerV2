@@ -115,7 +115,7 @@ export function ReviewSummary({
 
           <Button
             onClick={onConfirm}
-            disabled={isGenerating || completionStats.percentage < 50}
+            disabled={isGenerating || completionStats.percentage < 40}
             className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
           >
             {isGenerating ? (
@@ -133,12 +133,12 @@ export function ReviewSummary({
         </div>
 
         {/* Minimum Requirements Notice */}
-        {completionStats.percentage < 50 && (
+        {completionStats.percentage < 40 && (
           <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div className="flex items-center">
               <Icon name="alert-triangle" className="w-5 h-5 text-yellow-600 mr-2" />
               <p className="text-sm text-yellow-800">
-                Please answer at least 50% of the questions to generate a quality training program.
+                Please answer at least 40% of the questions to generate a quality training program.
                 You're currently at {completionStats.percentage}%.
               </p>
             </div>
