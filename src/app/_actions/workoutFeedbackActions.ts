@@ -28,17 +28,21 @@ export async function submitWorkoutFeedback({
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
+      console.error('Authentication error in submitWorkoutFeedback:', authError)
       return {
         success: false,
-        error: 'User not authenticated'
+        error: 'Authentication required. Please log in again.'
       }
     }
 
+    console.log('Submitting workout feedback for user:', user.id.substring(0, 6))
+
     // Validate feedback value
     if (!['easy', 'good', 'hard'].includes(feedback)) {
+      console.error('Invalid feedback value provided:', feedback)
       return {
         success: false,
-        error: 'Invalid feedback value'
+        error: 'Invalid feedback value. Please select easy, good, or hard.'
       }
     }
 
@@ -57,10 +61,11 @@ export async function submitWorkoutFeedback({
       console.error('Error submitting workout feedback:', insertError)
       return {
         success: false,
-        error: 'Failed to save feedback'
+        error: 'Failed to save feedback. Please try again.'
       }
     }
 
+    console.log('Workout feedback submitted successfully')
     return {
       success: true
     }
@@ -69,7 +74,7 @@ export async function submitWorkoutFeedback({
     console.error('Unexpected error in submitWorkoutFeedback:', error)
     return {
       success: false,
-      error: 'An unexpected error occurred'
+      error: 'An unexpected error occurred. Please try again.'
     }
   }
 }
@@ -84,8 +89,11 @@ export async function getWorkoutFeedback(workoutGroupId: string) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return { success: false, error: 'User not authenticated' }
+      console.error('Authentication error in getWorkoutFeedback:', authError)
+      return { success: false, error: 'Authentication required. Please log in again.' }
     }
+
+    console.log('Fetching workout feedback for user:', user.id.substring(0, 6))
 
     const { data, error } = await supabase
       .from('workout_session_feedback')
@@ -96,7 +104,7 @@ export async function getWorkoutFeedback(workoutGroupId: string) {
 
     if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
       console.error('Error fetching workout feedback:', error)
-      return { success: false, error: 'Failed to fetch feedback' }
+      return { success: false, error: 'Failed to fetch feedback. Please try again.' }
     }
 
     return {
@@ -106,6 +114,6 @@ export async function getWorkoutFeedback(workoutGroupId: string) {
     
   } catch (error) {
     console.error('Unexpected error in getWorkoutFeedback:', error)
-    return { success: false, error: 'An unexpected error occurred' }
+    return { success: false, error: 'An unexpected error occurred. Please try again.' }
   }
 } 

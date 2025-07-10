@@ -4,7 +4,7 @@
  * This component handles profile picture uploads and displays
  */
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 
@@ -23,92 +23,6 @@ export const ProfilePictureUpload = ({
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(existingUrl)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [showSchemaFix, setShowSchemaFix] = useState(false)
-  const [isFixingSchema, setIsFixingSchema] = useState(false)
-
-  // Helper function to check if profile_picture_url column exists
-  const checkProfileColumnExists = async (): Promise<boolean> => {
-    try {
-      // Try to get the user's profile first to check if the column exists
-      const { data, error: profileError } = await supabase
-        .from('profiles')
-        .select('profile_picture_url')
-        .eq('id', userId)
-        .single()
-
-      // If we can successfully query the column, it exists
-      if (!profileError) {
-        return true
-      }
-
-      // Check if the error is specifically about the column not existing
-      if (
-        profileError.message &&
-        profileError.message.includes('column') &&
-        profileError.message.includes('profile_picture_url')
-      ) {
-        console.error('Profile column does not exist:', profileError.message)
-        setShowSchemaFix(true)
-        return false
-      }
-
-      // For any other error, assume the column might exist
-      console.error('Error checking profile:', profileError)
-      return true
-    } catch (err) {
-      console.error('Error in column check:', err)
-      return false
-    }
-  }
-
-  // Try to fix the schema by running the SQL directly
-  const fixSchema = async () => {
-    try {
-      setIsFixingSchema(true)
-      setError(null)
-
-      // Try to directly add the column first
-      const { error: alterError } = await supabase.rpc('add_profile_picture_column')
-
-      if (alterError) {
-        console.error('Error running add_profile_picture_column:', alterError)
-
-        // Try a direct update as a fallback
-        const { data, error: updateError } = await supabase
-          .from('profiles')
-          .update({ profile_picture_url: null })
-          .eq('id', userId)
-
-        if (updateError) {
-          if (updateError.message && updateError.message.includes('does not exist')) {
-            throw new Error(
-              'Database column does not exist. Please run the SQL in the docs/profile-picture-fix.md file.'
-            )
-          }
-          throw updateError
-        }
-      }
-
-      // If we got here, the schema is fixed
-      setShowSchemaFix(false)
-      setError(null)
-
-      // Force reload the page to refresh the schema cache
-      window.location.reload()
-    } catch (err) {
-      console.error('Error fixing schema:', err)
-      let errorMessage =
-        'Failed to fix database schema. Please run the SQL in docs/profile-picture-fix.md.'
-
-      if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
-        errorMessage = err.message
-      }
-
-      setError(errorMessage)
-    } finally {
-      setIsFixingSchema(false)
-    }
-  }
 
   const createBucketIfNotExists = async (bucketName: string): Promise<boolean> => {
     try {
@@ -185,24 +99,13 @@ export const ProfilePictureUpload = ({
       setIsUploading(true)
       setError(null)
 
-      // First check if the profile_picture_url column exists
-      const columnExists = await checkProfileColumnExists()
-
-      if (!columnExists) {
-        throw new Error(
-          "The profile_picture_url column doesn't exist in the database. " +
-            "Please click the 'Fix Database' button below or run the SQL from docs/profile-picture-fix.md in your Supabase dashboard."
-        )
-      }
-
       // Proceed with saving image as data URI
       const reader = new FileReader()
       reader.onload = async e => {
         try {
           const dataUrl = e.target?.result as string
 
-          // Update the profile with the data URI
-          // Use PATCH method instead of UPDATE to avoid schema cache issues
+          // Update the profile with the data URI using RPC call
           const { error: updateError } = await supabase.rpc('update_profile_picture', {
             user_id: userId,
             picture_url: dataUrl,
@@ -210,34 +113,28 @@ export const ProfilePictureUpload = ({
 
           if (updateError) {
             console.error('Profile update error:', updateError)
-
-            // Fallback to direct update if RPC fails
-            const { error: directUpdateError } = await supabase
-              .from('profiles')
-              .update({ profile_picture_url: dataUrl })
-              .eq('id', userId)
-
-            if (directUpdateError) {
-              throw directUpdateError
-            }
+            throw updateError
           }
 
           // Notify parent component
           onUploadComplete(dataUrl)
 
-          // Success!
           console.log('Profile picture updated successfully as data URI')
         } catch (err) {
-          console.error('Error saving data URI:', err)
-          let errorMessage = 'An error occurred while saving your profile picture'
-
+          console.error('Error saving profile picture:', err)
+          
+          // Log detailed error for developers
           if (err && typeof err === 'object') {
-            if ('message' in err && typeof err.message === 'string') {
-              errorMessage = err.message
-            }
+            console.error('Detailed error information:', {
+              message: 'message' in err ? err.message : 'Unknown error',
+              code: 'code' in err ? err.code : 'No error code',
+              details: 'details' in err ? err.details : 'No additional details',
+              hint: 'hint' in err ? err.hint : 'No hint available'
+            })
           }
 
-          setError(errorMessage)
+          // Set generic user-friendly error message
+          setError('Could not upload profile picture. Please try again later or contact support if the issue persists.')
           setPreviewUrl(existingUrl)
         } finally {
           setIsUploading(false)
@@ -245,7 +142,8 @@ export const ProfilePictureUpload = ({
       }
 
       reader.onerror = () => {
-        setError('Could not read the selected file')
+        console.error('FileReader error occurred')
+        setError('Could not read the selected file. Please try again.')
         setPreviewUrl(existingUrl)
         setIsUploading(false)
       }
@@ -254,15 +152,17 @@ export const ProfilePictureUpload = ({
       reader.readAsDataURL(file)
     } catch (err) {
       console.error('Error in file handling:', err)
-      let errorMessage = 'An error occurred while processing your profile picture'
-
+      
+      // Log detailed error for developers
       if (err && typeof err === 'object') {
-        if ('message' in err && typeof err.message === 'string') {
-          errorMessage = err.message
-        }
+        console.error('Detailed error information:', {
+          message: 'message' in err ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : 'No stack trace'
+        })
       }
 
-      setError(errorMessage)
+      // Set generic user-friendly error message
+      setError('Could not process the selected file. Please try again later or contact support if the issue persists.')
       setPreviewUrl(existingUrl)
       setIsUploading(false)
 
@@ -276,11 +176,6 @@ export const ProfilePictureUpload = ({
   const triggerFileInput = () => {
     fileInputRef.current?.click()
   }
-
-  // Check for schema issues when component mounts
-  useEffect(() => {
-    checkProfileColumnExists()
-  }, [userId])
 
   return (
     <div className="mb-6">
@@ -338,7 +233,7 @@ export const ProfilePictureUpload = ({
         <button
           type="button"
           onClick={triggerFileInput}
-          disabled={isUploading || isFixingSchema}
+          disabled={isUploading}
           className="px-4 py-2 bg-white/10 hover:bg-white/20 transition-colors rounded-lg text-sm font-medium"
         >
           {isUploading ? 'Uploading...' : 'Change Profile Picture'}
@@ -350,19 +245,8 @@ export const ProfilePictureUpload = ({
           accept="image/jpeg, image/png, image/gif, image/webp"
           className="hidden"
           onChange={handleFileChange}
-          disabled={isUploading || isFixingSchema}
+          disabled={isUploading}
         />
-
-        {showSchemaFix && (
-          <button
-            type="button"
-            onClick={fixSchema}
-            disabled={isFixingSchema}
-            className="mt-3 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 transition-colors rounded-lg text-sm font-medium"
-          >
-            {isFixingSchema ? 'Fixing...' : 'Fix Database'}
-          </button>
-        )}
       </div>
 
       {error && (

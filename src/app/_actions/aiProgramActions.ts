@@ -478,10 +478,10 @@ export async function generateTrainingProgram(
         data: { user },
         error: authError,
       } = await supabase.auth.getUser()
-      if (authError || !user) {
-        console.error('Authentication error in generateTrainingProgram:', authError)
-        return { error: 'Authentication required', success: false }
-      }
+          if (authError || !user) {
+      console.error('Authentication error in generateTrainingProgram:', authError)
+      return { error: 'Authentication required. Please log in again.', success: false }
+    }
       userId = user.id
     }
 
@@ -496,12 +496,12 @@ export async function generateTrainingProgram(
 
     if (profileError) {
       console.error('Error fetching user profile:', profileError)
-      return { error: 'Failed to fetch user profile', success: false }
+      return { error: 'Failed to load your profile. Please try again.', success: false }
     }
 
     if (!profile.onboarding_responses) {
       console.error('User has not completed onboarding:', userId)
-      return { error: 'Please complete onboarding first', success: false }
+      return { error: 'Please complete your onboarding first.', success: false }
     }
 
     // Construct LLM prompt
@@ -511,7 +511,8 @@ export async function generateTrainingProgram(
     const llmResult = await callLLMAPI(prompt)
 
     if (llmResult.error) {
-      return { error: llmResult.error, success: false }
+      console.error('LLM API error:', llmResult.error)
+      return { error: 'Unable to generate your training program at this time. Please try again later.', success: false }
     }
 
     // Validate the LLM response
@@ -528,7 +529,7 @@ export async function generateTrainingProgram(
       console.log('Program validation successful')
     } catch (validationError) {
       console.error('Program validation failed:', validationError)
-      return { error: 'Generated program structure is invalid', success: false }
+      return { error: 'Generated program failed validation. Please try again.', success: false }
     }
 
     // Save to database
@@ -545,7 +546,7 @@ export async function generateTrainingProgram(
 
     if (saveError) {
       console.error('Error saving program to database:', saveError)
-      return { error: 'Failed to save training program', success: false }
+      return { error: 'Failed to save your training program. Please try again.', success: false }
     }
 
     console.log('Training program generated and saved successfully:', savedProgram.id)
@@ -557,7 +558,7 @@ export async function generateTrainingProgram(
   } catch (error) {
     console.error('Unexpected error in generateTrainingProgram:', error)
     return {
-      error: 'An unexpected error occurred while generating your program',
+      error: 'An unexpected error occurred. Please try again.',
       success: false,
     }
   }
@@ -581,7 +582,8 @@ export async function getCurrentTrainingProgram(
         error: authError,
       } = await supabase.auth.getUser()
       if (authError || !user) {
-        return { error: 'Authentication required' }
+        console.error('Authentication error in getCurrentTrainingProgram:', authError)
+        return { error: 'Authentication required. Please log in again.' }
       }
       targetUserId = user.id
     }
@@ -597,17 +599,17 @@ export async function getCurrentTrainingProgram(
 
     if (error) {
       console.error('Error fetching current training program:', error)
-      return { error: 'Failed to fetch training program' }
+      return { error: 'Failed to load your training program. Please try again.' }
     }
 
     if (!program) {
-      return { error: 'No active training program found' }
+      return { error: 'No active training program found. Please generate a new program.' }
     }
 
     return { program }
   } catch (error) {
     console.error('Unexpected error in getCurrentTrainingProgram:', error)
-    return { error: 'An unexpected error occurred' }
+    return { error: 'An unexpected error occurred. Please try again.' }
   }
 }
 

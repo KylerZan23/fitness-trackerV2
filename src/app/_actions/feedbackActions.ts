@@ -4,11 +4,23 @@ import { createClient } from '@/utils/supabase/server'
 import { z } from 'zod'
 
 /**
+ * Standardized response types for server actions
+ */
+export type StandardResponse<T = any> = 
+  | { success: true; data: T }
+  | { success: false; error: string }
+
+/**
  * Simple test server action to verify server actions are working
  */
-export async function testServerAction(): Promise<{ success: boolean; message: string }> {
-  console.log('testServerAction called')
-  return { success: true, message: 'Server action is working!' }
+export async function testServerAction(): Promise<StandardResponse<{ message: string }>> {
+  try {
+    console.log('testServerAction called')
+    return { success: true, data: { message: 'Server action is working!' } }
+  } catch (error) {
+    console.error('Error in testServerAction:', error)
+    return { success: false, error: 'An unexpected error occurred. Please try again.' }
+  }
 }
 
 /**
@@ -61,7 +73,7 @@ export async function submitProgramFeedback(
 
     if (authError || !user) {
       console.error('Authentication error in submitProgramFeedback:', authError)
-      return { success: false, error: 'Authentication required' }
+      return { success: false, error: 'Authentication required. Please log in again.' }
     }
     
     // Validate input data after authentication
@@ -71,9 +83,7 @@ export async function submitProgramFeedback(
       comment,
     })
     
-    console.log('Validation passed:', validatedData)
-    
-    console.log('User authenticated:', user.id)
+    console.log('Validation passed for user:', user.id)
 
     // Verify the program exists and belongs to the user
     const { data: program, error: programError } = await supabase
@@ -85,40 +95,12 @@ export async function submitProgramFeedback(
 
     if (programError || !program) {
       console.error('Program verification error:', programError)
-      console.error('Program query result:', { program, programError })
-      return { success: false, error: 'Program not found or access denied' }
+      return { success: false, error: 'Program not found or access denied.' }
     }
     
-    console.log('Program verified:', program.id)
-
-    // Test database connectivity and check if table exists
-    console.log('Testing database connectivity...')
-    try {
-      const { data: tableCheck, error: tableError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .eq('table_name', 'ai_program_feedback')
-        .single()
-      
-      console.log('Table check result:', { tableCheck, tableError })
-      
-      if (tableError && tableError.code === 'PGRST116') {
-        console.log('Table ai_program_feedback does not exist')
-        return { success: false, error: 'Feedback table does not exist. Please contact support.' }
-      }
-    } catch (tableCheckError) {
-      console.error('Error checking table existence:', tableCheckError)
-    }
+    console.log('Program verified for user:', user.id)
 
     // Insert feedback
-    console.log('Attempting to insert feedback with data:', {
-      user_id: user.id,
-      program_id: validatedData.programId,
-      rating: validatedData.rating,
-      comment: validatedData.comment || null,
-    })
-
     const { data: feedback, error: insertError } = await supabase
       .from('ai_program_feedback')
       .insert({
@@ -130,15 +112,9 @@ export async function submitProgramFeedback(
       .select('id')
       .single()
 
-    console.log('Insert result:', { feedback, insertError })
-
     if (insertError) {
       console.error('Error inserting program feedback:', insertError)
-      console.error('Insert error code:', insertError.code)
-      console.error('Insert error message:', insertError.message)
-      console.error('Insert error details:', insertError.details)
-      console.error('Insert error hint:', insertError.hint)
-      return { success: false, error: `Database error: ${insertError.message} (Code: ${insertError.code})` }
+      return { success: false, error: 'Failed to submit feedback. Please try again.' }
     }
 
     console.log(`Program feedback submitted successfully: ${feedback.id}`)
@@ -146,18 +122,14 @@ export async function submitProgramFeedback(
 
   } catch (error) {
     console.error('Error in submitProgramFeedback:', error)
-    console.error('Error type:', typeof error)
-    console.error('Error constructor:', error?.constructor?.name)
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     
     if (error instanceof z.ZodError) {
       const errorMessage = error.errors.map(e => e.message).join(', ')
-      console.error('Zod validation errors:', error.errors)
-      return { success: false, error: `Validation error: ${errorMessage}` }
+      console.error('Validation errors:', error.errors)
+      return { success: false, error: `Invalid input: ${errorMessage}` }
     }
 
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return { success: false, error: `Unexpected error: ${errorMessage}` }
+    return { success: false, error: 'An unexpected error occurred. Please try again.' }
   }
 }
 
@@ -171,6 +143,8 @@ export async function submitCoachFeedback(
   recommendationContentHash?: string
 ): Promise<FeedbackResponse> {
   try {
+    console.log('submitCoachFeedback called')
+    
     // Validate input data
     const validatedData = CoachFeedbackSchema.parse({
       recommendationCacheKey,
@@ -189,8 +163,10 @@ export async function submitCoachFeedback(
 
     if (authError || !user) {
       console.error('Authentication error in submitCoachFeedback:', authError)
-      return { success: false, error: 'Authentication required' }
+      return { success: false, error: 'Authentication required. Please log in again.' }
     }
+
+    console.log('User authenticated for coach feedback:', user.id)
 
     // If cache key is provided, verify it exists and belongs to the user
     if (validatedData.recommendationCacheKey) {
@@ -203,7 +179,7 @@ export async function submitCoachFeedback(
 
       if (cacheError || !cacheEntry) {
         console.error('Cache verification error:', cacheError)
-        return { success: false, error: 'Recommendation not found or access denied' }
+        return { success: false, error: 'Recommendation not found or access denied.' }
       }
     }
 
@@ -222,7 +198,7 @@ export async function submitCoachFeedback(
 
     if (insertError) {
       console.error('Error inserting coach feedback:', insertError)
-      return { success: false, error: 'Failed to submit feedback' }
+      return { success: false, error: 'Failed to submit feedback. Please try again.' }
     }
 
     console.log(`Coach feedback submitted successfully: ${feedback.id}`)
@@ -233,21 +209,21 @@ export async function submitCoachFeedback(
     
     if (error instanceof z.ZodError) {
       const errorMessage = error.errors.map(e => e.message).join(', ')
-      return { success: false, error: `Validation error: ${errorMessage}` }
+      console.error('Validation errors:', error.errors)
+      return { success: false, error: `Invalid input: ${errorMessage}` }
     }
 
-    return { success: false, error: 'An unexpected error occurred' }
+    return { success: false, error: 'An unexpected error occurred. Please try again.' }
   }
 }
 
 /**
- * Get feedback statistics for analytics (optional helper function)
+ * Get aggregated feedback statistics
  */
-export async function getFeedbackStats(): Promise<{
+export async function getFeedbackStats(): Promise<StandardResponse<{
   programFeedback: { averageRating: number; totalCount: number } | null
   coachFeedback: { averageRating: number; totalCount: number } | null
-  error?: string
-}> {
+}>> {
   try {
     const supabase = await createClient()
 
@@ -258,38 +234,38 @@ export async function getFeedbackStats(): Promise<{
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return {
-        programFeedback: null,
-        coachFeedback: null,
-        error: 'Authentication required',
-      }
+      console.error('Authentication error in getFeedbackStats:', authError)
+      return { success: false, error: 'Authentication required. Please log in again.' }
     }
 
+    console.log('Getting feedback stats for user:', user.id)
+
     // Get program feedback stats
-    const { data: programStats, error: programStatsError } = await supabase
+    const { data: programStats, error: programError } = await supabase
       .from('ai_program_feedback')
       .select('rating')
       .eq('user_id', user.id)
 
+    if (programError) {
+      console.error('Error fetching program feedback stats:', programError)
+      return { success: false, error: 'Failed to retrieve feedback statistics. Please try again.' }
+    }
+
     // Get coach feedback stats
-    const { data: coachStats, error: coachStatsError } = await supabase
+    const { data: coachStats, error: coachError } = await supabase
       .from('ai_coach_feedback')
       .select('rating')
       .eq('user_id', user.id)
 
-    if (programStatsError || coachStatsError) {
-      console.error('Error fetching feedback stats:', { programStatsError, coachStatsError })
-      return {
-        programFeedback: null,
-        coachFeedback: null,
-        error: 'Failed to fetch feedback statistics',
-      }
+    if (coachError) {
+      console.error('Error fetching coach feedback stats:', coachError)
+      return { success: false, error: 'Failed to retrieve feedback statistics. Please try again.' }
     }
 
     // Calculate program feedback stats
     const programFeedback = programStats && programStats.length > 0 
       ? {
-          averageRating: programStats.reduce((sum, item) => sum + item.rating, 0) / programStats.length,
+          averageRating: programStats.reduce((sum, f) => sum + f.rating, 0) / programStats.length,
           totalCount: programStats.length,
         }
       : null
@@ -297,60 +273,74 @@ export async function getFeedbackStats(): Promise<{
     // Calculate coach feedback stats
     const coachFeedback = coachStats && coachStats.length > 0
       ? {
-          averageRating: coachStats.reduce((sum, item) => sum + item.rating, 0) / coachStats.length,
+          averageRating: coachStats.reduce((sum, f) => sum + f.rating, 0) / coachStats.length,
           totalCount: coachStats.length,
         }
       : null
 
     return {
-      programFeedback,
-      coachFeedback,
+      success: true,
+      data: {
+        programFeedback,
+        coachFeedback,
+      }
     }
 
   } catch (error) {
     console.error('Error in getFeedbackStats:', error)
-    return {
-      programFeedback: null,
-      coachFeedback: null,
-      error: 'An unexpected error occurred',
-    }
+    return { success: false, error: 'An unexpected error occurred. Please try again.' }
   }
 }
 
 /**
- * Check if feedback table exists and provide instructions
+ * Check if feedback tables exist and are accessible
  */
-export async function checkFeedbackTable(): Promise<{ success: boolean; message: string }> {
+export async function checkFeedbackTable(): Promise<StandardResponse<{ message: string }>> {
   try {
-    console.log('Checking if feedback table exists...')
     const supabase = await createClient()
 
-    // Try to query the table to see if it exists
-    const { data, error } = await supabase
+    // Authenticate user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      console.error('Authentication error in checkFeedbackTable:', authError)
+      return { success: false, error: 'Authentication required. Please log in again.' }
+    }
+
+    console.log('Checking feedback table accessibility for user:', user.id)
+
+    // Test program feedback table
+    const { error: programTableError } = await supabase
       .from('ai_program_feedback')
       .select('id')
       .limit(1)
 
-    if (error) {
-      console.log('Table check error:', error)
-      if (error.code === '42P01') {
-        return { 
-          success: false, 
-          message: 'Table does not exist. Please create it manually via Supabase Dashboard SQL Editor.' 
-        }
-      }
-      return { 
-        success: false, 
-        message: `Table check failed: ${error.message}` 
-      }
+    if (programTableError) {
+      console.error('Program feedback table check failed:', programTableError)
+      return { success: false, error: 'Feedback system is currently unavailable. Please try again later.' }
     }
 
-    console.log('Feedback table exists and is accessible')
-    return { success: true, message: 'Feedback table exists and is ready to use!' }
+    // Test coach feedback table
+    const { error: coachTableError } = await supabase
+      .from('ai_coach_feedback')
+      .select('id')
+      .limit(1)
+
+    if (coachTableError) {
+      console.error('Coach feedback table check failed:', coachTableError)
+      return { success: false, error: 'Feedback system is currently unavailable. Please try again later.' }
+    }
+
+    return {
+      success: true,
+      data: { message: 'Feedback tables are accessible and working correctly.' }
+    }
 
   } catch (error) {
     console.error('Error in checkFeedbackTable:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    return { success: false, message: `Unexpected error: ${errorMessage}` }
+    return { success: false, error: 'An unexpected error occurred. Please try again.' }
   }
 } 

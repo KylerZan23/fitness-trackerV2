@@ -270,7 +270,9 @@ function ProgramPageContent() {
   const [showWeeklyCheckIn, setShowWeeklyCheckIn] = useState(false)
   const [checkInWeekNumber, setCheckInWeekNumber] = useState(1)
   const [showDailyReadinessModal, setShowDailyReadinessModal] = useState(false)
+  const [isSubmittingReadiness, setIsSubmittingReadiness] = useState(false)
   const [todaysWorkout, setTodaysWorkout] = useState<any>(null)
+  const [isMounted, setIsMounted] = useState(false)
   
   // Handle program generation warnings from URL params
   const [programWarning, setProgramWarning] = useState<string | null>(
@@ -343,6 +345,11 @@ function ProgramPageContent() {
     return { show: false, weekNumber: 0 }
   }
 
+  // Handle client-side mounting to prevent SSR hydration issues
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   useEffect(() => {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -413,19 +420,23 @@ function ProgramPageContent() {
     }
   }, [session, fetchData])
 
-  // Check if we should show daily readiness modal
+  // Check if we should show daily readiness modal (client-side only)
   useEffect(() => {
-    const checkDailyReadiness = async () => {
-      if (session?.user && programData) {
+    const checkDailyReadiness = () => {
+      // Only run on client-side after component is mounted
+      if (!isMounted || !session?.user || !programData) return
+      
       const shouldShow = shouldShowDailyReadinessModal()
+      console.log('Daily readiness check - shouldShow:', shouldShow, 'isMounted:', isMounted)
+      
       if (shouldShow) {
-          // Don't auto-show, let user trigger it when they start workout
+        // Don't auto-show, let user trigger it when they start workout
+        console.log('Daily readiness modal should be shown when user starts workout')
       }
-    }
     }
     
     checkDailyReadiness()
-  }, [session, programData])
+  }, [isMounted, session, programData])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -446,28 +457,43 @@ function ProgramPageContent() {
     setShowDailyReadinessModal(true)
   }
 
-  const handleDailyReadinessSubmit = (data: DailyReadinessData) => {
-    // Store the readiness data
-    dailyReadinessService.markCompletedToday(data)
-    setShowDailyReadinessModal(false)
-    
-    // Now proceed with starting the workout
-    if (todaysWorkout) {
-      const workoutData = encodeURIComponent(JSON.stringify(todaysWorkout))
-      const programContext = encodeURIComponent(JSON.stringify({
-        programId: programData?.id,
-        phaseIndex: 0,
-        weekIndex: 0,
-        dayOfWeek: todaysWorkout.dayOfWeek
-      }))
+  const handleDailyReadinessSubmit = async (data: DailyReadinessData) => {
+    try {
+      setIsSubmittingReadiness(true)
       
-      const readinessParam = encodeURIComponent(JSON.stringify(data))
-      router.push(`/workout/new?workout=${workoutData}&context=${programContext}&readiness=${readinessParam}`)
+      // Store the readiness data
+      dailyReadinessService.markCompletedToday(data)
+      
+      // Small delay to show the loading state
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      setShowDailyReadinessModal(false)
+      
+      // Now proceed with starting the workout
+      if (todaysWorkout) {
+        const workoutData = encodeURIComponent(JSON.stringify(todaysWorkout))
+        const programContext = encodeURIComponent(JSON.stringify({
+          programId: programData?.id,
+          phaseIndex: 0,
+          weekIndex: 0,
+          dayOfWeek: todaysWorkout.dayOfWeek
+        }))
+        
+        const readinessParam = encodeURIComponent(JSON.stringify(data))
+        router.push(`/workout/new?workout=${workoutData}&context=${programContext}&readiness=${readinessParam}`)
+      }
+    } catch (error) {
+      console.error('Error submitting daily readiness:', error)
+      // Don't close modal on error, let user try again
+    } finally {
+      setIsSubmittingReadiness(false)
     }
   }
 
   const handleDailyReadinessClose = () => {
-    setShowDailyReadinessModal(false)
+    if (!isSubmittingReadiness) {
+      setShowDailyReadinessModal(false)
+    }
   }
 
   if (isLoading) {
@@ -663,17 +689,26 @@ function ProgramPageContent() {
                 <div className="flex justify-center">
                   <button
                     onClick={() => {
+                      // Only check readiness on client-side after mounting
+                      if (!isMounted) {
+                        console.log('Component not yet mounted, skipping readiness check')
+                        return
+                      }
+
                       // Check if user has completed daily readiness
                       const hasCompletedReadiness = dailyReadinessService.hasCompletedToday()
+                      console.log('Start workout clicked - hasCompletedReadiness:', hasCompletedReadiness)
                       
                       if (!hasCompletedReadiness) {
                         // Show daily readiness modal first
+                        console.log('Showing daily readiness modal')
                         setShowDailyReadinessModal(true)
                         return
                       }
                       
                       // User has completed readiness, proceed with adapted workout
                       const readinessData = dailyReadinessService.getTodaysReadiness()
+                      console.log('Proceeding with workout - readinessData:', readinessData)
                       
                       // Pass today's workout data via URL state
                       const workoutData = encodeURIComponent(JSON.stringify(todaysWorkout))
@@ -880,6 +915,7 @@ function ProgramPageContent() {
          isOpen={showDailyReadinessModal}
          onClose={handleDailyReadinessClose}
          onSubmit={handleDailyReadinessSubmit}
+         isSubmitting={isSubmittingReadiness}
        />
     </DashboardLayout>
   )

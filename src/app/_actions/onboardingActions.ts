@@ -22,7 +22,7 @@ export type FullOnboardingAnswers = OnboardingAndProfileData
 /**
  * Server action response type
  */
-type ActionResponse = { success: true; warning?: string } | { error: string }
+type ActionResponse = { success: true; warning?: string } | { success: false; error: string }
 
 /**
  * Server action to finalize onboarding and generate training program
@@ -31,7 +31,13 @@ type ActionResponse = { success: true; warning?: string } | { error: string }
 export async function finalizeOnboardingAndGenerateProgram(
   formData: FullOnboardingAnswers
 ): Promise<ActionResponse> {
-  return await saveOnboardingData(formData)
+  try {
+    console.log('finalizeOnboardingAndGenerateProgram called')
+    return await saveOnboardingData(formData)
+  } catch (error) {
+    console.error('Error in finalizeOnboardingAndGenerateProgram:', error)
+    return { success: false, error: 'An unexpected error occurred while completing onboarding. Please try again.' }
+  }
 }
 
 /**
@@ -52,13 +58,15 @@ export async function saveOnboardingData(
 
     if (authError) {
       console.error('Authentication error in saveOnboardingData:', authError)
-      return { error: 'Authentication failed. Please log in again.' }
+      return { success: false, error: 'Authentication failed. Please log in again.' }
     }
 
     if (!user) {
       console.error('No authenticated user found in saveOnboardingData')
-      return { error: 'You must be logged in to complete onboarding.' }
+      return { success: false, error: 'You must be logged in to complete onboarding.' }
     }
+
+    console.log('Saving onboarding data for user:', user.id)
 
     // Separate the data: profile fields vs onboarding responses
     const { experienceLevel, weightUnit, ...onboardingResponses } = formData
@@ -75,8 +83,6 @@ export async function saveOnboardingData(
       onboarding_completed: true,
     }
 
-    console.log('Saving onboarding data for user:', user.id, updateData)
-
     // Update the user's profile with onboarding data
     const { error: updateError } = await supabase
       .from('profiles')
@@ -86,6 +92,7 @@ export async function saveOnboardingData(
     if (updateError) {
       console.error('Error updating profile with onboarding data:', updateError)
       return {
+        success: false,
         error: 'Failed to save your onboarding data. Please try again.',
       }
     }
@@ -121,6 +128,7 @@ export async function saveOnboardingData(
   } catch (error) {
     console.error('Unexpected error in saveOnboardingData:', error)
     return {
+      success: false,
       error: 'An unexpected error occurred while saving your data. Please try again.',
     }
   }
@@ -130,7 +138,7 @@ export async function saveOnboardingData(
  * Server action to check if user has completed onboarding
  * Useful for conditional redirects and UI states
  */
-export async function checkOnboardingStatus(): Promise<{ completed: boolean } | { error: string }> {
+export async function checkOnboardingStatus(): Promise<{ completed: boolean } | { success: false; error: string }> {
   try {
     const supabase = await createClient()
 
@@ -140,8 +148,11 @@ export async function checkOnboardingStatus(): Promise<{ completed: boolean } | 
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return { error: 'Authentication required' }
+      console.error('Authentication error in checkOnboardingStatus:', authError)
+      return { success: false, error: 'Authentication required. Please log in again.' }
     }
+
+    console.log('Checking onboarding status for user:', user.id)
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -151,12 +162,12 @@ export async function checkOnboardingStatus(): Promise<{ completed: boolean } | 
 
     if (profileError) {
       console.error('Error checking onboarding status:', profileError)
-      return { error: 'Failed to check onboarding status' }
+      return { success: false, error: 'Failed to check onboarding status. Please try again.' }
     }
 
     return { completed: profile?.onboarding_completed || false }
   } catch (error) {
     console.error('Unexpected error in checkOnboardingStatus:', error)
-    return { error: 'An unexpected error occurred' }
+    return { success: false, error: 'An unexpected error occurred. Please try again.' }
   }
 }

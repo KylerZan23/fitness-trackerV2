@@ -16,6 +16,7 @@ import { StatsCard, StrengthStatsCard, StrengthVitalsGrid } from '@/components/u
 import { StrengthProgressionChart } from '@/components/progress/StrengthProgressionChart'
 import { MuscleDistributionChart } from '@/components/workout/MuscleDistributionChart'
 import { IndepthAnalysisCard } from '@/components/progress/IndepthAnalysisCard'
+import AIWeeklyReviewCard from '@/components/progress/AIWeeklyReviewCard'
 
 // Import strength calculation utilities
 import {
@@ -260,6 +261,9 @@ export default function ProgressPage() {
             </div>
           </div>
         </div>
+
+        {/* AI Weekly Review */}
+        <AIWeeklyReviewCard />
 
         {/* Strength Vitals Cards */}
         <div>

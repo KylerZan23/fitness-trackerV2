@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Moon, Zap, CheckCircle2, AlertCircle, Battery, BatteryLow } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Moon, Zap, CheckCircle2, AlertCircle, Battery, BatteryLow, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -16,8 +16,22 @@ export function DailyReadinessModal({
   const [selectedSleep, setSelectedSleep] = useState<DailyReadinessData['sleep'] | null>(null)
   const [selectedEnergy, setSelectedEnergy] = useState<DailyReadinessData['energy'] | null>(null)
 
+  // Reset selections when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('Daily readiness modal opened, resetting selections')
+      setSelectedSleep(null)
+      setSelectedEnergy(null)
+    } else {
+      console.log('Daily readiness modal closed')
+    }
+  }, [isOpen])
+
   const handleSubmit = () => {
-    if (!selectedSleep || !selectedEnergy) return
+    if (!selectedSleep || !selectedEnergy) {
+      console.log('Daily readiness submit blocked - missing selections:', { selectedSleep, selectedEnergy })
+      return
+    }
 
     const readinessData: DailyReadinessData = {
       sleep: selectedSleep,
@@ -26,6 +40,7 @@ export function DailyReadinessModal({
       timestamp: new Date().toISOString()
     }
 
+    console.log('Submitting daily readiness data:', readinessData)
     onSubmit(readinessData)
   }
 
@@ -81,8 +96,10 @@ export function DailyReadinessModal({
     }
   ]
 
+  console.log('DailyReadinessModal render - isOpen:', isOpen, 'isSubmitting:', isSubmitting)
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !isSubmitting && onClose()}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="text-center pr-8">
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -188,7 +205,14 @@ export function DailyReadinessModal({
             disabled={!canSubmit}
             className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
           >
-            {isSubmitting ? 'Adapting Workout...' : 'Continue to Workout'}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adapting Workout...
+              </>
+            ) : (
+              'Continue to Workout'
+            )}
           </Button>
         </div>
       </DialogContent>
