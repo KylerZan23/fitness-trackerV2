@@ -19,18 +19,42 @@ import {
   MUSCLE_GAIN_BEGINNER_GUIDELINES,
   MUSCLE_GAIN_INTERMEDIATE_GUIDELINES,
   MUSCLE_GAIN_ADVANCED_GUIDELINES,
+  MUSCLE_GAIN_HYPERTROPHY_FOCUS_BEGINNER_GUIDELINES,
+  MUSCLE_GAIN_HYPERTROPHY_FOCUS_INTERMEDIATE_GUIDELINES,
+  MUSCLE_GAIN_HYPERTROPHY_FOCUS_ADVANCED_GUIDELINES,
   STRENGTH_GAIN_BEGINNER_GUIDELINES,
   STRENGTH_GAIN_INTERMEDIATE_GUIDELINES,
   STRENGTH_GAIN_ADVANCED_GUIDELINES,
+  STRENGTH_GAIN_POWERLIFTING_PEAK_BEGINNER_GUIDELINES,
+  STRENGTH_GAIN_POWERLIFTING_PEAK_INTERMEDIATE_GUIDELINES,
+  STRENGTH_GAIN_POWERLIFTING_PEAK_ADVANCED_GUIDELINES,
   ENDURANCE_IMPROVEMENT_BEGINNER_GUIDELINES,
   ENDURANCE_IMPROVEMENT_INTERMEDIATE_GUIDELINES,
   ENDURANCE_IMPROVEMENT_ADVANCED_GUIDELINES,
+  ENDURANCE_IMPROVEMENT_GYM_CARDIO_BEGINNER_GUIDELINES,
+  ENDURANCE_IMPROVEMENT_GYM_CARDIO_INTERMEDIATE_GUIDELINES,
+  ENDURANCE_IMPROVEMENT_GYM_CARDIO_ADVANCED_GUIDELINES,
   SPORT_PERFORMANCE_BEGINNER_GUIDELINES,
   SPORT_PERFORMANCE_INTERMEDIATE_GUIDELINES,
   SPORT_PERFORMANCE_ADVANCED_GUIDELINES,
+  SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_BEGINNER_GUIDELINES,
+  SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_INTERMEDIATE_GUIDELINES,
+  SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_ADVANCED_GUIDELINES,
   GENERAL_FITNESS_BEGINNER_GUIDELINES,
   GENERAL_FITNESS_INTERMEDIATE_GUIDELINES,
   GENERAL_FITNESS_ADVANCED_GUIDELINES,
+  GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_BEGINNER_GUIDELINES,
+  GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_INTERMEDIATE_GUIDELINES,
+  GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_ADVANCED_GUIDELINES,
+  WEIGHT_LOSS_GYM_BASED_BEGINNER_GUIDELINES,
+  WEIGHT_LOSS_GYM_BASED_INTERMEDIATE_GUIDELINES,
+  WEIGHT_LOSS_GYM_BASED_ADVANCED_GUIDELINES,
+  BODYWEIGHT_MASTERY_BEGINNER_GUIDELINES,
+  BODYWEIGHT_MASTERY_INTERMEDIATE_GUIDELINES,
+  BODYWEIGHT_MASTERY_ADVANCED_GUIDELINES,
+  RECOMPOSITION_LEAN_MASS_FAT_LOSS_BEGINNER_GUIDELINES,
+  RECOMPOSITION_LEAN_MASS_FAT_LOSS_INTERMEDIATE_GUIDELINES,
+  RECOMPOSITION_LEAN_MASS_FAT_LOSS_ADVANCED_GUIDELINES,
 } from '@/lib/llmProgramContent'
 
 /**
@@ -214,7 +238,7 @@ function getExpertGuidelines(
   trainingFocus: string | null,
   experienceLevel: string | null
 ): string {
-  const focus = trainingFocus?.toLowerCase() || 'general fitness'; // Default if null
+  const focus = trainingFocus || 'General Fitness: Foundational Strength'; // Default if null
   const level = experienceLevel?.toLowerCase() || 'beginner'; // Default if null
 
   // Normalize experience level string to match constant suffixes
@@ -225,23 +249,68 @@ function getExpertGuidelines(
     normalizedLevelKey = 'ADVANCED';
   }
 
-  if (focus.includes('muscle gain') || focus.includes('bodybuilding')) {
+  // Map specific FitnessGoal types to their corresponding guidelines
+  if (focus === 'Muscle Gain: General') {
     if (normalizedLevelKey === 'BEGINNER') return MUSCLE_GAIN_BEGINNER_GUIDELINES;
     if (normalizedLevelKey === 'INTERMEDIATE') return MUSCLE_GAIN_INTERMEDIATE_GUIDELINES;
     if (normalizedLevelKey === 'ADVANCED') return MUSCLE_GAIN_ADVANCED_GUIDELINES;
-  } else if (focus.includes('strength gain') || focus.includes('powerlifting') || focus.includes('beginner strength')) {
+  } else if (focus === 'Muscle Gain: Hypertrophy Focus') {
+    if (normalizedLevelKey === 'BEGINNER') return MUSCLE_GAIN_HYPERTROPHY_FOCUS_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return MUSCLE_GAIN_HYPERTROPHY_FOCUS_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return MUSCLE_GAIN_HYPERTROPHY_FOCUS_ADVANCED_GUIDELINES;
+  } else if (focus === 'Strength Gain: General') {
     if (normalizedLevelKey === 'BEGINNER') return STRENGTH_GAIN_BEGINNER_GUIDELINES;
     if (normalizedLevelKey === 'INTERMEDIATE') return STRENGTH_GAIN_INTERMEDIATE_GUIDELINES;
     if (normalizedLevelKey === 'ADVANCED') return STRENGTH_GAIN_ADVANCED_GUIDELINES;
-  } else if (focus.includes('endurance')) {
+  } else if (focus === 'Strength Gain: Powerlifting Peak') {
+    if (normalizedLevelKey === 'BEGINNER') return STRENGTH_GAIN_POWERLIFTING_PEAK_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return STRENGTH_GAIN_POWERLIFTING_PEAK_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return STRENGTH_GAIN_POWERLIFTING_PEAK_ADVANCED_GUIDELINES;
+  } else if (focus === 'Endurance Improvement: Gym Cardio') {
+    if (normalizedLevelKey === 'BEGINNER') return ENDURANCE_IMPROVEMENT_GYM_CARDIO_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return ENDURANCE_IMPROVEMENT_GYM_CARDIO_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return ENDURANCE_IMPROVEMENT_GYM_CARDIO_ADVANCED_GUIDELINES;
+  } else if (focus === 'Sport-Specific S&C: Explosive Power') {
+    if (normalizedLevelKey === 'BEGINNER') return SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_ADVANCED_GUIDELINES;
+  } else if (focus === 'General Fitness: Foundational Strength') {
+    if (normalizedLevelKey === 'BEGINNER') return GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_ADVANCED_GUIDELINES;
+  } else if (focus === 'Weight Loss: Gym Based') {
+    if (normalizedLevelKey === 'BEGINNER') return WEIGHT_LOSS_GYM_BASED_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return WEIGHT_LOSS_GYM_BASED_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return WEIGHT_LOSS_GYM_BASED_ADVANCED_GUIDELINES;
+  } else if (focus === 'Bodyweight Mastery') {
+    if (normalizedLevelKey === 'BEGINNER') return BODYWEIGHT_MASTERY_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return BODYWEIGHT_MASTERY_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return BODYWEIGHT_MASTERY_ADVANCED_GUIDELINES;
+  } else if (focus === 'Recomposition: Lean Mass & Fat Loss') {
+    if (normalizedLevelKey === 'BEGINNER') return RECOMPOSITION_LEAN_MASS_FAT_LOSS_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return RECOMPOSITION_LEAN_MASS_FAT_LOSS_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return RECOMPOSITION_LEAN_MASS_FAT_LOSS_ADVANCED_GUIDELINES;
+  }
+
+  // Legacy support for old string-based matching (for backward compatibility)
+  const focusLower = focus.toLowerCase();
+  if (focusLower.includes('muscle gain') || focusLower.includes('bodybuilding')) {
+    if (normalizedLevelKey === 'BEGINNER') return MUSCLE_GAIN_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return MUSCLE_GAIN_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return MUSCLE_GAIN_ADVANCED_GUIDELINES;
+  } else if (focusLower.includes('strength gain') || focusLower.includes('powerlifting') || focusLower.includes('beginner strength')) {
+    if (normalizedLevelKey === 'BEGINNER') return STRENGTH_GAIN_BEGINNER_GUIDELINES;
+    if (normalizedLevelKey === 'INTERMEDIATE') return STRENGTH_GAIN_INTERMEDIATE_GUIDELINES;
+    if (normalizedLevelKey === 'ADVANCED') return STRENGTH_GAIN_ADVANCED_GUIDELINES;
+  } else if (focusLower.includes('endurance')) {
     if (normalizedLevelKey === 'BEGINNER') return ENDURANCE_IMPROVEMENT_BEGINNER_GUIDELINES;
     if (normalizedLevelKey === 'INTERMEDIATE') return ENDURANCE_IMPROVEMENT_INTERMEDIATE_GUIDELINES;
     if (normalizedLevelKey === 'ADVANCED') return ENDURANCE_IMPROVEMENT_ADVANCED_GUIDELINES;
-  } else if (focus.includes('sport performance') || focus.includes('athletic performance')) {
+  } else if (focusLower.includes('sport performance') || focusLower.includes('athletic performance')) {
     if (normalizedLevelKey === 'BEGINNER') return SPORT_PERFORMANCE_BEGINNER_GUIDELINES;
     if (normalizedLevelKey === 'INTERMEDIATE') return SPORT_PERFORMANCE_INTERMEDIATE_GUIDELINES;
     if (normalizedLevelKey === 'ADVANCED') return SPORT_PERFORMANCE_ADVANCED_GUIDELINES;
-  } else if (focus.includes('general fitness') || focus.includes('weight loss')) { // Grouping weight loss with general fitness for guidelines
+  } else if (focusLower.includes('general fitness') || focusLower.includes('weight loss')) {
     if (normalizedLevelKey === 'BEGINNER') return GENERAL_FITNESS_BEGINNER_GUIDELINES;
     if (normalizedLevelKey === 'INTERMEDIATE') return GENERAL_FITNESS_INTERMEDIATE_GUIDELINES;
     if (normalizedLevelKey === 'ADVANCED') return GENERAL_FITNESS_ADVANCED_GUIDELINES;
@@ -249,9 +318,9 @@ function getExpertGuidelines(
 
   // Fallback if no specific match is found
   console.warn(
-    `No specific guidelines found for focus "${focus}" and level "${level}". Falling back to General Fitness Beginner.`
+    `No specific guidelines found for focus "${focus}" and level "${level}". Falling back to General Fitness Foundational Strength Beginner.`
   );
-  return GENERAL_FITNESS_BEGINNER_GUIDELINES;
+  return GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_BEGINNER_GUIDELINES;
 }
 
 /**
@@ -416,11 +485,14 @@ function getDurationBasedOnGoals(onboarding: OnboardingData): number {
   const { primaryGoal } = onboarding
 
   // Adjust duration based on goals (shortened to 4-6 weeks to manage token limits)
-  if (primaryGoal === 'General Fitness') return 4
-  if (primaryGoal === 'Muscle Gain') return 6
-  if (primaryGoal === 'Strength Gain') return 6
-  if (primaryGoal === 'Endurance Improvement') return 5
-  if (primaryGoal === 'Sport-Specific') return 6
+  if (primaryGoal === 'General Fitness: Foundational Strength') return 4
+  if (primaryGoal === 'Muscle Gain: General' || primaryGoal === 'Muscle Gain: Hypertrophy Focus') return 6
+  if (primaryGoal === 'Strength Gain: General' || primaryGoal === 'Strength Gain: Powerlifting Peak') return 6
+  if (primaryGoal === 'Endurance Improvement: Gym Cardio') return 5
+  if (primaryGoal === 'Sport-Specific S&C: Explosive Power') return 6
+  if (primaryGoal === 'Weight Loss: Gym Based') return 5
+  if (primaryGoal === 'Bodyweight Mastery') return 6
+  if (primaryGoal === 'Recomposition: Lean Mass & Fat Loss') return 6
 
   return 6 // Default
 }

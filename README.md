@@ -4,6 +4,65 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Core Program Types Expansion (2025-01-09)**: Enhanced onboarding with specialized, gym-focused fitness goals for better program personalization:
+  - **Expanded Goal Types**: Increased from 5 generic goals to 10 specialized options (Muscle Gain: General/Hypertrophy Focus, Strength Gain: General/Powerlifting Peak, etc.)
+  - **Gym-Focused Specificity**: Added specialized goals like "Weight Loss: Gym Based", "Bodyweight Mastery", and "Recomposition: Lean Mass & Fat Loss"
+  - **Enhanced UI Design**: Updated PrimaryGoalQuestion component with new emojis, descriptions, and color schemes for all 10 goals
+  - **Responsive Grid Layout**: Improved layout to handle increased options (1 col mobile, 2 col tablet, 3 col desktop)
+  - **Type Safety**: Full TypeScript integration with updated validation in QuestionRegistry for both primary and secondary goal selection
+  - **AI Program Benefits**: More specific goal information enables better AI program generation and personalization
+
+- **LLM Program Content Enhancement (2025-01-09)**: Complete overhaul of AI program content system with specialized guidelines for all new fitness goal types:
+  - **24 New Guideline Constants**: Expert-designed training guidelines for each specialized goal (8 goals × 3 experience levels)
+  - **Precise Mapping Logic**: Enhanced getExpertGuidelines function with exact string matching for specialized variants
+  - **Evidence-Based Content**: Each guideline includes specific rep ranges, rest times, RPE guidelines, and progression methods
+  - **Progressive Difficulty**: Clear beginner → intermediate → advanced progression paths for each specialization
+  - **Format Consistency**: All guidelines maintain the unified 4-header format (PRINCIPLES, WEEKLY PLAN, PROGRESSION, OPTIONS)
+  - **Backward Compatibility**: Legacy string-based matching preserved while adding new specialized routing
+  - **Optimized Token Usage**: Guidelines maintained at ≤330 words each to minimize LLM context costs
+  - **Specialized Content**: Each goal type has distinct, focused content (powerlifting competition prep, bodyweight progressions, etc.)
+
+- **Expert Coach Data Foundation (2025-01-09)**: Established credible expert coach system with realistic fitness industry credentials and specializations:
+  - **TypeScript Interface**: Comprehensive ExpertCoach interface with credentials, specialties, and bio information
+  - **Diverse Expertise**: 3 mock coaches covering research science, practical strength training, and elite Olympic performance
+  - **Realistic Credentials**: Industry-standard certifications (CSCS, PhD Kinesiology, Olympic Competitor, USAW levels)
+  - **Utility Functions**: Helper functions for coach lookup by ID, specialty filtering, and specialty enumeration
+  - **Extensible Foundation**: Ready for future features like coach-to-program matching and credibility attribution
+  - **Placeholder Assets**: Established image URL structure for future coach profile photos
+
+- **Expert Coach Landing Page Integration (2025-01-09)**: Integrated expert coach profiles into landing page to establish credibility and showcase AI expertise backing:
+  - **Strategic Placement**: Added coaches section after HowItWorks, creating logical flow from features → process → experts → testimonials
+  - **Professional Presentation**: Clean card-based design with circular profile images, credentials badges, and specialty tags
+  - **Credibility Messaging**: Clear headlines connecting human expertise to AI accuracy and scientific backing
+  - **Responsive Design**: Adaptive grid layout (1 col mobile → 2 col tablet → 3 col desktop) with hover effects
+  - **Fallback System**: Graceful image loading with initials display if photos unavailable
+  - **Brand Integration**: Coral/orange theming consistent with overall brand identity
+  - **Trust Building**: Emphasizes PhD-level research, Olympic experience, and industry certifications
+
+- **Pricing Section Landing Page (2025-01-09)**: Added comprehensive pricing display with clear free trial offering and subscription tiers:
+  - **Free Trial Emphasis**: Prominent 7-day free trial with "Cancel anytime" messaging to reduce signup friction
+  - **Three-Tier Structure**: Free Trial, Monthly ($19.99), and Annual ($119.99) plans with clear feature differentiation
+  - **Visual Hierarchy**: Card-based layout with primary border highlighting for recommended Annual plan
+  - **Feature Comparison**: Clear feature lists including AI Programs, AI Coach Access, Advanced Analytics, Community Access
+  - **Strategic Placement**: Positioned after Expert Coaches section to establish credibility before pricing reveal
+  - **Conversion Optimization**: All pricing tiers link to signup page with specific value propositions
+
+- **Landing Page Structure Rebuild (2025-01-09)**: Complete redesign of landing page with modular, reusable component architecture:
+  - **Component Library**: Created `src/components/landing/` directory with 5 specialized components (HeroSection, SocialProof, FeatureSection, Testimonials, HowItWorks)
+  - **Hero Section**: Implemented exact headline "Stop Guessing. Start Progressing." with coral/orange theme and signup CTA
+  - **Social Proof**: Added Trustpilot-style ratings, media outlet logos (Men's Health, Forbes, etc.), and trust indicators
+  - **Feature Showcase**: Grid layout with Lucide icons highlighting AI Program Generation, Progress Tracking, and core features
+  - **User Testimonials**: Hardcoded testimonials with user photos, ratings, and authentic feedback quotes
+  - **Process Flow**: 3-step "How It Works" (Onboard → Get Program → Train & Track) with visual progression
+  - **Modular Architecture**: Clean component separation enabling easy maintenance and future enhancements
+
+- **Core Visual Theme Establishment (2025-01-09)**: Implemented vibrant coral/orange brand identity with energetic Runna-inspired aesthetic:
+  - **Brand Color Palette**: Defined `brand-primary` (#FF6B47), `brand-light` (#FFF4F2), and `brand-dark` (#E5472A) for consistent theming
+  - **Primary Theme Refactor**: Updated system-wide primary color from dark gray to vibrant coral-orange for all action buttons
+  - **Button Component Integration**: Automatic inheritance of new theme across all existing primary buttons
+  - **Zero Breaking Changes**: Seamless transition maintaining all existing functionality while enhancing visual appeal
+  - **Design System Foundation**: Established expandable brand palette ready for future visual enhancements
+
 - **AI Weekly Review - Progress Tracking on Suggested Actions (2025-01-08)**: Added comprehensive progress tracking for actionable tips with visual status updates and personal notes for enhanced accountability
 - **AI Weekly Review - Interactive Follow-up Questions (2025-01-08)**: Enhanced weekly review with interactive Q&A functionality for deeper coaching conversations:
   - **Conversational Interface**: Users can ask follow-up questions about their weekly review insights
@@ -628,7 +687,11 @@ The `profiles` table has been updated with the following fields to support Strav
   - Equipment availability assessment
   - Optional strength assessments (1RM estimates)
   - Exercise preferences and injury considerations
-- **Workout Logging**: Track exercises, sets, reps, and weights
+- **Enhanced Workout Logging**: Track exercises, sets, reps, and weights with **Quick Log** feature
+  - **Quick Log**: One-click logging using planned weight and reps values
+  - **Smart Auto-fill**: Automatically populates actual values from exercise plan
+  - **PB Detection**: Personal best checking integrated into quick logging
+  - **Manual Override**: Full manual input still available when needed
 - **Progress Tracking**: Visual charts and analytics
 - **Strava Integration**: Sync running activities automatically
 - **Profile Management**: Comprehensive user profiles with unit preferences
@@ -639,3 +702,15 @@ The `profiles` table has been updated with the following fields to support Strav
 - **Responsive Design**: Works seamlessly on desktop and mobile
 - **Dark Mode Support**: Eye-friendly interface options
 - **Unit Conversion**: Automatic weight unit handling throughout the app
+- **Subscription Management**: Freemium model with 7-day trials and premium subscriptions
+
+### Subscription & Trial System
+- **Automatic Trial Start**: New users receive 7-day free trial immediately upon signup
+- **Trial Tracking**: Precise timestamp-based trial expiration with user-friendly status messages
+- **Subscription Status**: Simple boolean-based premium subscription management
+- **Database Foundation**: Optimized schema with indexes for fast subscription checking
+- **Utility Functions**: Comprehensive TypeScript utilities for subscription management:
+  - `getSubscriptionStatus()` - Detailed subscription and trial status
+  - `hasActiveAccess()` - Simple access verification
+  - `startTrial()`, `upgradeToPremium()`, `cancelPremium()` - Account management
+- **Payment Ready**: Database structure prepared for future Stripe integration

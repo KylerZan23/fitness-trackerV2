@@ -21,11 +21,16 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     description: "This helps us tailor your entire program to what matters most to you",
     component: PlaceholderQuestion,
     validation: z.enum([
-      'Muscle Gain',
-      'Strength Gain', 
-      'Endurance Improvement',
-      'Sport-Specific',
-      'General Fitness'
+      'Muscle Gain: General',
+      'Muscle Gain: Hypertrophy Focus',
+      'Strength Gain: Powerlifting Peak',
+      'Strength Gain: General',
+      'Endurance Improvement: Gym Cardio',
+      'Sport-Specific S&C: Explosive Power',
+      'General Fitness: Foundational Strength',
+      'Weight Loss: Gym Based',
+      'Bodyweight Mastery',
+      'Recomposition: Lean Mass & Fat Loss'
     ]),
     category: 'profile',
     order: 1,
@@ -38,11 +43,16 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     description: "Sometimes we have multiple objectives - what else would you like to work on?",
     component: PlaceholderQuestion,
     validation: z.enum([
-      'Muscle Gain',
-      'Strength Gain',
-      'Endurance Improvement', 
-      'Sport-Specific',
-      'General Fitness'
+      'Muscle Gain: General',
+      'Muscle Gain: Hypertrophy Focus',
+      'Strength Gain: Powerlifting Peak',
+      'Strength Gain: General',
+      'Endurance Improvement: Gym Cardio',
+      'Sport-Specific S&C: Explosive Power',
+      'General Fitness: Foundational Strength',
+      'Weight Loss: Gym Based',
+      'Bodyweight Mastery',
+      'Recomposition: Lean Mass & Fat Loss'
     ]).optional(),
     category: 'profile',
     order: 2,

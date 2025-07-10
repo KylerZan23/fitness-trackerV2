@@ -1,0 +1,5 @@
+export { HeroSection } from './HeroSection'
+export { SocialProof } from './SocialProof'
+export { FeatureSection } from './FeatureSection'
+export { Testimonials } from './Testimonials'
+export { HowItWorks } from './HowItWorks' 

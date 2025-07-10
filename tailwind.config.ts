@@ -25,7 +25,7 @@ const config: Config = {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         primary: {
-          DEFAULT: 'hsl(240 5.9% 10%)', // Main action buttons
+          DEFAULT: '#FF6B47', // Vibrant coral-orange for main action buttons
           foreground: 'hsl(0 0% 98%)',
         },
         secondary: {
@@ -54,6 +54,9 @@ const config: Config = {
         },
         // NEW: Vibrant Brand Color Palette
         brand: {
+          primary: '#FF6B47', // Main coral-orange for primary actions
+          light: '#FFF4F2',   // Light coral for backgrounds
+          dark: '#E5472A',    // Dark coral for hover states
           blue: {
             light: '#EBF5FF', // Light background
             DEFAULT: '#3B82F6', // Icon / Text

@@ -61,7 +61,7 @@ export function testPhase1Implementation() {
   
   // Answer all required questions
   const requiredAnswers: Partial<OnboardingFormData> = {
-    primaryGoal: 'Muscle Gain',
+    primaryGoal: 'Muscle Gain: General',
     experienceLevel: 'Intermediate (6mo-2yr)',
     trainingFrequencyDays: 4,
     sessionDuration: '60-75 minutes',

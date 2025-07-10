@@ -66,12 +66,14 @@ export default function SignupPage() {
       if (authData.user) {
         console.log('Account created successfully, creating basic profile...')
 
-        // Create basic profile so user has one when they reach onboarding
+        // Create basic profile with trial started
         const { error: profileError } = await supabase.from('profiles').upsert({
           id: authData.user.id,
           email: authData.user.email,
           name: data.name,
           onboarding_completed: false,
+          trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+          is_premium: false,
           updated_at: new Date().toISOString(),
         })
 
@@ -101,7 +103,7 @@ export default function SignupPage() {
           FitnessTracker
         </Link>
         <h2 className="mt-1 text-center text-2xl font-semibold text-gray-800">
-          Create your account
+          Start Your 7-Day Free Trial
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Already have an account?{' '}
@@ -110,7 +112,7 @@ export default function SignupPage() {
           </Link>
         </p>
         <p className="mt-3 text-center text-sm text-gray-500">
-          We'll personalize your experience in the next step
+          No credit card required • Cancel anytime • Full access to all features
         </p>
       </div>
 
@@ -178,13 +180,16 @@ export default function SignupPage() {
             </div>
 
             <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? 'Creating account...' : 'Continue to Personalization'}
+              {isLoading ? 'Starting your trial...' : 'Start 7-Day Free Trial'}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-2">
             <p className="text-xs text-gray-500">
               By creating an account, you agree to our Terms of Service and Privacy Policy
+            </p>
+            <p className="text-xs text-gray-400">
+              Your trial starts immediately. Upgrade to a paid plan anytime during or after your free trial.
             </p>
           </div>
         </div>

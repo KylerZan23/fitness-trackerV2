@@ -342,6 +342,16 @@ function LoginContent() {
       // Show success message
       toast.success('Login successful!')
 
+      // TODO: Implement subscription-based redirect logic
+      // Future enhancement: Check user subscription status and redirect accordingly
+      // Suggested implementation:
+      // 1. Add `subscription_status`, `trial_ends_at`, `subscription_tier` to profiles table
+      // 2. Query these fields during login
+      // 3. Redirect logic:
+      //    - If trial_ends_at > now() OR subscription_status = 'active': redirect to /program
+      //    - If trial expired AND no subscription: redirect to /pricing or /upgrade
+      //    - New users: automatically start 7-day trial with trial_ends_at = now() + 7 days
+      
       // We'll use the initial session from signInWithPassword for navigation
       // instead of requiring another verification that might fail
       console.log('Login successful, redirecting to dashboard...')

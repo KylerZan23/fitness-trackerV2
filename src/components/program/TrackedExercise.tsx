@@ -131,6 +131,48 @@ export function TrackedExercise({ exercise, onSetComplete, onSetUncomplete, onPB
               >
                 {set.completed ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
               </button>
+
+              {/* Quick Log Button - appears when set is not completed and planned values exist */}
+              {!set.completed && exercise.weight && exercise.reps && (
+                <button
+                  onClick={() => {
+                    const plannedWeight = exercise.weight ? 
+                      (typeof exercise.weight === 'string' ? parseFloat(exercise.weight) || 0 : exercise.weight) : 0
+                    const plannedReps = typeof exercise.reps === 'string' ? 
+                      parseInt(exercise.reps) || 0 : exercise.reps
+                    
+                    // First mark the set as completed to show input fields
+                    setSets(prev => prev.map((s, i) => 
+                      i === index ? { 
+                        ...s, 
+                        completed: true, 
+                        actualWeight: plannedWeight, 
+                        actualReps: plannedReps 
+                      } : s
+                    ))
+                    // Then automatically save the set after a brief delay to allow state update
+                    setTimeout(async () => {
+                      if (onPBCheck) {
+                        try {
+                          const pbResult = await onPBCheck(exercise.name, plannedWeight, plannedReps)
+                          if (pbResult.isPB) {
+                            setSets(prev => prev.map((s, i) => 
+                              i === index ? { ...s, isPB: true, pbType: pbResult.pbType } : s
+                            ))
+                          }
+                        } catch (error) {
+                          console.error('Error checking for PB:', error)
+                        }
+                      }
+                      onSetComplete(index, plannedWeight, plannedReps)
+                    }, 100)
+                  }}
+                  className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors"
+                  title={`Quick log: ${exercise.weight} × ${exercise.reps}`}
+                >
+                  Quick Log
+                </button>
+              )}
             </div>
 
             {/* Input Fields (shown when set is marked complete) */}

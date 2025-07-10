@@ -41,11 +41,11 @@ import {
 
 // Constants for form options
 const FITNESS_GOALS: { value: FitnessGoal; label: string }[] = [
-  { value: 'Muscle Gain', label: 'Muscle Gain' },
-  { value: 'Strength Gain', label: 'Strength Gain' },
-  { value: 'Endurance Improvement', label: 'Endurance Improvement' },
-  { value: 'Sport-Specific', label: 'Sport-Specific' },
-  { value: 'General Fitness', label: 'General Fitness' },
+  { value: 'Muscle Gain: General', label: 'Muscle Gain' },
+  { value: 'Strength Gain: General', label: 'Strength Gain' },
+  { value: 'Endurance Improvement: Gym Cardio', label: 'Endurance Improvement' },
+  { value: 'Sport-Specific S&C: Explosive Power', label: 'Sport-Specific' },
+  { value: 'General Fitness: Foundational Strength', label: 'General Fitness' },
 ]
 
 const TRAINING_FOCUS_OPTIONS = [
@@ -90,19 +90,19 @@ const TRAINING_FREQUENCY_OPTIONS = [
 // Zod schemas for each step
 const step1Schema = z.object({
   primaryGoal: z.enum([
-    'Muscle Gain',
-    'Strength Gain',
-    'Endurance Improvement',
-    'Sport-Specific',
-    'General Fitness',
+    'Muscle Gain: General',
+    'Strength Gain: General',
+    'Endurance Improvement: Gym Cardio',
+    'Sport-Specific S&C: Explosive Power',
+    'General Fitness: Foundational Strength',
   ]),
   secondaryGoal: z
     .enum([
-      'Muscle Gain',
-      'Strength Gain',
-      'Endurance Improvement',
-      'Sport-Specific',
-      'General Fitness',
+      'Muscle Gain: General',
+      'Strength Gain: General',
+      'Endurance Improvement: Gym Cardio',
+      'Sport-Specific S&C: Explosive Power',
+      'General Fitness: Foundational Strength',
     ])
     .optional(),
   sportSpecificDetails: z.string().optional(),
@@ -451,7 +451,7 @@ export default function OnboardingPage() {
                       </Select>
                     )}
                   />
-                  {primaryGoal === 'Sport-Specific' && (
+                  {primaryGoal === 'Sport-Specific S&C: Explosive Power' && (
                     <Controller
                       name="sportSpecificDetails"
                       control={control}
@@ -490,7 +490,7 @@ export default function OnboardingPage() {
                       </Select>
                     )}
                   />
-                  {secondaryGoal === 'Sport-Specific' && (
+                  {secondaryGoal === 'Sport-Specific S&C: Explosive Power' && (
                     <Controller
                       name="sportSpecificDetails"
                       control={control}

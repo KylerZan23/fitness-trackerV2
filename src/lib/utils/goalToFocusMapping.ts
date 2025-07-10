@@ -5,11 +5,16 @@ import { type FitnessGoal } from '@/lib/types/onboarding'
  * This allows us to automatically derive training focus from user's primary goal
  */
 export const GOAL_TO_FOCUS_MAPPING: Record<FitnessGoal, string> = {
-  'Muscle Gain': 'Bodybuilding',
-  'Strength Gain': 'Powerlifting',
-  'Endurance Improvement': 'Endurance',
-  'Sport-Specific': 'Athletic Performance',
-  'General Fitness': 'General Fitness'
+  'Muscle Gain: General': 'Bodybuilding',
+  'Muscle Gain: Hypertrophy Focus': 'Bodybuilding',
+  'Strength Gain: General': 'Powerlifting',
+  'Strength Gain: Powerlifting Peak': 'Powerlifting',
+  'Endurance Improvement: Gym Cardio': 'Endurance',
+  'Sport-Specific S&C: Explosive Power': 'Athletic Performance',
+  'General Fitness: Foundational Strength': 'General Fitness',
+  'Weight Loss: Gym Based': 'Weight Loss',
+  'Bodyweight Mastery': 'Bodyweight Training',
+  'Recomposition: Lean Mass & Fat Loss': 'Body Recomposition'
 }
 
 /**

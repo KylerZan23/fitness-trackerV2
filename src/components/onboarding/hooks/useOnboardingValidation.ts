@@ -170,13 +170,13 @@ async function performCustomValidation(
  * Validate primary goal selection
  */
 function validatePrimaryGoal(value: any, allAnswers?: Partial<OnboardingFormData>): Partial<ValidationResult> {
-  if (value === 'Sport-Specific') {
+  if (value === 'Sport-Specific S&C: Explosive Power') {
     return {
       suggestion: "Great choice! We'll ask about your specific sport next to tailor your program."
     }
   }
   
-  if (value === 'General Fitness') {
+  if (value === 'General Fitness: Foundational Strength') {
     return {
       suggestion: "Perfect for building overall health and wellness. We'll create a balanced program for you."
     }
@@ -203,7 +203,7 @@ function validateTrainingFrequency(value: any, allAnswers?: Partial<OnboardingFo
     }
   }
   
-  if (frequency >= 4 && allAnswers?.primaryGoal === 'Endurance Improvement') {
+  if (frequency >= 4 && allAnswers?.primaryGoal === 'Endurance Improvement: Gym Cardio') {
     return {
       suggestion: "Excellent frequency for endurance goals! We'll include both cardio and strength training."
     }

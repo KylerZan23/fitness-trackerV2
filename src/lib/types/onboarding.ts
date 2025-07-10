@@ -11,13 +11,18 @@ export type EquipmentType =
   | 'Bodyweight Only'
   | 'Cardio Machines (Treadmill, Bike, Rower, Elliptical)'
 
-// Primary fitness goals
+// Primary fitness goals - specialized, gym-focused options
 export type FitnessGoal =
-  | 'Muscle Gain'
-  | 'Strength Gain'
-  | 'Endurance Improvement'
-  | 'Sport-Specific'
-  | 'General Fitness'
+  | 'Muscle Gain: General'
+  | 'Muscle Gain: Hypertrophy Focus'
+  | 'Strength Gain: Powerlifting Peak'
+  | 'Strength Gain: General'
+  | 'Endurance Improvement: Gym Cardio'
+  | 'Sport-Specific S&C: Explosive Power'
+  | 'General Fitness: Foundational Strength'
+  | 'Weight Loss: Gym Based'
+  | 'Bodyweight Mastery'
+  | 'Recomposition: Lean Mass & Fat Loss'
 
 // Session duration options
 export type SessionDuration = '30-45 minutes' | '45-60 minutes' | '60-75 minutes' | '75+ minutes'
