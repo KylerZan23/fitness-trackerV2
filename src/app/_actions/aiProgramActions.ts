@@ -1021,7 +1021,7 @@ export async function adaptNextWeek(
  * @returns Success status
  */
 async function createCommunityFeedEventServer(
-  eventType: 'WORKOUT_COMPLETED' | 'NEW_PB' | 'STREAK_MILESTONE',
+  eventType: 'WORKOUT_COMPLETED' | 'NEW_PB' | 'STREAK_MILESTONE' | 'NEW_POST',
   metadata: Record<string, any>,
   supabase: any
 ): Promise<boolean> {
@@ -1101,7 +1101,7 @@ export async function checkAndRegisterPB(
         weight,
         reps,
         pbType: 'first-time',
-        isFirstTime: true,
+        previousBest: null,
       }, supabase)
       
       return { isPB: true, pbType: 'first-time' }
@@ -1151,9 +1151,7 @@ export async function checkAndRegisterPB(
         weight: currentWeight,
         reps: currentReps,
         pbType: 'heaviest-weight',
-        previousWeight: bestWeight,
-        previousReps: bestRepsAtWeight,
-        improvement: `${((currentWeight - bestWeight) / bestWeight * 100).toFixed(1)}%`,
+        previousBest: { weight: bestWeight, reps: bestRepsAtWeight },
       }, supabase)
       
       return { 
@@ -1173,9 +1171,7 @@ export async function checkAndRegisterPB(
         weight: currentWeight,
         reps: currentReps,
         pbType: 'most-reps',
-        previousWeight: bestWeightAtReps,
-        previousReps: bestReps,
-        improvement: `${currentReps - bestReps} more reps`,
+        previousBest: { weight: bestWeightAtReps, reps: bestReps },
       }, supabase)
       
       return { 
@@ -1195,9 +1191,7 @@ export async function checkAndRegisterPB(
         weight: currentWeight,
         reps: currentReps,
         pbType: 'weight-at-reps',
-        previousWeight: bestWeightAtReps,
-        previousReps: currentReps,
-        improvement: `${((currentWeight - bestWeightAtReps) / bestWeightAtReps * 100).toFixed(1)}%`,
+        previousBest: { weight: bestWeightAtReps, reps: currentReps },
       }, supabase)
       
       return { 

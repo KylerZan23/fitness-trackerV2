@@ -11,7 +11,7 @@ import { formatDistanceToNow } from 'date-fns'
 
 interface CommunityFeedEvent {
   id: string
-  event_type: 'WORKOUT_COMPLETED' | 'NEW_PB' | 'STREAK_MILESTONE'
+  event_type: 'WORKOUT_COMPLETED' | 'NEW_PB' | 'STREAK_MILESTONE' | 'NEW_POST'
   metadata: Record<string, any>
   created_at: string
   user: {
@@ -19,6 +19,7 @@ interface CommunityFeedEvent {
     name: string
     email: string
     avatar_url?: string
+    weight_unit?: 'kg' | 'lbs'
   }
 }
 
@@ -43,7 +44,8 @@ function useCommunityFeedEvents() {
               id,
               name,
               email,
-              profile_picture_url
+              profile_picture_url,
+              weight_unit
             )
           `)
           .order('created_at', { ascending: false })
@@ -66,7 +68,8 @@ function useCommunityFeedEvents() {
             id: item.profiles.id,
             name: item.profiles.name,
             email: item.profiles.email,
-            avatar_url: item.profiles.profile_picture_url
+            avatar_url: item.profiles.profile_picture_url,
+            weight_unit: item.profiles.weight_unit
           }
         })) as CommunityFeedEvent[]
 
@@ -94,6 +97,8 @@ function getEventIcon(eventType: string) {
       return <Trophy className="w-5 h-5 text-yellow-600" />
     case 'STREAK_MILESTONE':
       return <Flame className="w-5 h-5 text-orange-600" />
+    case 'NEW_POST':
+      return <Users className="w-5 h-5 text-purple-600" />
     default:
       return <Users className="w-5 h-5 text-gray-600" />
   }
@@ -107,6 +112,8 @@ function getEventBadgeColor(eventType: string) {
       return 'bg-yellow-100 text-yellow-800'
     case 'STREAK_MILESTONE':
       return 'bg-orange-100 text-orange-800'
+    case 'NEW_POST':
+      return 'bg-purple-100 text-purple-800'
     default:
       return 'bg-gray-100 text-gray-800'
   }
@@ -128,25 +135,17 @@ function formatEventMessage(event: CommunityFeedEvent): string {
       const exerciseName = metadata.exerciseName || 'an exercise'
       const weight = metadata.weight || 0
       const reps = metadata.reps || 0
-      const pbType = metadata.pbType || 'personal best'
+      const unit = event.user.weight_unit || 'kg'
       
-      let pbMessage = `${userName} just hit a new PB on ${exerciseName}!`
-      
-      if (pbType === 'first-time') {
-        pbMessage = `${userName} just completed ${exerciseName} for the first time - ${weight}lbs x ${reps} reps! 🎉`
-      } else if (pbType === 'heaviest-weight') {
-        pbMessage = `${userName} just hit a new weight PB on ${exerciseName} - ${weight}lbs x ${reps} reps! 💪`
-      } else if (pbType === 'most-reps') {
-        pbMessage = `${userName} just hit a new reps PB on ${exerciseName} - ${weight}lbs x ${reps} reps! 🔥`
-      } else if (pbType === 'weight-at-reps') {
-        pbMessage = `${userName} just improved their ${exerciseName} PB - ${weight}lbs x ${reps} reps! 📈`
-      }
-      
-      return pbMessage
+      return `${userName} just hit a new ${exerciseName} PR: ${weight} ${unit} for ${reps} reps! 🏆`
 
     case 'STREAK_MILESTONE':
       const streakDays = metadata.streakDays || 0
       return `${userName} is on a ${streakDays}-day workout streak! 🔥`
+
+    case 'NEW_POST':
+      const postTitle = metadata.title || 'something'
+      return `${userName} shared a new post: "${postTitle}"`
 
     default:
       return `${userName} achieved something awesome!`
@@ -154,8 +153,10 @@ function formatEventMessage(event: CommunityFeedEvent): string {
 }
 
 function CommunityFeedItem({ event }: { event: CommunityFeedEvent }) {
+  const isNewPB = event.event_type === 'NEW_PB'
+  
   return (
-    <Card className="mb-4 hover:shadow-md transition-shadow">
+    <Card className={`mb-4 hover:shadow-md transition-shadow ${isNewPB ? 'bg-yellow-50 border-yellow-200' : ''}`}>
       <CardContent className="p-4">
         <div className="flex items-start space-x-3">
           {/* User Avatar */}
@@ -187,9 +188,9 @@ function CommunityFeedItem({ event }: { event: CommunityFeedEvent }) {
             </p>
             
             {/* Additional metadata display for PBs */}
-            {event.event_type === 'NEW_PB' && event.metadata.improvement && (
-              <div className="mt-2 text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                Improvement: {event.metadata.improvement}
+            {event.event_type === 'NEW_PB' && event.metadata.previousBest && (
+              <div className="mt-2 text-xs text-gray-600 bg-yellow-50 px-2 py-1 rounded border border-yellow-200">
+                Previous best: {event.metadata.previousBest.weight} {event.user.weight_unit || 'kg'} for {event.metadata.previousBest.reps} reps
               </div>
             )}
           </div>

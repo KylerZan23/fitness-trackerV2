@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS community_feed_events (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    event_type TEXT NOT NULL CHECK (event_type IN ('WORKOUT_COMPLETED', 'NEW_PB', 'STREAK_MILESTONE')),
+    event_type TEXT NOT NULL CHECK (event_type IN ('WORKOUT_COMPLETED', 'NEW_PB', 'STREAK_MILESTONE', 'NEW_POST')),
     metadata JSONB NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -33,5 +33,5 @@ GRANT INSERT ON community_feed_events TO authenticated;
 
 -- Add comment for documentation
 COMMENT ON TABLE community_feed_events IS 'Stores community feed events for the in-app social feed';
-COMMENT ON COLUMN community_feed_events.event_type IS 'Type of event: WORKOUT_COMPLETED, NEW_PB, STREAK_MILESTONE';
+COMMENT ON COLUMN community_feed_events.event_type IS 'Type of event: WORKOUT_COMPLETED, NEW_PB, STREAK_MILESTONE, NEW_POST';
 COMMENT ON COLUMN community_feed_events.metadata IS 'JSON data containing event-specific details like workout name, PB values, etc.'; 
