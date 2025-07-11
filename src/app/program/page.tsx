@@ -369,9 +369,9 @@ function ProgramPageContent() {
         fetchActiveProgramAction(),
         supabase
           .from('profiles')
-          .select('id, name, email, profile_picture_url')
+          .select('id, name, email, profile_picture_url, weight_unit') // Select specific columns including weight_unit
           .eq('id', session.user.id)
-          .single(),
+          .maybeSingle(), // <<< CHANGE THIS LINE from .single() to .maybeSingle()
         calculateWorkoutStreak(session.user.id)
       ])
 
@@ -400,8 +400,13 @@ function ProgramPageContent() {
         }
       }
 
-      if (profileData.data) {
-        setProfile(profileData.data)
+      if (profileData.error) {
+        // This will now only log actual database errors
+        console.error("Error fetching profile on program page:", profileData.error);
+        // Decide how to handle this - for now, we can proceed without a profile
+        setProfile(null);
+      } else {
+        setProfile(profileData.data);
       }
 
       setWorkoutStreak(streakData || 0)
@@ -586,7 +591,7 @@ function ProgramPageContent() {
                     setIsLoading(true)
                     try {
                       const { generateTrainingProgram } = await import('@/app/_actions/aiProgramActions')
-                      const result = await generateTrainingProgram()
+                      const result = await generateTrainingProgram(session?.user?.id)
                       if (result.success) {
                         setProgramWarning(null)
                         // Clear URL parameters

@@ -493,8 +493,6 @@ export async function getUserProfile(client?: SupabaseClient) {
   const supabaseInstance = client || browserSupabaseClient
 
   try {
-    console.log('Getting user profile, checking for active session via supabaseInstance...')
-    // Use supabaseInstance for auth check
     const {
       data: { session },
       error: sessionError,
@@ -510,44 +508,51 @@ export async function getUserProfile(client?: SupabaseClient) {
       return null
     }
 
-    console.log(
-      `Found active session for user ${session.user.id.substring(0, 6)}..., fetching profile...`
-    )
-
-    // Use supabaseInstance for data fetching
+    const { user } = session
+    
+    // --- START: ATOMIC SELF-HEALING LOGIC ---
+    // This block ensures a profile exists without a race condition.
+    console.log(`Ensuring profile exists for user ${user.id} using atomic upsert...`);
+    
+    const minimalProfile = {
+      id: user.id,
+      email: user.email,
+      name: user.user_metadata?.name || user.email?.split('@')[0] || 'New User',
+      onboarding_completed: false,
+    };
+    
+    // Use upsert with ignoreDuplicates: true. This is equivalent to
+    // an 'INSERT ... ON CONFLICT DO NOTHING' statement. It's atomic.
+    const { error: upsertError } = await supabaseInstance
+      .from('profiles')
+      .upsert(minimalProfile, { ignoreDuplicates: true });
+    
+    if (upsertError) {
+      console.error('FATAL: Failed to upsert profile during self-healing:', upsertError.message);
+      return null; // If this atomic operation fails, we cannot proceed.
+    }
+    
+    // Now that we are CERTAIN a profile exists, fetch the definitive record.
+    // We use .single() because it SHOULD exist.
     const { data: profileData, error: profileError } = await supabaseInstance
       .from('profiles')
       .select('*')
-      .eq('id', session.user.id)
-      .single()
-
+      .eq('id', user.id)
+      .single();
+    
     if (profileError) {
-      console.error('Error fetching profile:', profileError.message)
-      // Differentiate common errors if helpful for debugging
-      if (profileError.code === 'PGRST116') {
-        // " esattamente uma linha esperada, mas 0 linhas foram encontradas"
-        console.warn('Profile not found for user:', session.user.id)
-        return null // Profile doesn't exist, which is a valid state
-      }
-      return null // Other errors
+      // This would be an unexpected error (e.g., RLS policy change, network failure).
+      console.error('FATAL: Failed to fetch profile immediately after upsert:', profileError.message);
+      return null;
     }
+    
+    console.log('Self-healing successful. Definitive profile fetched for user:', profileData.id);
+    return profileData;
+    // --- END: ATOMIC SELF-HEALING LOGIC ---
 
-    if (!profileData) {
-      console.warn(
-        'Profile data is null for user:',
-        session.user.id,
-        '(Should have been caught by PGRST116 if not found)'
-      )
-      return null
-    }
-
-    console.log('User profile fetched successfully:', profileData)
-    return profileData
   } catch (error) {
     console.error('Unexpected error in getUserProfile:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
-    // Depending on desired behavior, might rethrow or return null/specific error shape
-    // For now, logging and returning null to match existing patterns if errors occur.
     console.error(`getUserProfile failed: ${message}`)
     return null
   }

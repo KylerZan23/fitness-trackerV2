@@ -62,6 +62,27 @@ import {
 /**
  * Zod schemas for validating LLM-generated training program data
  */
+
+const WorkoutFocusEnum = z.enum([
+  'Upper Body',
+  'Lower Body',
+  'Push',
+  'Pull',
+  'Legs',
+  'Full Body',
+  'Cardio',
+  'Core',
+  'Arms',
+  'Back',
+  'Chest',
+  'Shoulders',
+  'Glutes',
+  'Recovery/Mobility',
+  'Sport-Specific',
+  'Rest Day',
+  'Lower Body Endurance',
+])
+
 const ExerciseDetailSchema = z.object({
   name: z.string(),
   sets: z.number(),
@@ -78,27 +99,7 @@ const ExerciseDetailSchema = z.object({
 
 const WorkoutDaySchema = z.object({
   dayOfWeek: z.nativeEnum(DayOfWeek),
-  focus: z
-    .enum([
-      'Upper Body',
-      'Lower Body',
-      'Push',
-      'Pull',
-      'Legs',
-      'Full Body',
-      'Cardio',
-      'Core',
-      'Arms',
-      'Back',
-      'Chest',
-      'Shoulders',
-      'Glutes',
-      'Recovery/Mobility',
-      'Sport-Specific',
-      'Rest Day',
-      'Lower Body Endurance',
-    ])
-    .optional(),
+  focus: WorkoutFocusEnum.optional(),
   exercises: z.array(ExerciseDetailSchema),
   warmUp: z.array(ExerciseDetailSchema).optional(),
   coolDown: z.array(ExerciseDetailSchema).optional(),
@@ -544,48 +545,78 @@ async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: stri
 
 /**
  * Main server action to generate a new training program for a user.
- * It fetches the user's profile, constructs a prompt, calls the LLM,
- * validates the response, and saves the program to the database.
- * 
- * @param user The authenticated user object from Supabase.
- * @param onboardingData The complete onboarding form data.
+ * Supports two signatures:
+ * 1. generateTrainingProgram(user, onboardingData) - for new onboarding flow
+ * 2. generateTrainingProgram(userId) - for regenerating existing programs
  */
 export async function generateTrainingProgram(
   user: User,
   onboardingData: FullOnboardingAnswers
+): Promise<ProgramGenerationResponse>
+export async function generateTrainingProgram(
+  userIdToGenerateFor: string
+): Promise<ProgramGenerationResponse>
+export async function generateTrainingProgram(
+  userOrUserId: User | string,
+  onboardingData?: FullOnboardingAnswers
 ): Promise<ProgramGenerationResponse> {
   try {
     const supabase = await createClient()
-    console.log('Generating training program for user:', user.id)
 
-    // Step 1: Combine user and onboarding data into the profile structure for the LLM
-    const userProfileForGeneration: UserProfileForGeneration = {
-      id: user.id,
-      name: user.user_metadata.name || 'User', // Use name from user metadata or a default
-      age: 25, // Default age, user can update later
-      weight_unit: onboardingData.weightUnit,
-      primary_training_focus: mapGoalToTrainingFocus(onboardingData.primaryGoal), // This is mapped from goal
-      experience_level: onboardingData.experienceLevel,
-      onboarding_responses: onboardingData,
-    }
+    // Handle the two different call signatures
+    if (typeof userOrUserId === 'string') {
+      // Legacy signature: generateTrainingProgram(userId)
+      const userId = userOrUserId
+      console.log('Generating training program for user:', userId)
 
-    // Step 2: Construct the LLM prompt
-    const prompt = constructLLMPrompt(userProfileForGeneration)
+      // Fetch user profile and onboarding data from database
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, name, age, weight_unit, primary_training_focus, experience_level, onboarding_responses')
+        .eq('id', userId)
+        .maybeSingle()
 
-    // For debugging: save prompt to a file
-    // await fs.writeFile(path.join(process.cwd(), 'llm-prompt.txt'), prompt)
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError)
+        return { error: 'Failed to load your profile. Please try again.', success: false }
+      }
 
-    // Step 3: Call the LLM API
-    const { program: llmResponse, error: llmError } = await callLLMAPI(prompt)
+      if (!profile) {
+        console.error('Profile is null for user:', userId)
+        return { error: 'Your profile was not found. Please complete the signup process again.', success: false }
+      }
 
-    if (llmError) {
-      console.error('LLM API error:', llmError)
-      return { error: 'Unable to generate your training program at this time. Please try again later.', success: false }
-    }
+      if (!profile.onboarding_responses) {
+        console.error('User has not completed onboarding:', userId)
+        return { error: 'Please complete your onboarding first.', success: false }
+      }
 
-    // Validate the LLM response
-    let validatedProgram: TrainingProgram
-    try {
+      // Validate that profile has required fields
+      if (!profile.name || !profile.age) {
+        console.error('Profile missing required fields for user:', userId, profile)
+        return { error: 'Your profile is incomplete. Please contact support.', success: false }
+      }
+
+      // Use the profile data as the user profile for generation
+      const userProfileForGeneration: UserProfileForGeneration = {
+        id: profile.id,
+        name: profile.name,
+        age: profile.age,
+        weight_unit: profile.weight_unit,
+        primary_training_focus: profile.primary_training_focus,
+        experience_level: profile.experience_level,
+        onboarding_responses: profile.onboarding_responses,
+      }
+
+      // Continue with program generation using the fetched data
+      const prompt = constructLLMPrompt(userProfileForGeneration)
+      const { program: llmResponse, error: llmError } = await callLLMAPI(prompt)
+
+      if (llmError) {
+        console.error('LLM API error:', llmError)
+        return { error: 'Unable to generate your training program at this time. Please try again later.', success: false }
+      }
+
       // Add generatedAt and aiModelUsed if not provided by LLM
       const programData = {
         ...llmResponse,
@@ -593,42 +624,104 @@ export async function generateTrainingProgram(
         aiModelUsed: llmResponse.aiModelUsed || 'gpt-4o',
       }
 
-      validatedProgram = TrainingProgramSchema.parse(programData)
-      console.log('Program validation successful')
-    } catch (validationError) {
-      console.error('Program validation failed:', validationError)
-      return { error: 'Generated program failed validation. Please try again.', success: false }
-    }
+      // Validate the LLM response
+      const validationResult = TrainingProgramSchema.safeParse(programData)
+      if (!validationResult.success) {
+        console.error('LLM response validation failed:', validationResult.error)
+        return { error: 'The generated program has validation errors. Please try again.', success: false }
+      }
 
-    // Save to database
-    const { data: savedProgram, error: saveError } = await supabase
-      .from('training_programs')
-      .insert({
-        user_id: user.id,
-        program_details: validatedProgram,
-        ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
-        onboarding_data_snapshot: onboardingData,
-      })
-      .select()
-      .single()
+      const validatedProgram = validationResult.data as unknown as TrainingProgram
 
-    if (saveError) {
-      console.error('Error saving program to database:', saveError)
-      return { error: 'Failed to save your training program. Please try again.', success: false }
-    }
+      // Save to database
+      const { data: savedProgram, error: saveError } = await supabase
+        .from('training_programs')
+        .insert({
+          user_id: userId,
+          program_details: validatedProgram,
+          ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
+          onboarding_data_snapshot: profile.onboarding_responses,
+        })
+        .select()
+        .single()
 
-    console.log('Training program generated and saved successfully:', savedProgram.id)
+      if (saveError) {
+        console.error('Error saving training program:', saveError)
+        return { error: 'Failed to save your training program. Please try again.', success: false }
+      }
 
-    return {
-      program: validatedProgram,
-      success: true,
+      console.log('Training program generated and saved successfully')
+      return { program: validatedProgram, success: true }
+    } else {
+      // New signature: generateTrainingProgram(user, onboardingData)
+      const user = userOrUserId
+      if (!onboardingData) {
+        return { error: 'Onboarding data is required for new program generation.', success: false }
+      }
+
+      console.log('Generating training program for user:', user.id)
+
+      // Step 1: Combine user and onboarding data into the profile structure for the LLM
+      const userProfileForGeneration: UserProfileForGeneration = {
+        id: user.id,
+        name: user.user_metadata.name || 'User',
+        age: 25, // Default age, user can update later
+        weight_unit: onboardingData.weightUnit,
+        primary_training_focus: mapGoalToTrainingFocus(onboardingData.primaryGoal),
+        experience_level: onboardingData.experienceLevel,
+        onboarding_responses: onboardingData,
+      }
+
+      // Step 2: Construct the LLM prompt
+      const prompt = constructLLMPrompt(userProfileForGeneration)
+
+      // Step 3: Call the LLM API
+      const { program: llmResponse, error: llmError } = await callLLMAPI(prompt)
+
+      if (llmError) {
+        console.error('LLM API error:', llmError)
+        return { error: 'Unable to generate your training program at this time. Please try again later.', success: false }
+      }
+
+      // Add generatedAt and aiModelUsed if not provided by LLM
+      const programData = {
+        ...llmResponse,
+        generatedAt: llmResponse.generatedAt || new Date().toISOString(),
+        aiModelUsed: llmResponse.aiModelUsed || 'gpt-4o',
+      }
+
+      // Validate the LLM response
+      const validationResult = TrainingProgramSchema.safeParse(programData)
+      if (!validationResult.success) {
+        console.error('LLM response validation failed:', validationResult.error)
+        return { error: 'The generated program has validation errors. Please try again.', success: false }
+      }
+
+      const validatedProgram = validationResult.data as unknown as TrainingProgram
+
+      // Save to database
+      const { data: savedProgram, error: saveError } = await supabase
+        .from('training_programs')
+        .insert({
+          user_id: user.id,
+          program_details: validatedProgram,
+          ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
+          onboarding_data_snapshot: onboardingData,
+        })
+        .select()
+        .single()
+
+      if (saveError) {
+        console.error('Error saving training program:', saveError)
+        return { error: 'Failed to save your training program. Please try again.', success: false }
+      }
+
+      console.log('Training program generated and saved successfully')
+      return { program: validatedProgram, success: true }
     }
   } catch (error) {
     console.error('Unexpected error in generateTrainingProgram:', error)
-    return {
-      error: 'An unexpected error occurred. Please try again.',
-      success: false,
-    }
+    return { success: false, error: 'An unexpected error occurred while generating your program. Please try again.' }
   }
 }
 
@@ -870,7 +963,7 @@ export async function adaptNextWeek(
     // Validate the adapted week
     let adaptedWeek: TrainingWeek
     try {
-      adaptedWeek = TrainingWeekSchema.parse(adaptedWeekResponse)
+      adaptedWeek = TrainingWeekSchema.parse(adaptedWeekResponse) as unknown as TrainingWeek
     } catch (validationError) {
       console.error('LLM returned invalid TrainingWeek structure:', validationError)
       return { success: false, error: 'Failed to generate valid program adaptation' }
@@ -1174,38 +1267,61 @@ export async function getDailyAdaptedWorkout(
     console.log('Original planned workout:', plannedWorkout)
 
     // Construct LLM prompt for daily workout adaptation
-    const adaptationPrompt = constructDailyAdaptationPrompt(plannedWorkout, readiness)
+    const adaptationPrompt = constructDailyAdaptationPrompt(
+      plannedWorkout,
+      readiness
+    )
 
     // Call LLM to adapt the workout
     const adaptedWorkoutResponse = await callLLM(adaptationPrompt, 'user', {
       model: 'gpt-4o-mini',
       temperature: 0.2, // Lower temperature for more consistent, conservative adaptations
       response_format: { type: 'json_object' },
-      max_tokens: 2000 // Increase token limit for complex workouts
+      max_tokens: 2000, // Increase token limit for complex workouts
     })
 
-    // Validate the adapted workout
-    let adaptedWorkout: WorkoutDay
-    try {
-      adaptedWorkout = WorkoutDaySchema.parse(adaptedWorkoutResponse)
-    } catch (validationError) {
-      console.error('LLM returned invalid WorkoutDay structure:', validationError)
-      console.error('Raw LLM response:', adaptedWorkoutResponse)
-      return { success: false, error: 'Failed to generate valid workout adaptation' }
+    // Validate the adapted workout using safeParse
+    const validationResult = WorkoutDaySchema.safeParse(adaptedWorkoutResponse)
+
+    if (!validationResult.success) {
+      console.error(
+        'LLM returned invalid WorkoutDay structure:',
+        validationResult.error.flatten()
+      )
+      // Safely log the raw response
+      try {
+        console.error(
+          'Raw LLM response:',
+          JSON.stringify(adaptedWorkoutResponse, null, 2)
+        )
+      } catch {
+        console.error(
+          'Raw LLM response could not be stringified:',
+          adaptedWorkoutResponse
+        )
+      }
+      return {
+        success: false,
+        error: 'Failed to generate valid workout adaptation from LLM response.',
+      }
     }
+
+    const adaptedWorkout: WorkoutDay = validationResult.data
 
     console.log('Successfully adapted workout:', adaptedWorkout)
 
     return {
       success: true,
-      adaptedWorkout: adaptedWorkout
+      adaptedWorkout: adaptedWorkout,
     }
-
   } catch (error) {
-    console.error('Error in getDailyAdaptedWorkout:', error)
+    console.error(
+      'Error in getDailyAdaptedWorkout:',
+      error instanceof Error ? error.message : String(error)
+    )
     return {
       success: false,
-      error: 'An unexpected error occurred while adapting your workout'
+      error: 'An unexpected error occurred while adapting your workout.',
     }
   }
 }
