@@ -34,7 +34,8 @@ COMMENT ON TABLE public.ai_program_feedback IS 'Stores user feedback for specifi
 CREATE TABLE IF NOT EXISTS public.ai_coach_feedback (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    recommendation_cache_key TEXT REFERENCES public.ai_coach_cache(cache_key) ON DELETE SET NULL, -- Link to cached recommendation if possible
+    -- recommendation_cache_key TEXT REFERENCES public.ai_coach_cache(cache_key) ON DELETE SET NULL, -- Link to cached recommendation if possible
+    recommendation_cache_key TEXT, -- Temporarily removing the foreign key constraint
     recommendation_content_hash TEXT, -- Fallback: Hash of the recommendation content if not from cache or cache key changes
     rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5), -- 1-5 star rating
     comment TEXT,

@@ -105,32 +105,32 @@ GRANT EXECUTE ON FUNCTION create_storage_policy TO service_role;
 
 -- Create storage policies for profile_pictures bucket
 -- This policy allows authenticated users to upload their own profile pictures
-INSERT INTO storage.policies (name, bucket_id, allowed_mime_types, definition)
-VALUES (
-  'Avatar Upload Policy',
-  'profile_pictures',
-  ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-  '(auth.uid() IS NOT NULL)'
-)
-ON CONFLICT (name, bucket_id) DO NOTHING;
+-- INSERT INTO storage.policies (name, bucket_id, allowed_mime_types, definition)
+-- VALUES (
+--   'Avatar Upload Policy',
+--   'profile_pictures',
+--   ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+--   '(auth.uid() IS NOT NULL)'
+-- )
+-- ON CONFLICT (name, bucket_id) DO NOTHING;
 
 -- Create policy that allows users to only upload to their own folder
-INSERT INTO storage.policies (name, bucket_id, definition)
-VALUES (
-  'User Folder Policy',
-  'profile_pictures',
-  'storage.foldername(storage.filename()) = auth.uid()'
-)
-ON CONFLICT (name, bucket_id) DO NOTHING;
+-- INSERT INTO storage.policies (name, bucket_id, definition)
+-- VALUES (
+--   'User Folder Policy',
+--   'profile_pictures',
+--   'storage.foldername(storage.filename()) = auth.uid()'
+-- )
+-- ON CONFLICT (name, bucket_id) DO NOTHING;
 
 -- Create policy allowing users to read any profile pictures
-INSERT INTO storage.policies (name, bucket_id, definition)
-VALUES (
-  'Public Read Policy',
-  'profile_pictures',
-  'true'
-)
-ON CONFLICT (name, bucket_id) DO NOTHING;
+-- INSERT INTO storage.policies (name, bucket_id, definition)
+-- VALUES (
+--   'Public Read Policy',
+--   'profile_pictures',
+--   'true'
+-- )
+-- ON CONFLICT (name, bucket_id) DO NOTHING;
 
 --------------------------------------------------
 -- 5. RLS policies for profiles table

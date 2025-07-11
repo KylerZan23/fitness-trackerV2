@@ -62,27 +62,40 @@ export default function SignupPage() {
         return
       }
 
-      // If signup successful, create basic profile immediately
+      // If signup successful, create comprehensive profile immediately
       if (authData.user) {
-        console.log('Account created successfully, creating basic profile...')
+        console.log('Account created successfully, creating comprehensive profile...')
 
-        // Create basic profile with trial started
-        const { error: profileError } = await supabase.from('profiles').upsert({
+        // Create comprehensive profile with all required fields
+        const profileData = {
           id: authData.user.id,
-          email: authData.user.email,
+          email: authData.user.email || data.email,
           name: data.name,
+          age: 25, // Default age, user can update during onboarding
+          fitness_goals: 'Get fit', // Default goal
+          weight_unit: 'kg', // Default weight unit
           onboarding_completed: false,
           trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
           is_premium: false,
+          primary_training_focus: null, // Will be set during onboarding
+          experience_level: null, // Will be set during onboarding
+          onboarding_responses: null, // Will be set during onboarding
+          profile_picture_url: null,
+          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        })
+        }
+
+        console.log('Creating profile with data:', JSON.stringify(profileData, null, 2))
+
+        const { error: profileError } = await supabase.from('profiles').upsert(profileData)
 
         if (profileError) {
           console.error('Error creating profile:', profileError)
-          // Don't block the flow, they can still proceed to onboarding
+          setError('Failed to create your profile. Please try again.')
+          return
         }
 
-        console.log('Redirecting to onboarding...')
+        console.log('Profile created successfully, redirecting to onboarding...')
         router.push('/onboarding')
       }
     } catch (err: unknown) {

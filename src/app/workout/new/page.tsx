@@ -92,64 +92,78 @@ function SessionTracker() {
     return `${year}-${month}-${day}`
   }
 
-  // Parse URL parameters to get planned workout data
+  // This single useEffect handles all initial data loading and parsing
   useEffect(() => {
-    // Set loading to true when starting to parse parameters
-    setIsLoadingWorkoutData(true)
-    
-    if (!searchParams) {
-      console.log('No searchParams available, redirecting to program')
-      setIsRedirecting(true)
-      router.push('/program')
-      return
-    }
-    
-    const workoutParam = searchParams.get('workout')
-    const contextParam = searchParams.get('context')
-    const readinessParam = searchParams.get('readiness')
+    async function initializeSession() {
+      setIsLoadingWorkoutData(true)
 
-    // Check if required parameters are present
-    if (!workoutParam || !contextParam) {
-      console.log('Missing required parameters (workout or context), redirecting to program')
-      setIsRedirecting(true)
-      router.push('/program')
-      return
+      if (!searchParams) {
+        console.warn('No searchParams, redirecting.')
+        router.push('/program')
+        return
+      }
+
+      // First, handle the profile. Use the one from the URL if it exists.
+      const profileParam = searchParams.get('profile')
+      let userProfile: Awaited<ReturnType<typeof getUserProfile>> | null = null
+
+      try {
+        if (profileParam) {
+          console.log('Using profile from URL parameter.')
+          userProfile = JSON.parse(decodeURIComponent(profileParam))
+        } else {
+          console.warn('Profile not in URL, fetching from DB as a fallback.')
+          userProfile = await getUserProfile()
+        }
+
+        if (userProfile) {
+          setProfile(userProfile)
+          setWeightUnit(userProfile.weight_unit ?? 'kg')
+        } else {
+          throw new Error('User profile could not be loaded.')
+        }
+      } catch (err) {
+        console.error('Fatal error loading profile:', err)
+        toast.error('Your session may have expired. Please log in again.')
+        router.push('/login')
+        return // Stop execution
+      }
+
+      // Now that the profile is loaded, parse the workout data
+      const workoutParam = searchParams.get('workout')
+      const contextParam = searchParams.get('context')
+      const readinessParam = searchParams.get('readiness')
+
+      if (!workoutParam || !contextParam) {
+        console.warn('Missing workout or context params, redirecting.')
+        router.push('/program')
+        return
+      }
+
+      try {
+        const workoutData = JSON.parse(decodeURIComponent(workoutParam))
+        const contextData = JSON.parse(decodeURIComponent(contextParam))
+        const readinessData = readinessParam ? JSON.parse(decodeURIComponent(readinessParam)) : null
+        
+        setProgramContext(contextData)
+        
+        if (readinessData) {
+          await adaptWorkout(workoutData, readinessData)
+        } else {
+          setPlannedWorkout(workoutData)
+          initializeExerciseTracking(workoutData)
+        }
+      } catch (error) {
+        console.error('Error parsing workout data:', error)
+        toast.error('Failed to load workout data.')
+        router.push('/program')
+        return
+      } finally {
+        setIsLoadingWorkoutData(false)
+      }
     }
 
-    try {
-      const workoutData = JSON.parse(decodeURIComponent(workoutParam))
-      const contextData = JSON.parse(decodeURIComponent(contextParam))
-      const readinessData = readinessParam ? JSON.parse(decodeURIComponent(readinessParam)) : null
-      
-      // Validate that the parsed data has the expected structure
-      if (!workoutData || typeof workoutData !== 'object') {
-        throw new Error('Invalid workout data structure')
-      }
-      
-      if (!contextData || typeof contextData !== 'object') {
-        throw new Error('Invalid context data structure')
-      }
-      
-      setProgramContext(contextData)
-      
-      // If readiness data is provided, adapt the workout
-      if (readinessData) {
-        console.log('Adapting workout based on readiness:', readinessData)
-        adaptWorkout(workoutData, readinessData)
-      } else {
-        // No readiness data, use the original planned workout
-        setPlannedWorkout(workoutData)
-        initializeExerciseTracking(workoutData)
-      }
-    } catch (error) {
-      console.error('Error parsing workout data:', error)
-      toast.error('Failed to load workout data')
-      setIsRedirecting(true)
-      router.push('/program')
-      return
-    } finally {
-      setIsLoadingWorkoutData(false)
-    }
+    initializeSession()
   }, [searchParams, router])
 
   // Timer effect
@@ -338,35 +352,6 @@ function SessionTracker() {
       return { isPB: false }
     }
   }
-
-  // Fetch user profile
-  useEffect(() => {
-    async function fetchProfileAndAuth() {
-      try {
-        setIsSubmitting(true)
-        setError(null)
-        
-        const userProfile = await getUserProfile()
-        if (userProfile) {
-          setProfile(userProfile)
-          setWeightUnit(userProfile.weight_unit ?? 'kg')
-        } else {
-          console.warn('No user profile found or no active session. Redirecting to login.')
-          router.push('/login')
-        }
-      } catch (err) {
-        console.error('Error fetching user profile:', err)
-        setError('Failed to load user data. Please try logging in again.')
-        // Don't redirect immediately, let the user see the error
-        setTimeout(() => {
-          router.push('/login')
-        }, 2000)
-      } finally {
-        setIsSubmitting(false)
-      }
-    }
-    fetchProfileAndAuth()
-  }, [router])
 
   // Handle notes change
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {

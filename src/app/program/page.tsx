@@ -470,7 +470,7 @@ function ProgramPageContent() {
       setShowDailyReadinessModal(false)
       
       // Now proceed with starting the workout
-      if (todaysWorkout) {
+      if (todaysWorkout && profile) {
         const workoutData = encodeURIComponent(JSON.stringify(todaysWorkout))
         const programContext = encodeURIComponent(JSON.stringify({
           programId: programData?.id,
@@ -478,9 +478,10 @@ function ProgramPageContent() {
           weekIndex: 0,
           dayOfWeek: todaysWorkout.dayOfWeek
         }))
+        const profileData = encodeURIComponent(JSON.stringify(profile))
         
         const readinessParam = encodeURIComponent(JSON.stringify(data))
-        router.push(`/workout/new?workout=${workoutData}&context=${programContext}&readiness=${readinessParam}`)
+        router.push(`/workout/new?workout=${workoutData}&context=${programContext}&readiness=${readinessParam}&profile=${profileData}`)
       }
     } catch (error) {
       console.error('Error submitting daily readiness:', error)

@@ -4,6 +4,24 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Critical Onboarding Fix (2025-01-09)**: Resolved critical issue preventing training program generation after onboarding completion:
+  - **Profile Creation Fix**: Enhanced signup process to create comprehensive profiles with all required fields
+  - **Error Handling Improvements**: Added robust validation and user-friendly error messages throughout onboarding flow
+  - **Program Generation Reliability**: Fixed "The result contains 0 rows" error by ensuring profile completeness
+  - **Fallback Recovery**: Added automatic profile creation during onboarding for users with incomplete profiles
+  - **Database Validation**: Enhanced profile field validation and null safety checks
+  - **User Experience**: Replaced technical errors with actionable feedback and clear next steps
+
+- **Fitness Goal Card Design Improvements (2025-01-09)**: Complete visual redesign of onboarding fitness goal selection with enhanced user experience:
+  - **Consistent Card Heights**: All cards now maintain uniform height regardless of content length for professional appearance
+  - **Enhanced Grid Layout**: Improved responsive breakpoints (sm:2-col, xl:3-col) with optimized spacing and max-width constraints
+  - **Modern Color System**: Replaced flat colors with cohesive gradient backgrounds for visual depth and modern appeal
+  - **Improved Typography**: Better visual hierarchy with optimized font weights, sizes, and spacing for enhanced readability
+  - **Enhanced Interactions**: Subtle scale animations, hover overlays, and smooth transitions for engaging user feedback
+  - **Accessibility Compliant**: Proper focus states, keyboard navigation, and screen reader support maintained
+  - **Mobile Optimized**: Touch-friendly targets with performance-optimized animations for mobile devices
+  - **Professional Polish**: Rounded corners, shadows, and micro-interactions create a premium user experience
+
 - **Core Program Types Expansion (2025-01-09)**: Enhanced onboarding with specialized, gym-focused fitness goals for better program personalization:
   - **Expanded Goal Types**: Increased from 5 generic goals to 10 specialized options (Muscle Gain: General/Hypertrophy Focus, Strength Gain: General/Powerlifting Peak, etc.)
   - **Gym-Focused Specificity**: Added specialized goals like "Weight Loss: Gym Based", "Bodyweight Mastery", and "Recomposition: Lean Mass & Fat Loss"

@@ -14,15 +14,18 @@ export interface OnboardingAndProfileData extends OnboardingData {
 }
 
 /**
- * Type alias for the full onboarding answers - same as OnboardingAndProfileData
- * but with a more descriptive name for the new flow
+ * Type for the full onboarding answers including profile data
  */
 export type FullOnboardingAnswers = OnboardingAndProfileData
 
 /**
- * Server action response type
+ * Standard action response type
  */
-type ActionResponse = { success: true; warning?: string } | { success: false; error: string }
+export interface ActionResponse {
+  success: boolean
+  error?: string
+  warning?: string
+}
 
 /**
  * Server action to finalize onboarding and generate training program
@@ -33,6 +36,7 @@ export async function finalizeOnboardingAndGenerateProgram(
 ): Promise<ActionResponse> {
   try {
     console.log('finalizeOnboardingAndGenerateProgram called')
+    // Directly pass formData to saveOnboardingData
     return await saveOnboardingData(formData)
   } catch (error) {
     console.error('Error in finalizeOnboardingAndGenerateProgram:', error)
@@ -42,10 +46,11 @@ export async function finalizeOnboardingAndGenerateProgram(
 
 /**
  * Server action to save user onboarding data and mark onboarding as completed
+ * @param formData The full set of onboarding answers, including profile data.
  * @deprecated Use finalizeOnboardingAndGenerateProgram for new flows
  */
 export async function saveOnboardingData(
-  formData: OnboardingAndProfileData
+  formData: FullOnboardingAnswers
 ): Promise<ActionResponse> {
   try {
     const supabase = await createClient()
@@ -67,6 +72,9 @@ export async function saveOnboardingData(
     }
 
     console.log('Saving onboarding data for user:', user.id)
+
+    // The profile is now created during the signup process.
+    // This action will only update the existing profile with onboarding data.
 
     // Separate the data: profile fields vs onboarding responses
     const { experienceLevel, weightUnit, ...onboardingResponses } = formData
@@ -102,7 +110,9 @@ export async function saveOnboardingData(
     // Generate training program after successful onboarding completion
     try {
       console.log('Generating training program for user:', user.id)
-      const programResult = await generateTrainingProgram(user.id)
+      
+      // Pass the complete user data directly to the program generation function
+      const programResult = await generateTrainingProgram(user, formData)
 
       if (programResult.success) {
         console.log('Training program generated successfully')

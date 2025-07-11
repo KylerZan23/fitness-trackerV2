@@ -5,7 +5,9 @@ import { z } from 'zod'
 import fs from 'fs/promises'
 import path from 'path'
 import { type OnboardingData } from '@/lib/types/onboarding'
+import { type FullOnboardingAnswers } from './onboardingActions'
 import { callLLM } from '@/lib/llmService'
+import { mapGoalToTrainingFocus } from '@/lib/utils/goalToFocusMapping'
 import {
   type TrainingProgram,
   type TrainingPhase,
@@ -155,6 +157,14 @@ interface UserProfileForGeneration {
   primary_training_focus: string | null
   experience_level: string | null
   onboarding_responses: OnboardingData | null
+}
+
+interface User {
+  id: string;
+  user_metadata: {
+    name?: string;
+  };
+  // Add other user properties as needed
 }
 
 /**
@@ -533,57 +543,43 @@ async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: stri
 }
 
 /**
- * Generate a personalized training program for a user
+ * Main server action to generate a new training program for a user.
+ * It fetches the user's profile, constructs a prompt, calls the LLM,
+ * validates the response, and saves the program to the database.
+ * 
+ * @param user The authenticated user object from Supabase.
+ * @param onboardingData The complete onboarding form data.
  */
 export async function generateTrainingProgram(
-  userIdToGenerateFor?: string
+  user: User,
+  onboardingData: FullOnboardingAnswers
 ): Promise<ProgramGenerationResponse> {
   try {
     const supabase = await createClient()
+    console.log('Generating training program for user:', user.id)
 
-    // Get user ID
-    let userId: string
-    if (userIdToGenerateFor) {
-      userId = userIdToGenerateFor
-    } else {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser()
-          if (authError || !user) {
-      console.error('Authentication error in generateTrainingProgram:', authError)
-      return { error: 'Authentication required. Please log in again.', success: false }
-    }
-      userId = user.id
+    // Step 1: Combine user and onboarding data into the profile structure for the LLM
+    const userProfileForGeneration: UserProfileForGeneration = {
+      id: user.id,
+      name: user.user_metadata.name || 'User', // Use name from user metadata or a default
+      age: 25, // Default age, user can update later
+      weight_unit: onboardingData.weightUnit,
+      primary_training_focus: mapGoalToTrainingFocus(onboardingData.primaryGoal), // This is mapped from goal
+      experience_level: onboardingData.experienceLevel,
+      onboarding_responses: onboardingData,
     }
 
-    console.log('Generating training program for user:', userId)
+    // Step 2: Construct the LLM prompt
+    const prompt = constructLLMPrompt(userProfileForGeneration)
 
-    // Fetch user profile and onboarding data
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, name, age, weight_unit, primary_training_focus, experience_level, onboarding_responses')
-      .eq('id', userId)
-      .single()
+    // For debugging: save prompt to a file
+    // await fs.writeFile(path.join(process.cwd(), 'llm-prompt.txt'), prompt)
 
-    if (profileError) {
-      console.error('Error fetching user profile:', profileError)
-      return { error: 'Failed to load your profile. Please try again.', success: false }
-    }
+    // Step 3: Call the LLM API
+    const { program: llmResponse, error: llmError } = await callLLMAPI(prompt)
 
-    if (!profile.onboarding_responses) {
-      console.error('User has not completed onboarding:', userId)
-      return { error: 'Please complete your onboarding first.', success: false }
-    }
-
-    // Construct LLM prompt
-    const prompt = constructLLMPrompt(profile as UserProfileForGeneration)
-
-    // Call LLM API
-    const llmResult = await callLLMAPI(prompt)
-
-    if (llmResult.error) {
-      console.error('LLM API error:', llmResult.error)
+    if (llmError) {
+      console.error('LLM API error:', llmError)
       return { error: 'Unable to generate your training program at this time. Please try again later.', success: false }
     }
 
@@ -592,9 +588,9 @@ export async function generateTrainingProgram(
     try {
       // Add generatedAt and aiModelUsed if not provided by LLM
       const programData = {
-        ...llmResult.program,
-        generatedAt: llmResult.program.generatedAt || new Date().toISOString(),
-        aiModelUsed: llmResult.program.aiModelUsed || 'gpt-4o',
+        ...llmResponse,
+        generatedAt: llmResponse.generatedAt || new Date().toISOString(),
+        aiModelUsed: llmResponse.aiModelUsed || 'gpt-4o',
       }
 
       validatedProgram = TrainingProgramSchema.parse(programData)
@@ -608,10 +604,10 @@ export async function generateTrainingProgram(
     const { data: savedProgram, error: saveError } = await supabase
       .from('training_programs')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         program_details: validatedProgram,
         ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
-        onboarding_data_snapshot: profile.onboarding_responses,
+        onboarding_data_snapshot: onboardingData,
       })
       .select()
       .single()
