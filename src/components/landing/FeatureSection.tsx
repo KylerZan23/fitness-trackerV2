@@ -6,32 +6,56 @@ const features = [
   {
     icon: BrainCircuit,
     title: 'AI Program Generation',
-    description: 'Get personalized workout plans powered by advanced AI that adapts to your goals, equipment, and fitness level.'
+    description: 'Get personalized workout plans powered by advanced AI that adapts to your goals, equipment, and fitness level.',
+    color: 'primary', // Keep primary orange for main feature
+    bgColor: 'bg-primary/10',
+    hoverBgColor: 'group-hover:bg-primary/20',
+    textColor: 'text-primary'
   },
   {
     icon: BarChart,
     title: 'Holistic Progress Tracking',
-    description: 'Track every aspect of your fitness journey with comprehensive analytics and visual progress insights.'
+    description: 'Track every aspect of your fitness journey with comprehensive analytics and visual progress insights.',
+    color: 'brand-blue',
+    bgColor: 'bg-brand-blue/10',
+    hoverBgColor: 'group-hover:bg-brand-blue/20',
+    textColor: 'text-brand-blue'
   },
   {
     icon: Target,
     title: 'Smart Goal Setting',
-    description: 'Set and achieve realistic fitness goals with AI-powered recommendations and milestone tracking.'
+    description: 'Set and achieve realistic fitness goals with AI-powered recommendations and milestone tracking.',
+    color: 'brand-green',
+    bgColor: 'bg-brand-green/10',
+    hoverBgColor: 'group-hover:bg-brand-green/20',
+    textColor: 'text-brand-green'
   },
   {
     icon: Dumbbell,
     title: 'Exercise Library',
-    description: 'Access a comprehensive library of exercises with detailed instructions and form guidance.'
+    description: 'Access a comprehensive library of exercises with detailed instructions and form guidance.',
+    color: 'brand-purple',
+    bgColor: 'bg-brand-purple/10',
+    hoverBgColor: 'group-hover:bg-brand-purple/20',
+    textColor: 'text-brand-purple'
   },
   {
     icon: Calendar,
     title: 'Adaptive Scheduling',
-    description: 'Flexible workout scheduling that adapts to your lifestyle and adjusts based on your performance.'
+    description: 'Flexible workout scheduling that adapts to your lifestyle and adjusts based on your performance.',
+    color: 'brand-teal',
+    bgColor: 'bg-brand-teal/10',
+    hoverBgColor: 'group-hover:bg-brand-teal/20',
+    textColor: 'text-brand-teal'
   },
   {
     icon: TrendingUp,
     title: 'Performance Analytics',
-    description: 'Deep insights into your workout patterns, strength gains, and overall fitness progression.'
+    description: 'Deep insights into your workout patterns, strength gains, and overall fitness progression.',
+    color: 'brand-indigo',
+    bgColor: 'bg-brand-indigo/10',
+    hoverBgColor: 'group-hover:bg-brand-indigo/20',
+    textColor: 'text-brand-indigo'
   }
 ]
 
@@ -56,8 +80,8 @@ export function FeatureSection() {
             >
               <CardContent className="p-6">
                 <div className="flex items-center mb-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-300">
-                    <feature.icon className="w-6 h-6 text-primary" />
+                  <div className={`w-12 h-12 ${feature.bgColor} rounded-lg flex items-center justify-center ${feature.hoverBgColor} transition-colors duration-300`}>
+                    <feature.icon className={`w-6 h-6 ${feature.textColor}`} />
                   </div>
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">
@@ -73,7 +97,7 @@ export function FeatureSection() {
 
         {/* Call to Action */}
         <div className="text-center mt-16">
-          <div className="inline-flex items-center gap-2 bg-primary/5 text-primary px-4 py-2 rounded-full text-sm font-medium">
+          <div className="inline-flex items-center gap-2 bg-brand-green/10 text-brand-green px-4 py-2 rounded-full text-sm font-medium">
             <TrendingUp className="w-4 h-4" />
             Start your transformation today
           </div>

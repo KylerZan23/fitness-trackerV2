@@ -8,21 +8,42 @@ const steps = [
     icon: UserPlus,
     title: 'Onboard',
     description: 'Tell us about your fitness goals, experience level, available equipment, and any limitations. Our comprehensive assessment takes just 5 minutes.',
-    features: ['Goals & preferences', 'Fitness experience', 'Equipment access', 'Injury considerations']
+    features: ['Goals & preferences', 'Fitness experience', 'Equipment access', 'Injury considerations'],
+    color: 'brand-blue',
+    bgColor: 'bg-brand-blue/10',
+    textColor: 'text-brand-blue',
+    numberColor: 'text-brand-blue/20',
+    dotColor: 'bg-brand-blue',
+    ctaColor: 'bg-brand-blue/5 text-brand-blue',
+    borderColor: 'border-brand-blue/20'
   },
   {
     number: '02',
     icon: BrainCircuit,
     title: 'Get Program',
     description: 'Our AI analyzes your profile and generates a completely personalized training program designed specifically for your goals and constraints.',
-    features: ['AI-powered generation', 'Personalized workouts', 'Progressive difficulty', 'Equipment-specific']
+    features: ['AI-powered generation', 'Personalized workouts', 'Progressive difficulty', 'Equipment-specific'],
+    color: 'primary',
+    bgColor: 'bg-primary/10',
+    textColor: 'text-primary',
+    numberColor: 'text-primary/20',
+    dotColor: 'bg-primary',
+    ctaColor: 'bg-primary/5 text-primary',
+    borderColor: 'border-primary/20'
   },
   {
     number: '03',
     icon: TrendingUp,
     title: 'Train & Track',
     description: 'Follow your program, log workouts, and watch as our AI coach provides insights and adjustments to optimize your progress over time.',
-    features: ['Smart tracking', 'Progress analytics', 'AI coaching', 'Program adjustments']
+    features: ['Smart tracking', 'Progress analytics', 'AI coaching', 'Program adjustments'],
+    color: 'brand-green',
+    bgColor: 'bg-brand-green/10',
+    textColor: 'text-brand-green',
+    numberColor: 'text-brand-green/20',
+    dotColor: 'bg-brand-green',
+    ctaColor: 'bg-brand-green/5 text-brand-green',
+    borderColor: 'border-brand-green/20'
   }
 ]
 
@@ -46,9 +67,9 @@ export function HowItWorks() {
                 <CardContent className="p-8">
                   {/* Step Number & Icon */}
                   <div className="flex items-center justify-between mb-6">
-                    <div className="text-6xl font-bold text-primary/10">{step.number}</div>
-                    <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
-                      <step.icon className="w-8 h-8 text-primary" />
+                    <div className={`text-6xl font-bold ${step.numberColor}`}>{step.number}</div>
+                    <div className={`w-16 h-16 ${step.bgColor} rounded-2xl flex items-center justify-center`}>
+                      <step.icon className={`w-8 h-8 ${step.textColor}`} />
                     </div>
                   </div>
 
@@ -66,7 +87,7 @@ export function HowItWorks() {
                   <ul className="space-y-2">
                     {step.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-center gap-2 text-sm text-gray-600">
-                        <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
+                        <div className={`w-1.5 h-1.5 ${step.dotColor} rounded-full`}></div>
                         {feature}
                       </li>
                     ))}
@@ -77,8 +98,8 @@ export function HowItWorks() {
               {/* Arrow between steps (hidden on mobile) */}
               {index < steps.length - 1 && (
                 <div className="hidden lg:flex items-center justify-center absolute top-1/2 -right-4 transform -translate-y-1/2 z-10">
-                  <div className="w-8 h-8 bg-white rounded-full border-2 border-primary/20 flex items-center justify-center shadow-sm">
-                    <ArrowRight className="w-4 h-4 text-primary" />
+                  <div className={`w-8 h-8 bg-white rounded-full border-2 ${steps[index + 1].borderColor} flex items-center justify-center shadow-sm`}>
+                    <ArrowRight className={`w-4 h-4 ${steps[index + 1].textColor}`} />
                   </div>
                 </div>
               )}
@@ -88,7 +109,7 @@ export function HowItWorks() {
 
         {/* Bottom CTA */}
         <div className="text-center mt-16">
-          <div className="inline-flex items-center gap-2 bg-primary/5 text-primary px-6 py-3 rounded-full text-sm font-medium">
+          <div className="inline-flex items-center gap-2 bg-brand-purple/10 text-brand-purple px-6 py-3 rounded-full text-sm font-medium">
             <UserPlus className="w-4 h-4" />
             Ready to start your journey? It takes less than 5 minutes
           </div>

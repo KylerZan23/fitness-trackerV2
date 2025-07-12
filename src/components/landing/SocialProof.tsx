@@ -49,15 +49,15 @@ export function SocialProof() {
         {/* Trust Indicators */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
           <div className="text-center">
-            <div className="text-2xl font-bold text-primary mb-1">10,000+</div>
+            <div className="text-2xl font-bold text-brand-blue mb-1">10,000+</div>
             <p className="text-sm text-gray-600">Active Users</p>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-primary mb-1">500,000+</div>
+            <div className="text-2xl font-bold text-brand-blue mb-1">500,000+</div>
             <p className="text-sm text-gray-600">Workouts Completed</p>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-primary mb-1">98%</div>
+            <div className="text-2xl font-bold text-brand-blue mb-1">98%</div>
             <p className="text-sm text-gray-600">User Satisfaction</p>
           </div>
         </div>

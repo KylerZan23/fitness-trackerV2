@@ -32,7 +32,7 @@ export function Testimonials() {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Loved by <span className="text-primary">Fitness Enthusiasts</span>
+            Loved by <span className="text-brand-purple">Fitness Enthusiasts</span>
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Don't just take our word for it. Here's what our community has to say about their transformation journey.
@@ -45,7 +45,7 @@ export function Testimonials() {
               <CardContent className="p-6">
                 {/* Quote Icon */}
                 <div className="mb-4">
-                  <Quote className="w-8 h-8 text-primary/30" />
+                  <Quote className="w-8 h-8 text-brand-purple/30" />
                 </div>
 
                 {/* Rating */}
@@ -69,7 +69,7 @@ export function Testimonials() {
 
                 {/* Author */}
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                  <div className="w-12 h-12 bg-gradient-to-br from-brand-purple to-brand-purple/80 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                     {testimonial.photo}
                   </div>
                   <div>
@@ -85,7 +85,7 @@ export function Testimonials() {
         {/* Bottom CTA */}
         <div className="text-center mt-16">
           <p className="text-gray-600 mb-4">Ready to join thousands of satisfied users?</p>
-          <div className="inline-flex items-center gap-2 text-primary font-medium">
+          <div className="inline-flex items-center gap-2 text-brand-purple font-medium">
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
             4.8/5 average rating from 2,000+ reviews
           </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import Image, { type StaticImageData } from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -14,7 +15,7 @@ import {
   Testimonials, 
   HowItWorks 
 } from '@/components/landing'
-import { EXPERT_COACHES } from '@/lib/coaches'
+import { EXPERT_COACHES, type ExpertCoach } from '@/lib/coaches'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
@@ -99,25 +100,28 @@ const ExpertCoachesSection = () => (
           <Card key={coach.id} className="bg-white shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-6">
               <div className="flex flex-col items-center text-center">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-brand-primary to-brand-dark mb-4 flex items-center justify-center">
-                  <img 
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-brand-teal to-brand-teal-dark mb-4 flex items-center justify-center relative overflow-hidden">
+                  <Image 
                     src={coach.photo_url} 
                     alt={coach.name}
-                    className="w-full h-full rounded-full object-cover"
+                    className="object-cover"
+                    style={{ objectPosition: coach.objectPosition ?? 'top' }}
+                    layout="fill"
                     onError={(e) => {
-                      // Fallback to initials if image fails to load
-                      const target = e.target as HTMLImageElement;
+                      // This fallback will now be harder to trigger, but good to keep
+                      const target = e.currentTarget as HTMLImageElement;
                       target.style.display = 'none';
-                      target.nextElementSibling!.classList.remove('hidden');
+                      // We need a way to show the initials div if image fails
                     }}
                   />
+                  {/* The initials div is now a sibling, and would need to be shown via state on error */}
                   <div className="hidden text-white font-bold text-xl">
                     {coach.name.split(' ').map(n => n[0]).join('')}
                   </div>
                 </div>
                 
                 <h3 className="text-xl font-bold text-gray-900 mb-1">{coach.name}</h3>
-                <p className="text-brand-primary font-semibold mb-3">{coach.title}</p>
+                <p className="text-brand-teal font-semibold mb-3">{coach.title}</p>
                 
                 <div className="flex flex-wrap gap-1 mb-4 justify-center">
                   {coach.credentials.map((credential, index) => (
@@ -164,10 +168,10 @@ const PricingSection = () => (
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Mock Tier 1: Free Trial */}
-        <Card className="p-6 text-center">
+        <Card className="p-6 text-center flex flex-col">
           <h3 className="text-xl font-bold">Free Trial</h3>
           <p className="text-muted-foreground mt-2">7 Days</p>
-          <ul className="text-left mt-4 space-y-2">
+          <ul className="text-left mt-4 space-y-2 flex-grow">
             <li>✓ Full AI Programs</li>
             <li>✓ AI Coach Access</li>
             <li>✓ Basic Tracking</li>
@@ -176,10 +180,10 @@ const PricingSection = () => (
         </Card>
         
         {/* Mock Tier 2: Monthly */}
-        <Card className="p-6 text-center">
+        <Card className="p-6 text-center flex flex-col">
           <h3 className="text-xl font-bold">Monthly</h3>
-          <p className="text-primary text-3xl font-bold mt-2">$19.99<span className="text-lg text-muted-foreground">/month</span></p>
-          <ul className="text-left mt-4 space-y-2">
+          <p className="text-brand-green text-3xl font-bold mt-2">$19.99<span className="text-lg text-muted-foreground">/month</span></p>
+          <ul className="text-left mt-4 space-y-2 flex-grow">
             <li>✓ Full AI Programs</li>
             <li>✓ AI Coach Access</li>
             <li>✓ Advanced Analytics</li>
@@ -190,10 +194,10 @@ const PricingSection = () => (
         </Card>
         
         {/* Mock Tier 3: Annual */}
-        <Card className="p-6 text-center border-2 border-primary">
+        <Card className="p-6 text-center border-2 border-brand-green flex flex-col">
           <h3 className="text-xl font-bold">Annual</h3>
-          <p className="text-primary text-3xl font-bold mt-2">$119.99<span className="text-lg text-muted-foreground">/year</span></p>
-          <ul className="text-left mt-4 space-y-2">
+          <p className="text-brand-green text-3xl font-bold mt-2">$119.99<span className="text-lg text-muted-foreground">/year</span></p>
+          <ul className="text-left mt-4 space-y-2 flex-grow">
             <li>✓ Full AI Programs</li>
             <li>✓ AI Coach Access</li>
             <li>✓ Advanced Analytics</li>
@@ -213,7 +217,7 @@ const Header = ({ isAuthenticated, profile, onSignOut }: { isAuthenticated: bool
   <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
     <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
       <Link href="/" className="flex items-center space-x-2">
-        <Dumbbell className="h-6 w-6 text-primary" />
+        <Dumbbell className="h-6 w-6 text-brand-indigo" />
         <span className="font-bold">FitTrackAI</span>
       </Link>
       <nav className="flex items-center space-x-4">

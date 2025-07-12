@@ -52,26 +52,130 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        // NEW: Vibrant Brand Color Palette
+        // ENHANCED: Comprehensive Pastel Color Palette
         brand: {
-          primary: '#FF6B47', // Main coral-orange for primary actions
-          light: '#FFF4F2',   // Light coral for backgrounds
-          dark: '#E5472A',    // Dark coral for hover states
+          // Primary coral-orange (existing)
+          primary: '#FF6B47',
+          light: '#FFF4F2',
+          dark: '#E5472A',
+          
+          // Soft blue palette
           blue: {
-            light: '#EBF5FF', // Light background
-            DEFAULT: '#3B82F6', // Icon / Text
+            50: '#F0F8FF',
+            100: '#E1F2FE', 
+            200: '#C3E5FD',
+            300: '#93D5F9',
+            400: '#60C3F5',
+            500: '#3B82F6',
+            600: '#2563EB',
+            700: '#1D4ED8',
+            800: '#1E40AF',
+            900: '#1E3A8A',
+            DEFAULT: '#60C3F5', // Soft blue
+            light: '#F0F8FF',
+            dark: '#2563EB',
           },
+          
+          // Soft green palette
           green: {
-            light: '#E6F8F0',
-            DEFAULT: '#10B981',
+            50: '#F0FDF4',
+            100: '#DCFCE7',
+            200: '#BBF7D0', 
+            300: '#86EFAC',
+            400: '#4ADE80',
+            500: '#22C55E',
+            600: '#16A34A',
+            700: '#15803D',
+            800: '#166534',
+            900: '#14532D',
+            DEFAULT: '#4ADE80', // Soft green
+            light: '#F0FDF4',
+            dark: '#16A34A',
           },
+          
+          // Soft purple palette
           purple: {
-            light: '#F3E8FF',
-            DEFAULT: '#8B5CF6',
+            50: '#FAF5FF',
+            100: '#F3E8FF',
+            200: '#E9D5FF',
+            300: '#D8B4FE',
+            400: '#C084FC',
+            500: '#A855F7',
+            600: '#9333EA',
+            700: '#7C3AED',
+            800: '#6B21A8',
+            900: '#581C87',
+            DEFAULT: '#C084FC', // Soft purple
+            light: '#FAF5FF',
+            dark: '#7C3AED',
           },
+          
+          // Soft pink palette
           pink: {
-            light: '#FFF0F5',
-            DEFAULT: '#EC4899',
+            50: '#FDF2F8',
+            100: '#FCE7F3',
+            200: '#FBCFE8',
+            300: '#F9A8D4',
+            400: '#F472B6',
+            500: '#EC4899',
+            600: '#DB2777',
+            700: '#BE185D',
+            800: '#9D174D',
+            900: '#831843',
+            DEFAULT: '#F472B6', // Soft pink
+            light: '#FDF2F8',
+            dark: '#BE185D',
+          },
+          
+          // Soft yellow palette
+          yellow: {
+            50: '#FFFBEB',
+            100: '#FEF3C7',
+            200: '#FDE68A',
+            300: '#FCD34D',
+            400: '#FBBF24',
+            500: '#F59E0B',
+            600: '#D97706',
+            700: '#B45309',
+            800: '#92400E',
+            900: '#78350F',
+            DEFAULT: '#FCD34D', // Soft yellow
+            light: '#FFFBEB',
+            dark: '#D97706',
+          },
+          
+          // Soft teal palette
+          teal: {
+            50: '#F0FDFA',
+            100: '#CCFBF1',
+            200: '#99F6E4',
+            300: '#5EEAD4',
+            400: '#2DD4BF',
+            500: '#14B8A6',
+            600: '#0D9488',
+            700: '#0F766E',
+            800: '#115E59',
+            900: '#134E4A',
+            DEFAULT: '#5EEAD4', // Soft teal
+            light: '#F0FDFA',
+            dark: '#0D9488',
+          },
+          
+          // Soft indigo palette
+          indigo: {
+            50: '#EEF2FF',
+            100: '#E0E7FF',
+            200: '#C7D2FE',
+            300: '#A5B4FC',
+            400: '#818CF8',
+            500: '#6366F1',
+            600: '#4F46E5',
+            700: '#4338CA',
+            800: '#3730A3',
+            900: '#312E81',
+            DEFAULT: '#A5B4FC', // Soft indigo
+            light: '#EEF2FF',
+            dark: '#4338CA',
           },
         },
       },
