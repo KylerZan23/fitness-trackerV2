@@ -1,14 +1,19 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { getAICoachRecommendation } from '@/app/_actions/aiCoachActions'
-import type { AICoachRecommendation as AICoachRecommendationType } from '@/app/_actions/aiCoachActions'
+import {
+  getAICoachRecommendation,
+  type AICoachRecommendation as AICoachRecommendationType,
+} from '@/app/_actions/aiCoachActions'
 import { submitCoachFeedback } from '@/app/_actions/feedbackActions'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Error as ErrorComponent } from '@/components/ui/error' // Renamed to avoid conflict
 import { Star, MessageSquare, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
+
+// Extract the exercise type from the main recommendation type
+type AiCoachExercise = AICoachRecommendationType['workoutRecommendation']['suggestedExercises'][0]
 
 // Re-define the interface here for clarity within the component, matching the server action
 interface AICoachRecommendation extends AICoachRecommendationType {
@@ -120,7 +125,7 @@ export function AICoachCard() {
     title: string,
     details: string | undefined | null,
     icon: string,
-    suggestedExercises?: string[]
+    suggestedExercises?: AiCoachExercise[]
   ) => {
     if (!details) return null
 
@@ -137,7 +142,7 @@ export function AICoachCard() {
             <ul className="list-disc list-inside pl-2">
               {suggestedExercises.map((ex, index) => (
                 <li key={index} className="text-sm text-slate-600">
-                  {ex}
+                  {ex.name}: {ex.sets} sets of {ex.reps} reps
                 </li>
               ))}
             </ul>

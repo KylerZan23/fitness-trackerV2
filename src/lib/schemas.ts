@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MuscleGroup } from './types'
 
 export const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -69,9 +70,25 @@ export const workoutGroupSchema = z.object({
     .optional(),
 })
 
+// Schema for validating a single exercise from the AI response
+export const aiExerciseSchema = z.object({
+  name: z
+    .string()
+    .min(2, 'Exercise name must be at least 2 characters')
+    .max(100, 'Exercise name must be less than 100 characters'),
+  sets: z.number().min(1).max(20),
+  reps: z.union([z.string().min(1), z.number().min(1)]),
+  muscle_group: z.nativeEnum(MuscleGroup),
+})
+
+// Schema for validating the entire AI program response (an array of exercises)
+export const aiProgramSchema = z.array(aiExerciseSchema)
+
 export type LoginFormData = z.infer<typeof loginSchema>
 export type MinimalSignupFormData = z.infer<typeof minimalSignupSchema>
 export type SignupFormData = z.infer<typeof signupSchema>
 export type WorkoutFormData = z.infer<typeof workoutSchema>
 export type WorkoutExerciseData = z.infer<typeof workoutExerciseSchema>
 export type WorkoutGroupData = z.infer<typeof workoutGroupSchema>
+export type AiExerciseData = z.infer<typeof aiExerciseSchema>
+export type AiProgramData = z.infer<typeof aiProgramSchema>

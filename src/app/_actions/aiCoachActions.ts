@@ -2,10 +2,12 @@
 
 import { cookies } from 'next/headers'
 import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
+import { z } from 'zod'
 import { getUserProfile } from '@/lib/db/index'
 import { fetchCurrentWeekGoalsWithProgress } from '@/lib/db/goals'
 import { getActiveTrainingProgram, type TrainingProgramWithId } from '@/lib/db/program'
 import type { GoalWithProgress } from '@/lib/types'
+import { MuscleGroup } from '@/lib/types'
 import type { DayOfWeek } from '@/lib/types/program'
 import { callLLM } from '@/lib/llmService'
 // Assuming OpenAI client might be needed, or similar for LLM interaction
@@ -13,26 +15,39 @@ import { callLLM } from '@/lib/llmService'
 
 const AI_COACH_CACHE_DURATION_MINUTES = 30
 
+const aiCoachExerciseSchema = z.object({
+  name: z.string(),
+  sets: z.number(),
+  reps: z.union([z.string(), z.number()]),
+  muscle_group: z.nativeEnum(MuscleGroup),
+})
+
 // Define the structure for the AI Coach's recommendation
-export interface AICoachRecommendation {
-  workoutRecommendation: {
-    title: string
-    details: string
-    suggestedExercises: string[]
-  }
-  runRecommendation: {
-    title: string
-    details: string
-  } | null
-  generalInsight: {
-    title: string
-    details: string
-  }
-  focusAreaSuggestion?: {
-    title: string
-    details: string
-  } | null
-}
+export const aiCoachRecommendationSchema = z.object({
+  workoutRecommendation: z.object({
+    title: z.string(),
+    details: z.string(),
+    suggestedExercises: z.array(aiCoachExerciseSchema),
+  }),
+  runRecommendation: z
+    .object({
+      title: z.string(),
+      details: z.string(),
+    })
+    .nullable(),
+  generalInsight: z.object({
+    title: z.string(),
+    details: z.string(),
+  }),
+  focusAreaSuggestion: z
+    .object({
+      title: z.string(),
+      details: z.string(),
+    })
+    .nullable(),
+})
+
+export type AICoachRecommendation = z.infer<typeof aiCoachRecommendationSchema>
 
 interface MuscleExerciseVolume {
   exercise_name: string
@@ -894,10 +909,14 @@ Provide your response as a single JSON object matching this TypeScript interface
   "workoutRecommendation": {
     "title": "Your Suggested Workout Focus",
     "details": "Explain why and what to do. Be specific. E.g., focus on X today with Y sets/reps because your Z data shows...",
-    "suggestedExercises": ["Exercise 1 (e.g., Barbell Squat 3x5-8)", "Exercise 2 (e.g., Bench Press 3x8-12)", "Accessory 1 (e.g., Leg Press 3x10-15)"]
+    "suggestedExercises": [
+      { "name": "Barbell Squat", "sets": 3, "reps": "5-8", "muscle_group": "Legs" },
+      { "name": "Bench Press", "sets": 3, "reps": "8-12", "muscle_group": "Chest" },
+      { "name": "Leg Press", "sets": 3, "reps": "10-15", "muscle_group": "Legs" }
+    ]
   },
   "runRecommendation": {
-    "title": "Your Suggested Run", // Or null if not applicable or Strava not connected
+    "title": "Your Suggested Run",
     "details": "Details for the run. E.g., a 5k tempo run at X pace, or an easy 30-min recovery run."
   },
   "generalInsight": {
@@ -905,18 +924,19 @@ Provide your response as a single JSON object matching this TypeScript interface
     "details": "A brief, encouraging insight. E.g., 'Great job on increasing your chest volume!' or 'Remember to incorporate rest days.'"
   },
   "focusAreaSuggestion": {
-    "title": "Suggested Focus Area (Optional)", // e.g., "Boost Back Volume", "Improve Squat Depth"
+    "title": "Suggested Focus Area (Optional)",
     "details": "A specific, actionable focus area for long-term improvement based on data. Give a concrete tip or action."
   }
 }
 \`\`\`
 
 **Specific Instructions for Output Fields:**
--   \`workoutRecommendation.title\`: Must reference today's planned focus (e.g., "Focus for Your Leg Day", "Today's Upper Body Session", "Recovery Day Focus").
--   \`workoutRecommendation.details\`: Provide specific, tactical advice for today's session. Reference form cues, intensity, or specific exercises from their program. Connect to recent adherence patterns.
--   \`workoutRecommendation.suggestedExercises\`: List 2-3 key exercises that align with today's planned focus. Include specific form cues or progression tips.
--   \`runRecommendation\`: Only include if relevant to today's plan or if it's a rest day and light cardio would help recovery. Keep it simple and specific to today.
--   \`generalInsight\`: Brief encouragement related to their recent adherence or progress. Reference their current program position.
+- \`suggestedExercises\`: MUST be an array of objects. Each object MUST contain 'name', 'sets', 'reps', and 'muscle_group'. The 'muscle_group' MUST be one of the following exact values: ${Object.values(
+      MuscleGroup
+    ).join(', ')}.
+- \`workoutRecommendation.details\`: Provide specific, tactical advice for today's session. Reference form cues, intensity, or specific exercises from their program. Connect to recent adherence patterns.
+- \`runRecommendation\`: Only include if relevant to today's plan or if it's a rest day and light cardio would help recovery. Keep it simple and specific to today.
+- \`generalInsight\`: Brief encouragement related to their recent adherence or progress. Reference their current program position.
 
 **For \`focusAreaSuggestion\` (Optional):**
 -   Only include if there's a specific technique or form cue that would improve today's session.
@@ -933,21 +953,40 @@ Now, generate the recommendation based on all the above data and instructions.
       let advice: AICoachRecommendation | null = null
 
       try {
-        advice = await callLLM(promptText, 'user', {
+        const rawResponse = await callLLM(promptText, 'user', {
           response_format: { type: 'json_object' },
           max_tokens: 800,
           model: 'gpt-4o', // Specific model for AI Coach
         })
+
+        const validationResult = aiCoachRecommendationSchema.safeParse(rawResponse)
+        if (validationResult.success) {
+          advice = validationResult.data
+        } else {
+          console.error(
+            'AI Coach LLM response validation failed:',
+            validationResult.error
+          )
+          return {
+            error:
+              'The AI Coach returned an invalid response. Please try again later.',
+          }
+        }
       } catch (error: any) {
         console.error('LLM API call failed via llmService:', error)
-        return { error: 'AI Coach is currently unavailable. Please try again later.' }
+        return {
+          error: 'AI Coach is currently unavailable. Please try again later.',
+        }
       }
 
       if (!advice) {
         console.error(
           'AI Coach: Advice object is null after LLM call attempt, despite no explicit error thrown.'
         )
-        return { error: 'Unable to generate recommendations at this time. Please try again later.' }
+        return {
+          error:
+            'Unable to generate recommendations at this time. Please try again later.',
+        }
       }
       // --- End of Replacement: LLM Call Logic ---
 

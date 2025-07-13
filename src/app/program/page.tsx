@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense, useMemo, useRef, use } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
@@ -8,6 +8,7 @@ import {
   fetchActiveProgramAction,
   type CompletedDayIdentifier,
 } from '@/app/_actions/aiProgramActions'
+import { startWorkoutSession } from '@/app/_actions/workoutSessionActions'
 import { submitProgramFeedback } from '@/app/_actions/feedbackActions'
 import { type TrainingProgram } from '@/lib/types/program'
 import { type TrainingProgramWithId } from '@/lib/db/program'
@@ -86,36 +87,21 @@ const ProgramFeedbackSection = ({ programData }: { programData: TrainingProgramW
   const { addToast } = useToast()
 
   const handleProgramFeedbackSubmit = async () => {
-    console.log('Submit handler called, rating:', feedbackRating)
     if (!feedbackRating) {
-      console.log('No rating selected, returning early')
       return
     }
 
-    console.log('Proceeding with submission...')
     setIsSubmittingFeedback(true)
     setFeedbackError(null)
 
     try {
-      console.log('Calling submitProgramFeedback with:', {
-        programId: programData.id,
-        programIdType: typeof programData.id,
-        programIdLength: programData.id?.length,
-        rating: feedbackRating,
-        ratingType: typeof feedbackRating,
-        comment: feedbackComment.trim() || undefined
-      })
-      
       const result = await submitProgramFeedback(
         programData.id,
         feedbackRating,
         feedbackComment.trim() || undefined
       )
       
-      console.log('Server action result:', result)
-
       if (result.success) {
-        console.log('Feedback submitted successfully:', result)
         setFeedbackSubmitted(true)
         addToast({
           type: 'success',
@@ -123,17 +109,15 @@ const ProgramFeedbackSection = ({ programData }: { programData: TrainingProgramW
           description: 'Thank you for helping us improve your training experience.',
         })
       } else {
-        console.error('Server action returned error:', result.error)
-        console.error('Full result object:', result)
-        setFeedbackError(result.error)
+        const errorMessage = result.error || 'An unknown error occurred.'
+        setFeedbackError(errorMessage)
         addToast({
           type: 'error',
           title: 'Failed to submit feedback',
-          description: result.error,
+          description: errorMessage,
         })
       }
     } catch (error) {
-      console.error('Error submitting feedback:', error)
       const errorMessage = 'An unexpected error occurred. Please try again.'
       setFeedbackError(errorMessage)
       addToast({
@@ -156,7 +140,6 @@ const ProgramFeedbackSection = ({ programData }: { programData: TrainingProgramW
               key={star}
               type="button"
               onClick={() => {
-                console.log(`Setting rating to: ${star}`)
                 setFeedbackRating(star)
               }}
               onMouseEnter={() => setHoveredRating(star)}
@@ -207,7 +190,7 @@ const ProgramFeedbackSection = ({ programData }: { programData: TrainingProgramW
         </CardTitle>
         <CardDescription className="text-orange-600">
           How is your training program working for you so far?
-            </CardDescription>
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -273,6 +256,7 @@ function ProgramPageContent() {
   const [isSubmittingReadiness, setIsSubmittingReadiness] = useState(false)
   const [todaysWorkout, setTodaysWorkout] = useState<any>(null)
   const [isMounted, setIsMounted] = useState(false)
+  const { addToast } = useToast()
   
   // Handle program generation warnings from URL params
   const [programWarning, setProgramWarning] = useState<string | null>(
@@ -284,7 +268,7 @@ function ProgramPageContent() {
     const jsDay = today.getDay() // 0 = Sunday, 1 = Monday, etc.
     
     // Convert JavaScript day (0-6, Sunday=0) to our DayOfWeek enum (1-7, Monday=1)
-    const todayDayOfWeek = jsDay === 0 ? 7 : jsDay // Sunday becomes 7, others stay the same
+    const todayDayOfWeek = jsDay === 0 ? 7 : jsDay
     
     // For simplicity, we'll look at the first phase and current week
     const firstPhase = program.phases[0]
@@ -298,10 +282,8 @@ function ProgramPageContent() {
       return null
     }
     
-    // Find today's workout - day.dayOfWeek is a DayOfWeek enum value (1-7)
-    const todayWorkout = currentWeek.days.find(day => {
-      return day.dayOfWeek === todayDayOfWeek
-    })
+    // Find today's workout
+    const todayWorkout = currentWeek.days.find(day => day.dayOfWeek === todayDayOfWeek)
     
     return todayWorkout || null
   }
@@ -369,9 +351,9 @@ function ProgramPageContent() {
         fetchActiveProgramAction(),
         supabase
           .from('profiles')
-          .select('id, name, email, profile_picture_url, weight_unit') // Select specific columns including weight_unit
+          .select('id, name, email, profile_picture_url, weight_unit')
           .eq('id', session.user.id)
-          .maybeSingle(), // <<< CHANGE THIS LINE from .single() to .maybeSingle()
+          .maybeSingle(),
         calculateWorkoutStreak(session.user.id)
       ])
 
@@ -379,11 +361,9 @@ function ProgramPageContent() {
         setProgramData(programResult.program)
         setCompletedDays(programResult.completedDays)
         
-        // Find today's workout
         const workout = findTodaysWorkout(programResult.program)
         setTodaysWorkout(workout)
         
-        // Check for weekly check-in
         const weeklyCheckInStatus = shouldShowWeeklyCheckIn(
           programResult.program,
           programResult.completedDays
@@ -394,16 +374,12 @@ function ProgramPageContent() {
           setCheckInWeekNumber(weeklyCheckInStatus.weekNumber)
         }
       } else {
-        console.log('No active program found or error:', programResult.error)
         if (programResult.error && !programWarning) {
           setError(programResult.error)
         }
       }
 
       if (profileData.error) {
-        // This will now only log actual database errors
-        console.error("Error fetching profile on program page:", profileData.error);
-        // Decide how to handle this - for now, we can proceed without a profile
         setProfile(null);
       } else {
         setProfile(profileData.data);
@@ -412,7 +388,6 @@ function ProgramPageContent() {
       setWorkoutStreak(streakData || 0)
 
     } catch (err) {
-      console.error('Error fetching data:', err)
       setError('Failed to load program data')
     } finally {
       setIsLoading(false)
@@ -425,17 +400,13 @@ function ProgramPageContent() {
     }
   }, [session, fetchData])
 
-  // Check if we should show daily readiness modal (client-side only)
   useEffect(() => {
     const checkDailyReadiness = () => {
-      // Only run on client-side after component is mounted
       if (!isMounted || !session?.user || !programData) return
       
       const shouldShow = shouldShowDailyReadinessModal()
-      console.log('Daily readiness check - shouldShow:', shouldShow, 'isMounted:', isMounted)
       
       if (shouldShow) {
-        // Don't auto-show, let user trigger it when they start workout
         console.log('Daily readiness modal should be shown when user starts workout')
       }
     }
@@ -462,38 +433,62 @@ function ProgramPageContent() {
     setShowDailyReadinessModal(true)
   }
 
-  const handleDailyReadinessSubmit = async (data: DailyReadinessData) => {
+  const handleStartWorkout = async (readinessData?: DailyReadinessData) => {
+    if (!todaysWorkout || !programData) {
+      addToast({
+        type: 'error',
+        title: 'Cannot start workout',
+        description: "Today's workout data is not available.",
+      })
+      return
+    }
+
+    setIsLoading(true)
     try {
-      setIsSubmittingReadiness(true)
-      
-      // Store the readiness data
-      dailyReadinessService.markCompletedToday(data)
-      
-      // Small delay to show the loading state
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      setShowDailyReadinessModal(false)
-      
-      // Now proceed with starting the workout
-      if (todaysWorkout && profile) {
-        const workoutData = encodeURIComponent(JSON.stringify(todaysWorkout))
-        const programContext = encodeURIComponent(JSON.stringify({
-          programId: programData?.id,
-          phaseIndex: 0,
-          weekIndex: 0,
-          dayOfWeek: todaysWorkout.dayOfWeek
-        }))
-        const profileData = encodeURIComponent(JSON.stringify(profile))
-        
-        const readinessParam = encodeURIComponent(JSON.stringify(data))
-        router.push(`/workout/new?workout=${workoutData}&context=${programContext}&readiness=${readinessParam}&profile=${profileData}`)
+      const context = {
+        programId: programData.id,
+        phaseIndex: 0,
+        weekIndex: 0,
+        dayOfWeek: todaysWorkout.dayOfWeek,
+      }
+
+      const result = await startWorkoutSession(todaysWorkout, context, readinessData)
+
+      if (result.success) {
+        if (result.sessionId) {
+          router.push(`/workout/new?sessionId=${result.sessionId}`)
+        } else {
+          addToast({
+            type: 'error',
+            title: 'Failed to start workout',
+            description: 'Could not retrieve a session ID.',
+          })
+        }
+      } else {
+        addToast({
+          type: 'error',
+          title: 'Failed to start workout',
+          description: result.error || 'Could not initialize the session.',
+        })
       }
     } catch (error) {
-      console.error('Error submitting daily readiness:', error)
-      // Don't close modal on error, let user try again
+      addToast({
+        type: 'error',
+        title: 'An unexpected error occurred',
+        description: 'Please try again.',
+      })
     } finally {
-      setIsSubmittingReadiness(false)
+      setIsLoading(false)
     }
+  }
+
+  const handleDailyReadinessSubmit = async (data: DailyReadinessData) => {
+    setIsSubmittingReadiness(true)
+    dailyReadinessService.markCompletedToday(data)
+    await new Promise(resolve => setTimeout(resolve, 300))
+    setShowDailyReadinessModal(false)
+    setIsSubmittingReadiness(false)
+    await handleStartWorkout(data)
   }
 
   const handleDailyReadinessClose = () => {
@@ -557,7 +552,6 @@ function ProgramPageContent() {
         }}
       >
         <div className="text-center space-y-6">
-          {/* Show warning if program generation failed after onboarding */}
           {programWarning && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
               <div className="flex items-start space-x-3">
@@ -594,9 +588,7 @@ function ProgramPageContent() {
                       const result = await generateTrainingProgram(session?.user?.id)
                       if (result.success) {
                         setProgramWarning(null)
-                        // Clear URL parameters
                         router.replace('/program')
-                        // Refresh data
                         await fetchData()
                       } else {
                         setError(result.error || 'Failed to generate program')
@@ -636,7 +628,6 @@ function ProgramPageContent() {
       }}
     >
       <div className="space-y-6 sm:space-y-8">
-        {/* Today's Session - MOST PROMINENT ELEMENT */}
         {todaysWorkout ? (
           todaysWorkout.isRestDay ? (
             <div className="relative bg-gradient-to-br from-green-50 via-white to-emerald-50 rounded-2xl p-8 lg:p-10 overflow-hidden border border-green-200 shadow-xl">
@@ -695,42 +686,23 @@ function ProgramPageContent() {
                 <div className="flex justify-center">
                   <button
                     onClick={() => {
-                      // Only check readiness on client-side after mounting
                       if (!isMounted) {
-                        console.log('Component not yet mounted, skipping readiness check')
                         return
                       }
 
-                      // Check if user has completed daily readiness
                       const hasCompletedReadiness = dailyReadinessService.hasCompletedToday()
-                      console.log('Start workout clicked - hasCompletedReadiness:', hasCompletedReadiness)
                       
                       if (!hasCompletedReadiness) {
-                        // Show daily readiness modal first
-                        console.log('Showing daily readiness modal')
                         setShowDailyReadinessModal(true)
                         return
                       }
                       
-                      // User has completed readiness, proceed with adapted workout
                       const readinessData = dailyReadinessService.getTodaysReadiness()
-                      console.log('Proceeding with workout - readinessData:', readinessData)
                       
-                      // Pass today's workout data via URL state
-                      const workoutData = encodeURIComponent(JSON.stringify(todaysWorkout))
-                      const programContext = encodeURIComponent(JSON.stringify({
-                        programId: programData.id,
-                        phaseIndex: 0, // Using first phase for now
-                        weekIndex: 0, // Using first week for now
-                        dayOfWeek: todaysWorkout.dayOfWeek
-                      }))
-                      
-                      // Include readiness data for adaptation
-                      const readinessParam = readinessData ? encodeURIComponent(JSON.stringify(readinessData)) : ''
-                      
-                      router.push(`/workout/new?workout=${workoutData}&context=${programContext}&readiness=${readinessParam}`)
+                      handleStartWorkout(readinessData ?? undefined)
                     }}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-6 px-12 rounded-2xl text-2xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-4"
+                    disabled={todaysWorkout?.isRestDay || isLoading}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-6 px-12 rounded-2xl text-2xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-4 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Play className="h-8 w-8" />
                     <span>Start Today's Workout</span>
@@ -755,7 +727,6 @@ function ProgramPageContent() {
 
         {/* Quick Stats & Action Bar */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Simple Streak Indicator */}
           <Card className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200">
             <CardContent className="p-6">
               <StreakIndicator
@@ -768,7 +739,6 @@ function ProgramPageContent() {
             </CardContent>
           </Card>
 
-          {/* Progress Link */}
           <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
             <CardContent className="p-6">
               <Link href="/progress">
@@ -790,7 +760,6 @@ function ProgramPageContent() {
             </CardContent>
           </Card>
 
-          {/* Program Info */}
           <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
             <CardContent className="p-6">
               <div className="flex items-center space-x-3">
@@ -806,9 +775,6 @@ function ProgramPageContent() {
           </Card>
         </div>
 
-
-
-        {/* Full Program Details - CONDENSED IN ACCORDION */}
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="program-details" className="border border-gray-200 rounded-lg">
             <AccordionTrigger className="hover:no-underline px-6 py-4 hover:bg-gray-50 rounded-t-lg">
@@ -824,7 +790,6 @@ function ProgramPageContent() {
             </AccordionTrigger>
             <AccordionContent className="px-6 pb-6">
               <div className="space-y-6 pt-4">
-                {/* Program Overview */}
                 <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border border-gray-100">
                   <div className="flex items-center space-x-4 mb-4">
                     <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
@@ -833,8 +798,8 @@ function ProgramPageContent() {
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900">{programData.programName}</h2>
                       <p className="text-gray-600">{programData.description}</p>
-          </div>
-        </div>
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
                     <div className="bg-white/80 rounded-lg p-4 text-center">
@@ -851,12 +816,11 @@ function ProgramPageContent() {
                       <div className="bg-white/80 rounded-lg p-4 text-center">
                         <p className="text-sm font-medium text-gray-600">Level</p>
                         <p className="text-xl font-bold text-purple-900">{programData.difficultyLevel}</p>
-          </div>
+                      </div>
                     )}
                   </div>
-          </div>
+                </div>
           
-                {/* Program Phases */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                     <Calendar className="h-5 w-5 mr-2" />
@@ -872,7 +836,6 @@ function ProgramPageContent() {
                   ))}
                 </div>
 
-                {/* General Advice */}
                 {programData.generalAdvice && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-blue-900 mb-3 flex items-center">
@@ -883,7 +846,6 @@ function ProgramPageContent() {
                   </div>
                 )}
 
-                {/* Required Equipment */}
                 {programData.requiredEquipment && programData.requiredEquipment.length > 0 && (
                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-purple-900 mb-3">Required Equipment</h3>
@@ -896,19 +858,17 @@ function ProgramPageContent() {
                           {equipment}
                         </span>
                       ))}
-          </div>
-        </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </AccordionContent>
           </AccordionItem>
         </Accordion>
 
-        {/* Program Feedback Section */}
-          <ProgramFeedbackSection programData={programData} />
+        <ProgramFeedbackSection programData={programData} />
       </div>
 
-      {/* Weekly Check-In Modal */}
       <WeeklyCheckInModal
         isOpen={showWeeklyCheckIn}
         onClose={handleCloseWeeklyCheckIn}
@@ -916,7 +876,6 @@ function ProgramPageContent() {
         weekNumber={checkInWeekNumber}
       />
 
-             {/* Daily Readiness Modal */}
        <DailyReadinessModal
          isOpen={showDailyReadinessModal}
          onClose={handleDailyReadinessClose}

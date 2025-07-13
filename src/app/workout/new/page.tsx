@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { logWorkoutGroup, getUserProfile } from '@/lib/db/index'
+import { getPendingWorkoutSession } from '@/app/_actions/workoutSessionActions'
 import { Play, Pause, Square, Clock, CheckCircle, LayoutGrid, Focus, ChevronLeft, ChevronRight, Target } from 'lucide-react'
 
 // Import UI Components
@@ -97,73 +98,53 @@ function SessionTracker() {
     async function initializeSession() {
       setIsLoadingWorkoutData(true)
 
-      if (!searchParams) {
-        console.warn('No searchParams, redirecting.')
+      const sessionId = searchParams?.get('sessionId')
+
+      if (!sessionId) {
+        toast.error('Workout session not found. Redirecting...')
         router.push('/program')
         return
       }
 
-      // First, handle the profile. Use the one from the URL if it exists.
-      const profileParam = searchParams.get('profile')
-      let userProfile: Awaited<ReturnType<typeof getUserProfile>> | null = null
-
       try {
-        if (profileParam) {
-          console.log('Using profile from URL parameter.')
-          userProfile = JSON.parse(decodeURIComponent(profileParam))
-        } else {
-          console.warn('Profile not in URL, fetching from DB as a fallback.')
-          userProfile = await getUserProfile()
-        }
-
-        if (userProfile) {
-          setProfile(userProfile)
-          setWeightUnit(userProfile.weight_unit ?? 'kg')
+        const profileData = await getUserProfile()
+        if (profileData) {
+          setProfile(profileData)
+          setWeightUnit(profileData.weight_unit ?? 'kg')
         } else {
           throw new Error('User profile could not be loaded.')
         }
-      } catch (err) {
-        console.error('Fatal error loading profile:', err)
-        toast.error('Your session may have expired. Please log in again.')
-        router.push('/login')
-        return // Stop execution
-      }
 
-      // Now that the profile is loaded, parse the workout data
-      const workoutParam = searchParams.get('workout')
-      const contextParam = searchParams.get('context')
-      const readinessParam = searchParams.get('readiness')
+        const sessionResult = await getPendingWorkoutSession(sessionId)
 
-      if (!workoutParam || !contextParam) {
-        console.warn('Missing workout or context params, redirecting.')
-        router.push('/program')
-        return
-      }
-
-      try {
-        const workoutData = JSON.parse(decodeURIComponent(workoutParam))
-        const contextData = JSON.parse(decodeURIComponent(contextParam))
-        const readinessData = readinessParam ? JSON.parse(decodeURIComponent(readinessParam)) : null
-        
-        setProgramContext(contextData)
-        
-        if (readinessData) {
-          await adaptWorkout(workoutData, readinessData)
+        if (sessionResult.success) {
+          const { workout, context, readiness } = sessionResult
+          if (workout && context) {
+            setProgramContext(context)
+            if (readiness) {
+              await adaptWorkout(workout, readiness)
+            } else {
+              setPlannedWorkout(workout)
+              initializeExerciseTracking(workout)
+            }
+          } else {
+            throw new Error('Incomplete session data returned from server.')
+          }
         } else {
-          setPlannedWorkout(workoutData)
-          initializeExerciseTracking(workoutData)
+          throw new Error(sessionResult.error || 'Failed to load session data.')
         }
-      } catch (error) {
-        console.error('Error parsing workout data:', error)
-        toast.error('Failed to load workout data.')
+      } catch (err: any) {
+        console.error('Fatal error loading session:', err)
+        toast.error(err.message || 'Your session may have expired.')
         router.push('/program')
-        return
       } finally {
         setIsLoadingWorkoutData(false)
       }
     }
 
-    initializeSession()
+    if (searchParams) {
+      initializeSession()
+    }
   }, [searchParams, router])
 
   // Timer effect
@@ -369,50 +350,36 @@ function SessionTracker() {
     setError(null)
 
     try {
-      // Compile actual exercise data into the format expected by logWorkoutGroup
-      const workoutExercises = actualExerciseData.map(exercise => ({
-        exerciseName: exercise.exerciseName,
-        sets: exercise.sets.length,
-        reps: exercise.sets.length > 0 ? exercise.sets[0].reps : 0, // Use first set's reps as representative
-        weight: exercise.sets.length > 0 ? exercise.sets[0].weight : 0, // Use first set's weight as representative
-      }))
-
-      const workoutName = plannedWorkout.focus
-        ? `${plannedWorkout.focus} Session`
-        : 'Training Session'
-
-      const workoutPayload = {
-        name: workoutName,
-        exercises: workoutExercises,
-        duration: Math.floor(sessionTimer / 60), // Convert to minutes
-        notes: notes,
+      const result = await logWorkoutGroup({
+        name: plannedWorkout.focus || 'Workout',
+        duration: Math.round(sessionTimer / 60),
+        notes,
+        exercises: exercisesToLog,
         workoutDate: getTodayDateString(),
-        // Include program linking fields for adherence tracking
-        linked_program_id: programContext.programId,
-        linked_program_phase_index: programContext.phaseIndex,
-        linked_program_week_index: programContext.weekIndex,
-        linked_program_day_of_week: programContext.dayOfWeek,
-      }
+        // Pass program context if available
+        linked_program_id: programContext?.programId,
+        linked_program_phase_index: programContext?.phaseIndex,
+        linked_program_week_index: programContext?.weekIndex,
+        linked_program_day_of_week: programContext?.dayOfWeek,
+      })
 
-      const result = await logWorkoutGroup(workoutPayload)
-      
-      // Extract workout_group_id from the result for feedback linking
-      if (result && result.id) {
-        setWorkoutGroupId(result.id)
+      if (result.success) {
+        toast.success('Workout logged successfully!')
+        setWorkoutGroupId(result.data.id) // Save workout group ID for feedback
+        setShowFeedbackModal(true) // Show feedback modal on success
+      } else {
+        // Display the specific error from the server
+        setError(result.error)
+        toast.error('Failed to log workout', {
+          description: result.error,
+        })
       }
-      
-      toast.success('Workout completed successfully!')
-      
-      // End the session
-      endSession()
-      
-      // Show feedback modal instead of redirecting immediately
-      setShowFeedbackModal(true)
     } catch (err: any) {
-      console.error('Error completing workout:', err)
-      const message = err.message || 'Failed to save workout. Please try again.'
-      setError(message)
-      toast.error(message)
+      const errorMessage =
+        err.message || 'An unexpected error occurred while finishing the workout.'
+      console.error('Error finishing workout:', err)
+      setError(errorMessage)
+      toast.error('Error', { description: errorMessage })
     } finally {
       setIsSubmitting(false)
     }

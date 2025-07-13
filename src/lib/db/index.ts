@@ -14,6 +14,8 @@ import { toZonedTime, fromZonedTime, format as formatTz } from 'date-fns-tz'
 import { MuscleGroup, findMuscleGroupForExercise } from '../types'
 import { SupabaseClient } from '@supabase/supabase-js'
 
+type DbResult<T> = { success: true; data: T } | { success: false; error: string }
+
 export interface Workout extends WorkoutFormData {
   id: string
   user_id: string
@@ -608,7 +610,7 @@ export async function createCommunityFeedEvent(
  */
 export async function logWorkoutGroup(
   workoutGroup: WorkoutGroupData
-): Promise<WorkoutGroup | null> {
+): Promise<DbResult<WorkoutGroup>> {
   try {
     console.log('Logging workout group, checking for active session...')
     const {
@@ -616,8 +618,9 @@ export async function logWorkoutGroup(
     } = await browserSupabaseClient.auth.getSession()
 
     if (!session?.user) {
-      console.log('No active session found when logging workout group')
-      return null
+      const errorMsg = 'No active session found when logging workout group'
+      console.log(errorMsg)
+      return { success: false, error: errorMsg }
     }
 
     console.log(`Found active session for user ${session.user.id.substring(0, 6)}...`)
@@ -667,7 +670,7 @@ export async function logWorkoutGroup(
 
       if (groupError || !groupData) {
         console.error('Error creating workout group:', groupError)
-        return null
+        return { success: false, error: groupError.message || 'Error creating workout group' }
       }
 
       console.log('Created workout group:', groupData)
@@ -676,16 +679,24 @@ export async function logWorkoutGroup(
       const exercisesData = workoutGroup.exercises.map((exercise, index) => {
         // Validate the exercise data before insertion
         if (!exercise.exerciseName || exercise.exerciseName.trim() === '') {
-          console.error(`Exercise ${index} has empty or missing exerciseName:`, exercise)
+          const errorMsg = `Exercise ${index + 1} has an empty or missing name.`
+          console.error(errorMsg, exercise)
+          throw new Error(errorMsg)
         }
         if (typeof exercise.sets !== 'number' || exercise.sets <= 0) {
-          console.error(`Exercise ${index} has invalid sets value:`, exercise.sets)
+          const errorMsg = `Exercise "${exercise.exerciseName}" must have at least 1 set.`
+          console.error(errorMsg, exercise)
+          throw new Error(errorMsg)
         }
         if (typeof exercise.reps !== 'number' || exercise.reps <= 0) {
-          console.error(`Exercise ${index} has invalid reps value:`, exercise.reps)
+          const errorMsg = `Exercise "${exercise.exerciseName}" must have at least 1 rep.`
+          console.error(errorMsg, exercise)
+          throw new Error(errorMsg)
         }
         if (typeof exercise.weight !== 'number' || exercise.weight < 0) {
-          console.error(`Exercise ${index} has invalid weight value:`, exercise.weight)
+          const errorMsg = `Exercise "${exercise.exerciseName}" must have a non-negative weight.`
+          console.error(errorMsg, exercise)
+          throw new Error(errorMsg)
         }
 
         return {
@@ -757,10 +768,10 @@ export async function logWorkoutGroup(
         
         // Attempt to delete the workout group since the exercises failed
         await browserSupabaseClient.from('workout_groups').delete().eq('id', groupData.id)
-        return null
+        return { success: false, error: exercisesError.message || 'Error creating workout exercises' }
       }
 
-      console.log('Created workout exercises:', exercisesResult)
+      console.log(`${exercisesResult.length} workout exercises created successfully.`)
 
       // Create community feed event for workout completion
       await createCommunityFeedEvent('WORKOUT_COMPLETED', {
@@ -772,29 +783,41 @@ export async function logWorkoutGroup(
 
       // Return the complete workout group with exercises
       return {
-        id: groupData.id,
-        user_id: groupData.user_id,
-        name: groupData.name,
-        duration: groupData.duration,
-        notes: groupData.notes,
-        created_at: groupData.created_at, // Return ISO string
-        exercises: exercisesResult.map(ex => ({
-          ...ex,
-          exerciseName: ex.exercise_name,
-        })) as Workout[], // Map db columns
-        // Program linking fields (optional)
-        linked_program_id: groupData.linked_program_id,
-        linked_program_phase_index: groupData.linked_program_phase_index,
-        linked_program_week_index: groupData.linked_program_week_index,
-        linked_program_day_of_week: groupData.linked_program_day_of_week,
+        success: true,
+        data: {
+          id: groupData.id,
+          user_id: groupData.user_id,
+          name: groupData.name,
+          duration: groupData.duration,
+          notes: groupData.notes,
+          created_at: groupData.created_at,
+          exercises: exercisesResult.map(e => ({
+            id: e.id,
+            user_id: e.user_id,
+            exerciseName: e.exercise_name,
+            sets: e.sets,
+            reps: e.reps,
+            weight: e.weight,
+            duration: e.duration,
+            notes: e.notes,
+            created_at: e.created_at,
+            muscleGroup: e.muscle_group,
+          })),
+          linked_program_id: groupData.linked_program_id,
+          linked_program_phase_index: groupData.linked_program_phase_index,
+          linked_program_week_index: groupData.linked_program_week_index,
+          linked_program_day_of_week: groupData.linked_program_day_of_week,
+        },
       }
     } catch (dbError) {
       console.error('Database error in logWorkoutGroup:', dbError)
       throw dbError
     }
-  } catch (err) {
-    console.error('Error in logWorkoutGroup:', err)
-    return null
+  } catch (error: any) {
+    const errorMessage =
+      error.message || 'An unexpected error occurred while logging the workout group.'
+    console.error('Error in logWorkoutGroup:', errorMessage)
+    return { success: false, error: errorMessage }
   }
 }
 
