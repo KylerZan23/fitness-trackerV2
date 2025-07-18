@@ -15,6 +15,11 @@ export type LeaderboardEntry = {
   lift_date: string;
 };
 
+export type UserRankData = {
+  rank: number;
+  best_e1rm: number;
+};
+
 export async function getLeaderboardData(liftType: LeaderboardLift): Promise<{ success: boolean; data?: LeaderboardEntry[]; error?: string }> {
   const supabase = await createClient()
 
@@ -42,8 +47,86 @@ export async function getLeaderboardData(liftType: LeaderboardLift): Promise<{ s
   return { success: true, data: data as LeaderboardEntry[] }
 }
 
+// Action to get the current user's rank for a specific lift type
+export async function getUserRankForLift(liftType: LeaderboardLift): Promise<{ success: boolean; data?: UserRankData; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "User not authenticated." }
+  }
+
+  // Map the simple lift type to a SQL ILIKE pattern
+  const liftPatterns = {
+    squat: '%squat%',
+    bench: '%bench%',
+    deadlift: '%deadlift%',
+  }
+
+  const pattern = liftPatterns[liftType]
+  if (!pattern) {
+    return { success: false, error: "Invalid lift type" }
+  }
+
+  const { data, error } = await supabase.rpc('get_user_rank_for_lift', {
+    p_user_id: user.id,
+    lift_type_pattern: pattern,
+  })
+
+  if (error) {
+    console.error("Error fetching user rank:", error)
+    return { success: false, error: "Failed to load user rank." }
+  }
+
+  // The function returns an array, but we expect only one result
+  const userRank = data?.[0]
+  if (!userRank) {
+    return { success: false, error: "No rank found for this lift type." }
+  }
+
+  return { 
+    success: true, 
+    data: {
+      rank: parseInt(userRank.rank.toString()),
+      best_e1rm: parseFloat(userRank.best_e1rm.toString())
+    }
+  }
+}
+
+// Action to get the current user's rank for a specific lift type (improved naming)
+export async function getCurrentUserRank(liftType: LeaderboardLift) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { success: false, error: "Not authenticated" }
+
+  // Map the simple lift type to a SQL ILIKE pattern
+  const liftPatterns = {
+    squat: '%squat%',
+    bench: '%bench%',
+    deadlift: '%deadlift%',
+  }
+
+  const pattern = liftPatterns[liftType]
+  if (!pattern) {
+    return { success: false, error: "Invalid lift type" }
+  }
+
+  const { data, error } = await supabase.rpc('get_user_rank_for_lift', {
+    p_user_id: user.id,
+    lift_type_pattern: pattern,
+  })
+
+  if (error || !data || data.length === 0) {
+    return { success: true, data: null } // No rank found
+  }
+
+  return { success: true, data: data[0] }
+}
+
 // Action to get leaderboard for common strength exercises
 export async function getCommonStrengthLeaderboards() {
+  const supabase = await createClient()
   const exercises = [
     { name: 'Bench Press', pattern: '%bench%' },
     { name: 'Deadlift', pattern: '%deadlift%' },
@@ -54,10 +137,15 @@ export async function getCommonStrengthLeaderboards() {
 
   const results = await Promise.allSettled(
     exercises.map(async (exercise) => {
-      const result = await getStrengthLeaderboard(exercise.pattern, 10)
+      const { data, error } = await supabase.rpc('get_strength_leaderboard', {
+        lift_type_pattern: exercise.pattern,
+        result_limit: 10
+      })
       return {
         exercise: exercise.name,
-        ...result
+        success: !error,
+        data: error ? null : data,
+        error: error ? error.message : null
       }
     })
   )

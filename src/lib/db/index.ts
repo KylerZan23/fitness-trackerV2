@@ -670,7 +670,7 @@ export async function logWorkoutGroup(
 
       if (groupError || !groupData) {
         console.error('Error creating workout group:', groupError)
-        return { success: false, error: groupError.message || 'Error creating workout group' }
+        return { success: false, error: groupError?.message || 'Error creating workout group' }
       }
 
       console.log('Created workout group:', groupData)

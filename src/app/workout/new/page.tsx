@@ -350,6 +350,14 @@ function SessionTracker() {
     setError(null)
 
     try {
+      // Transform actualExerciseData to the expected format
+      const exercisesToLog = actualExerciseData.map(exercise => ({
+        exerciseName: exercise.exerciseName,
+        sets: exercise.sets.length,
+        reps: exercise.sets.length > 0 ? exercise.sets[0].reps : 0,
+        weight: exercise.sets.length > 0 ? exercise.sets[0].weight : 0,
+      }))
+
       const result = await logWorkoutGroup({
         name: plannedWorkout.focus || 'Workout',
         duration: Math.round(sessionTimer / 60),

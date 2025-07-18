@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-import { Users, Plus, MessageCircle, Calendar, MapPin, Loader2 } from 'lucide-react'
+import { Users, Plus, MessageCircle, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 
 // Define the type based on the server action's return
 type CommunityGroupWithMemberCount = {
@@ -25,83 +25,234 @@ type CommunityGroupWithMemberCount = {
 export function CommunityGroupList() {
   const [groups, setGroups] = useState<CommunityGroupWithMemberCount[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [membershipStatus, setMembershipStatus] = useState<Record<string, { isMember: boolean; role: string | null }>>({})
   const [joiningGroups, setJoiningGroups] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const fetchGroups = async () => {
-      const result = await getCommunityGroups()
-      if (result.success) {
-        const typedData = result.data as unknown as CommunityGroupWithMemberCount[];
-        setGroups(typedData)
+      try {
+        setLoading(true)
+        setError(null)
         
-        // Check membership status for each group
-        const membershipChecks = await Promise.all(
-          typedData.map(async (group) => {
-            const membership = await checkGroupMembership(group.id)
-            return { groupId: group.id, membership }
+        const result = await getCommunityGroups()
+        if (result.success) {
+          const typedData = result.data as unknown as CommunityGroupWithMemberCount[];
+          setGroups(typedData)
+          
+          // Check membership status for each group
+          const membershipChecks = await Promise.all(
+            typedData.map(async (group) => {
+              const membership = await checkGroupMembership(group.id)
+              return { groupId: group.id, membership }
+            })
+          )
+          
+          const membershipMap: Record<string, { isMember: boolean; role: string | null }> = {}
+          membershipChecks.forEach(({ groupId, membership }) => {
+            membershipMap[groupId] = {
+              isMember: membership.success ? membership.isMember : false,
+              role: membership.success ? membership.role : null
+            }
           })
-        )
-        
-        const membershipMap: Record<string, { isMember: boolean; role: string | null }> = {}
-        membershipChecks.forEach(({ groupId, membership }) => {
-          membershipMap[groupId] = {
-            isMember: membership.success ? membership.isMember : false,
-            role: membership.success ? membership.role : null
-          }
-        })
-        setMembershipStatus(membershipMap)
+          setMembershipStatus(membershipMap)
+        } else {
+          setError(result.error || 'Failed to load communities')
+        }
+      } catch (err) {
+        console.error('Error fetching communities:', err)
+        setError('Unable to load communities. Please try again.')
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     fetchGroups()
   }, [])
 
   const handleJoinGroup = async (groupId: string) => {
     setJoiningGroups(prev => new Set(prev).add(groupId))
-    const result = await joinCommunityGroup(groupId)
-    if (result.success) {
-      setMembershipStatus(prev => ({
-        ...prev,
-        [groupId]: { isMember: true, role: 'member' }
-      }))
-    } else {
-      // You might want to show an error toast here
-      console.error('Failed to join group:', result.error)
+    try {
+      const result = await joinCommunityGroup(groupId)
+      if (result.success) {
+        setMembershipStatus(prev => ({
+          ...prev,
+          [groupId]: { isMember: true, role: 'member' }
+        }))
+      } else {
+        console.error('Failed to join group:', result.error)
+        // Could add toast notification here
+      }
+    } catch (err) {
+      console.error('Error joining group:', err)
+    } finally {
+      setJoiningGroups(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(groupId)
+        return newSet
+      })
     }
-    setJoiningGroups(prev => {
-      const newSet = new Set(prev)
-      newSet.delete(groupId)
-      return newSet
-    })
   }
 
   const handleLeaveGroup = async (groupId: string) => {
     setJoiningGroups(prev => new Set(prev).add(groupId))
-    const result = await leaveCommunityGroup(groupId)
-    if (result.success) {
-      setMembershipStatus(prev => ({
-        ...prev,
-        [groupId]: { isMember: false, role: null }
-      }))
-    } else {
-      // You might want to show an error toast here
-      console.error('Failed to leave group:', result.error)
+    try {
+      const result = await leaveCommunityGroup(groupId)
+      if (result.success) {
+        setMembershipStatus(prev => ({
+          ...prev,
+          [groupId]: { isMember: false, role: null }
+        }))
+      } else {
+        console.error('Failed to leave group:', result.error)
+        // Could add toast notification here
+      }
+    } catch (err) {
+      console.error('Error leaving group:', err)
+    } finally {
+      setJoiningGroups(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(groupId)
+        return newSet
+      })
     }
-    setJoiningGroups(prev => {
-      const newSet = new Set(prev)
-      newSet.delete(groupId)
-      return newSet
-    })
+  }
+
+  const handleRetry = () => {
+    setLoading(true)
+    setError(null)
+    // Re-fetch data
+    const fetchGroups = async () => {
+      try {
+        const result = await getCommunityGroups()
+        if (result.success) {
+          const typedData = result.data as unknown as CommunityGroupWithMemberCount[];
+          setGroups(typedData)
+          
+          const membershipChecks = await Promise.all(
+            typedData.map(async (group) => {
+              const membership = await checkGroupMembership(group.id)
+              return { groupId: group.id, membership }
+            })
+          )
+          
+          const membershipMap: Record<string, { isMember: boolean; role: string | null }> = {}
+          membershipChecks.forEach(({ groupId, membership }) => {
+            membershipMap[groupId] = {
+              isMember: membership.success ? membership.isMember : false,
+              role: membership.success ? membership.role : null
+            }
+          })
+          setMembershipStatus(membershipMap)
+        } else {
+          setError(result.error || 'Failed to load communities')
+        }
+      } catch (err) {
+        console.error('Error fetching communities:', err)
+        setError('Unable to load communities. Please try again.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchGroups()
   }
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-600">Loading communities...</p>
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center space-x-2 mb-2">
+              <Users className="w-6 h-6 text-purple-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Communities</h2>
+            </div>
+            <p className="text-gray-600">
+              Join fitness communities and connect with like-minded people
+            </p>
+          </div>
+          <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
         </div>
+
+        {/* Grid skeleton */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-6 bg-gray-200 rounded w-16"></div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="h-4 bg-gray-200 rounded w-20"></div>
+                  <div className="h-4 bg-gray-200 rounded w-16"></div>
+                </div>
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="flex space-x-2">
+                  <div className="h-9 bg-gray-200 rounded flex-1"></div>
+                  <div className="h-9 bg-gray-200 rounded flex-1"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        
+        <div className="flex items-center justify-center text-sm text-gray-500">
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          Loading communities...
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center space-x-2 mb-2">
+              <Users className="w-6 h-6 text-purple-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Communities</h2>
+            </div>
+            <p className="text-gray-600">
+              Join fitness communities and connect with like-minded people
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/community/create">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Group
+            </Link>
+          </Button>
+        </div>
+
+        {/* Error state */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-red-800">Unable to load communities</h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRetry}
+                className="text-red-600 border-red-300 hover:bg-red-50"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }

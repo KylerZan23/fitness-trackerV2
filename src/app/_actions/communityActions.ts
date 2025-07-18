@@ -283,4 +283,34 @@ export async function getAllPosts() {
   }
 
   return { success: true, data }
+}
+
+// Action to get group details and posts
+export async function getGroupDetailsAndPosts(groupId: string) {
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('community_groups')
+    .select(`
+      id,
+      name,
+      description,
+      posts:community_posts (
+        id,
+        title,
+        content,
+        created_at,
+        user:profiles!community_posts_user_id_fkey(name, profile_picture_url)
+      )
+    `)
+    .eq('id', groupId)
+    .order('created_at', { referencedTable: 'community_posts', ascending: false })
+    .single()
+
+  if (error) {
+    console.error("Error fetching group details:", error)
+    return { success: false, error: "Community not found." }
+  }
+
+  return { success: true, data }
 } 
