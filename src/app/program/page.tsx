@@ -585,7 +585,7 @@ function ProgramPageContent() {
                     setIsLoading(true)
                     try {
                       const { generateTrainingProgram } = await import('@/app/_actions/aiProgramActions')
-                      const result = await generateTrainingProgram(session?.user?.id)
+                      const result = await generateTrainingProgram(session?.user?.id || '')
                       if (result.success) {
                         setProgramWarning(null)
                         router.replace('/program')

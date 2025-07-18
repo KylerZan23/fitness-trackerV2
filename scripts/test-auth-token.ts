@@ -1,4 +1,4 @@
-import { createClient } from('@supabase/supabase-js')
+import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
@@ -20,7 +20,7 @@ const testUser = {
 async function testAuthTokenVerification() {
   try {
     console.log('Creating Supabase client with anon key...')
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const supabase = createClient(supabaseUrl!, supabaseAnonKey!)
 
     console.log('Attempting to sign in with test user...')
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -35,7 +35,7 @@ async function testAuthTokenVerification() {
 
     console.log('Successfully signed in')
     console.log('User ID:', signInData.user.id)
-    console.log('Session expiry:', new Date(signInData.session.expires_at * 1000).toISOString())
+    console.log('Session expiry:', signInData.session.expires_at ? new Date(signInData.session.expires_at * 1000).toISOString() : 'No expiry set')
 
     // Get the access token
     const accessToken = signInData.session.access_token
@@ -44,7 +44,7 @@ async function testAuthTokenVerification() {
 
     // Now test verifying this token with a service role client
     console.log('\nCreating service role client to verify the token...')
-    const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey)
+    const adminClient = createClient(supabaseUrl!, supabaseServiceRoleKey!)
 
     console.log('Setting session on service role client...')
     adminClient.auth.setSession({ access_token: accessToken, refresh_token: '' })

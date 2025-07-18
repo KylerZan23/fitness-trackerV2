@@ -1,4 +1,4 @@
-import { createClient } from('@supabase/supabase-js')
+import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
 
@@ -13,7 +13,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 async function checkRedirectionIssue() {
   try {
     console.log('Creating Supabase client...')
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const supabase = createClient(supabaseUrl!, supabaseAnonKey!)
 
     // Get current session
     const {
@@ -34,7 +34,7 @@ async function checkRedirectionIssue() {
       console.log('User is currently logged in')
       console.log('User ID:', session.user.id)
       console.log('User Email:', session.user.email)
-      console.log('Session Expiry:', new Date(session.expires_at * 1000).toISOString())
+      console.log('Session Expiry:', session.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'No expiry set')
 
       console.log('\nPotential issue: If you are logged in, the middleware is configured to')
       console.log('redirect you from /login and /signup to /dashboard.')

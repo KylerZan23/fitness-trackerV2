@@ -8,7 +8,7 @@
 
 import dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
-import { createClient } from('@supabase/supabase-js')
+import { createClient } from '@supabase/supabase-js'
 
 // Validate environment variables
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -62,7 +62,7 @@ async function verifyToken() {
     console.log(`- ID: ${data.user.id}`)
     console.log(`- Email: ${data.user.email}`)
     console.log(`- Created at: ${new Date(data.user.created_at).toLocaleString()}`)
-    console.log(`- Last sign in: ${new Date(data.user.last_sign_in_at).toLocaleString()}`)
+    console.log(`- Last sign in: ${data.user.last_sign_in_at ? new Date(data.user.last_sign_in_at).toLocaleString() : 'Never'}`)
 
     // Check if user has a profile
     console.log('\nChecking if user has a profile...')

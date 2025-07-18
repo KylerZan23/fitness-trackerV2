@@ -300,7 +300,7 @@ export default function OnboardingPage() {
       const result = await finalizeOnboardingAndGenerateProgram(onboardingAndProfileData)
 
       if ('error' in result) {
-        setError(result.error)
+        setError(result.error || 'An error occurred')
         return
       }
 
