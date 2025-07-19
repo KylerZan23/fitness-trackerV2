@@ -4,6 +4,8 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export type LeaderboardLift = 'squat' | 'bench' | 'deadlift';
+export type LeaderboardMode = 'e1rm' | '1rm';
+
 export type LeaderboardEntry = {
   rank: number;
   user_id: string;
@@ -15,11 +17,28 @@ export type LeaderboardEntry = {
   lift_date: string;
 };
 
+export type OneRMLeaderboardEntry = {
+  rank: number;
+  user_id: string;
+  name: string;
+  profile_picture_url: string | null;
+  one_rm_value: number;
+  assessment_type: 'actual_1rm' | 'estimated_1rm' | 'unsure';
+  weight_unit: 'kg' | 'lbs';
+};
+
 export type UserRankData = {
   rank: number;
   best_e1rm: number;
 };
 
+export type UserOneRMRankData = {
+  rank: number;
+  one_rm_value: number;
+  assessment_type: 'actual_1rm' | 'estimated_1rm' | 'unsure';
+};
+
+// Existing e1RM functions
 export async function getLeaderboardData(liftType: LeaderboardLift): Promise<{ success: boolean; data?: LeaderboardEntry[]; error?: string }> {
   const supabase = await createClient()
 
@@ -45,6 +64,85 @@ export async function getLeaderboardData(liftType: LeaderboardLift): Promise<{ s
   }
 
   return { success: true, data: data as LeaderboardEntry[] }
+}
+
+// New 1RM leaderboard function
+export async function getOneRMLeaderboardData(liftType: LeaderboardLift): Promise<{ success: boolean; data?: OneRMLeaderboardEntry[]; error?: string }> {
+  const supabase = await createClient()
+
+  // Map lift types to onboarding response keys
+  const liftKeys = {
+    squat: 'squat1RMEstimate',
+    bench: 'benchPress1RMEstimate', 
+    deadlift: 'deadlift1RMEstimate',
+  }
+
+  const liftKey = liftKeys[liftType]
+  if (!liftKey) {
+    return { success: false, error: "Invalid lift type" }
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        name,
+        profile_picture_url,
+        weight_unit,
+        onboarding_responses
+      `)
+      .not('onboarding_responses', 'is', null)
+
+    if (error) {
+      console.error("Error fetching 1RM leaderboard data:", error)
+      return { success: false, error: "Failed to load 1RM leaderboard." }
+    }
+
+    // Process and filter the data
+    const leaderboardEntries: OneRMLeaderboardEntry[] = []
+
+    data.forEach((profile, index) => {
+      const responses = profile.onboarding_responses
+      if (!responses) return
+
+      const oneRMValue = responses[liftKey]
+      const assessmentType = responses.strengthAssessmentType || 'unsure'
+
+      // Only include users who have actual 1RM data (tested, not estimated)
+      if (oneRMValue && oneRMValue > 0 && assessmentType === 'actual_1rm') {
+        // Convert weight to kg for consistent sorting (assuming lbs if no unit specified)
+        let weightInKg = Number(oneRMValue)
+        const userUnit = profile.weight_unit || 'lbs'
+        
+        if (userUnit === 'lbs') {
+          weightInKg = weightInKg * 0.453592 // Convert lbs to kg
+        }
+
+        leaderboardEntries.push({
+          rank: 0, // Will be set after sorting
+          user_id: profile.id,
+          name: profile.name || 'Anonymous',
+          profile_picture_url: profile.profile_picture_url,
+          one_rm_value: weightInKg, // Store in kg for consistent sorting
+          assessment_type: assessmentType as 'actual_1rm' | 'estimated_1rm' | 'unsure',
+          weight_unit: userUnit as 'kg' | 'lbs',
+        })
+      }
+    })
+
+    // Sort by 1RM value (descending) and assign ranks
+    leaderboardEntries.sort((a, b) => b.one_rm_value - a.one_rm_value)
+    leaderboardEntries.forEach((entry, index) => {
+      entry.rank = index + 1
+    })
+
+    return { success: true, data: leaderboardEntries }
+
+  } catch (error) {
+    console.error("Unexpected error in getOneRMLeaderboardData:", error)
+    return { success: false, error: "An unexpected error occurred." }
+  }
 }
 
 // Action to get the current user's rank for a specific lift type
@@ -89,6 +187,39 @@ export async function getUserRankForLift(liftType: LeaderboardLift): Promise<{ s
     data: {
       rank: parseInt(userRank.rank.toString()),
       best_e1rm: parseFloat(userRank.best_e1rm.toString())
+    }
+  }
+}
+
+// New function to get user's 1RM rank
+export async function getUserOneRMRank(liftType: LeaderboardLift): Promise<{ success: boolean; data?: UserOneRMRankData; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "User not authenticated." }
+  }
+
+  // Get the full leaderboard to calculate user's rank
+  const leaderboardResult = await getOneRMLeaderboardData(liftType)
+  
+  if (!leaderboardResult.success || !leaderboardResult.data) {
+    return { success: false, error: "Failed to calculate rank." }
+  }
+
+  // Find user's entry
+  const userEntry = leaderboardResult.data.find(entry => entry.user_id === user.id)
+  
+  if (!userEntry) {
+    return { success: false, error: "No actual 1RM data found for this lift. Only tested 1RM values are included in this leaderboard." }
+  }
+
+  return {
+    success: true,
+    data: {
+      rank: userEntry.rank,
+      one_rm_value: userEntry.one_rm_value,
+      assessment_type: userEntry.assessment_type,
     }
   }
 }

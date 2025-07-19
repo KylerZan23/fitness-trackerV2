@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -59,11 +59,15 @@ function SessionTracker() {
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg')
   
   // Add loading state for URL parameter parsing
-  const [isLoadingWorkoutData, setIsLoadingWorkoutData] = useState(true)
+  const [isLoadingWorkoutData, setIsLoadingWorkoutData] = useState(false) // Start as false, will be set to true when loading starts
   const [isRedirecting, setIsRedirecting] = useState(false)
+  const [sessionLoadStarted, setSessionLoadStarted] = useState(false) // Track if session loading has started
   
   // Session state
   const [plannedWorkout, setPlannedWorkout] = useState<WorkoutDay | null>(null)
+  
+  // Use ref for atomic guard check to prevent race conditions
+  const sessionLoadingRef = useRef(false)
   const [programContext, setProgramContext] = useState<ProgramContext | null>(null)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [sessionTimer, setSessionTimer] = useState(0)
@@ -96,56 +100,134 @@ function SessionTracker() {
   // This single useEffect handles all initial data loading and parsing
   useEffect(() => {
     async function initializeSession() {
+      // Atomic guard check to prevent race conditions
+      if (plannedWorkout || sessionLoadingRef.current) {
+        console.log('⚠️ Session already loaded or loading, skipping duplicate attempt', {
+          hasWorkout: !!plannedWorkout,
+          isLoading: sessionLoadingRef.current
+        })
+        return
+      }
+
+      // Immediately set the loading flag to prevent other calls
+      sessionLoadingRef.current = true
+      setSessionLoadStarted(true)
+
+      console.log('🔄 Initializing workout session...')
       setIsLoadingWorkoutData(true)
 
       const sessionId = searchParams?.get('sessionId')
+      console.log('📋 Session ID from URL:', sessionId)
 
       if (!sessionId) {
+        console.error('❌ No session ID provided in URL')
+        sessionLoadingRef.current = false // Reset loading flag
+        setSessionLoadStarted(false)
         toast.error('Workout session not found. Redirecting...')
         router.push('/program')
         return
       }
 
       try {
+        console.log('👤 Loading user profile...')
         const profileData = await getUserProfile()
         if (profileData) {
           setProfile(profileData)
           setWeightUnit(profileData.weight_unit ?? 'kg')
+          console.log('✅ Profile loaded successfully:', {
+            userId: profileData.id,
+            weightUnit: profileData.weight_unit
+          })
         } else {
           throw new Error('User profile could not be loaded.')
         }
 
+        console.log('🔍 Fetching workout session data...')
         const sessionResult = await getPendingWorkoutSession(sessionId)
+        
+        console.log('📊 Session result:', {
+          success: sessionResult.success,
+          error: sessionResult.error,
+          hasWorkout: !!sessionResult.workout,
+          hasContext: !!sessionResult.context,
+          hasReadiness: !!sessionResult.readiness
+        })
 
         if (sessionResult.success) {
           const { workout, context, readiness } = sessionResult
           if (workout && context) {
+            console.log('✅ Valid session data received:', {
+              workoutFocus: workout.focus,
+              exerciseCount: workout.exercises?.length || 0,
+              programId: context.programId,
+              hasReadiness: !!readiness
+            })
+            
             setProgramContext(context)
             if (readiness) {
+              console.log('🎯 Adapting workout based on readiness data')
               await adaptWorkout(workout, readiness)
             } else {
+              console.log('📝 Using original workout without adaptation')
               setPlannedWorkout(workout)
               initializeExerciseTracking(workout)
+              setIsLoadingWorkoutData(false)
             }
           } else {
+            console.error('❌ Incomplete session data:', {
+              hasWorkout: !!workout,
+              hasContext: !!context
+            })
             throw new Error('Incomplete session data returned from server.')
           }
         } else {
-          throw new Error(sessionResult.error || 'Failed to load session data.')
+          const errorMsg = sessionResult.error || 'Failed to load session data.'
+          console.error('❌ Session loading failed:', {
+            error: errorMsg,
+            sessionId: sessionId
+          })
+          
+          // Provide more specific error messages based on common issues
+          let userFriendlyError = errorMsg
+          if (errorMsg.includes('not found') || errorMsg.includes('expired')) {
+            userFriendlyError = 'Your workout session has expired. Please start a new workout from the program page.'
+          } else if (errorMsg.includes('Authentication')) {
+            userFriendlyError = 'Authentication error. Please log in again and try starting your workout.'
+          }
+          
+          throw new Error(userFriendlyError)
         }
       } catch (err: any) {
-        console.error('Fatal error loading session:', err)
-        toast.error(err.message || 'Your session may have expired.')
-        router.push('/program')
+        console.error('❌ Fatal error in initializeSession:', {
+          error: err,
+          message: err.message,
+          sessionId: sessionId
+        })
+
+        // Reset loading states on error so user can retry
+        sessionLoadingRef.current = false
+        setSessionLoadStarted(false)
+        
+        // Provide helpful error messages to the user
+        const errorMessage = err.message || 'An unexpected error occurred while loading your workout session.'
+        toast.error(errorMessage)
+        
+        // Add a small delay before redirecting to allow user to read the error
+        setTimeout(() => {
+          router.push('/program')
+        }, 2000)
       } finally {
-        setIsLoadingWorkoutData(false)
+        if (!plannedWorkout) {
+          setIsLoadingWorkoutData(false)
+        }
+        console.log('🏁 Session initialization completed')
       }
     }
 
     if (searchParams) {
       initializeSession()
     }
-  }, [searchParams, router])
+  }, [searchParams, router, plannedWorkout]) // Remove sessionLoadStarted from deps to prevent re-runs when it changes
 
   // Timer effect
   useEffect(() => {

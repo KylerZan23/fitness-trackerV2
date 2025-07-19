@@ -21,7 +21,8 @@ import AIWeeklyReviewCard from '@/components/progress/AIWeeklyReviewCard'
 // Import strength calculation utilities
 import {
   WorkoutData,
-  getCurrentStrengthLevels,
+  getCurrentStrengthLevelsWithOnboarding,
+  OnboardingStrengthData,
   calculate7DayVolume,
   isValidWorkoutForE1RM,
   formatE1RM,
@@ -33,6 +34,7 @@ interface UserProfile {
   email: string
   profile_picture_url?: string
   weight_unit?: 'kg' | 'lbs'
+  onboarding_responses?: OnboardingStrengthData
 }
 
 interface UserActivitySummary {
@@ -178,10 +180,11 @@ export default function ProgressPage() {
         onLogout: handleLogout,
       }
 
-  // Calculate strength metrics from workout data
-  const strengthLevels = workoutHistory.length > 0 
-    ? getCurrentStrengthLevels(workoutHistory)
-    : { squat: null, bench: null, deadlift: null, overhead_press: null }
+  // Calculate strength metrics from workout data and onboarding
+  const strengthLevels = getCurrentStrengthLevelsWithOnboarding(
+    workoutHistory,
+    profile?.onboarding_responses
+  )
 
   const weeklyVolume = workoutHistory.length > 0
     ? calculate7DayVolume(workoutHistory, profile?.weight_unit || 'kg')

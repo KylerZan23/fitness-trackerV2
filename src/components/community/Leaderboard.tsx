@@ -1,22 +1,36 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getLeaderboardData, getCurrentUserRank, type LeaderboardEntry, type LeaderboardLift, type UserRankData } from '@/app/_actions/leaderboardActions'
+import { 
+  getLeaderboardData, 
+  getCurrentUserRank, 
+  getOneRMLeaderboardData,
+  getUserOneRMRank,
+  type LeaderboardEntry, 
+  type OneRMLeaderboardEntry,
+  type LeaderboardLift, 
+  type LeaderboardMode,
+  type UserRankData,
+  type UserOneRMRankData 
+} from '@/app/_actions/leaderboardActions'
 import Link from 'next/link'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
-import { Crown, Dumbbell, Target, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
+import { Crown, Dumbbell, Target, Loader2, AlertCircle, RefreshCw, ToggleLeft, ToggleRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { kgToLbs } from '@/lib/units'
 import { supabase } from '@/lib/supabase'
 
 function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
-  const [data, setData] = useState<LeaderboardEntry[]>([])
-  const [userRank, setUserRank] = useState<UserRankData | null>(null)
+  const [mode, setMode] = useState<LeaderboardMode>('e1rm')
+  const [e1rmData, setE1rmData] = useState<LeaderboardEntry[]>([])
+  const [oneRMData, setOneRMData] = useState<OneRMLeaderboardEntry[]>([])
+  const [e1rmUserRank, setE1rmUserRank] = useState<UserRankData | null>(null)
+  const [oneRMUserRank, setOneRMUserRank] = useState<UserOneRMRankData | null>(null)
   const [loading, setLoading] = useState(true)
   const [userRankLoading, setUserRankLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -42,21 +56,38 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
           }
         }
         
-        const [leaderboardResult, userRankResult] = await Promise.all([
+        // Fetch both e1RM and 1RM data in parallel
+        const [e1rmResult, oneRMResult, e1rmRankResult, oneRMRankResult] = await Promise.all([
           getLeaderboardData(lift),
-          getCurrentUserRank(lift)
+          getOneRMLeaderboardData(lift),
+          getCurrentUserRank(lift),
+          getUserOneRMRank(lift)
         ])
         
-        if (leaderboardResult.success) {
-          setData(leaderboardResult.data || [])
+        if (e1rmResult.success) {
+          setE1rmData(e1rmResult.data || [])
         } else {
-          setError(leaderboardResult.error || 'Failed to load leaderboard data')
+          console.error('e1RM leaderboard error:', e1rmResult.error)
+        }
+
+        if (oneRMResult.success) {
+          setOneRMData(oneRMResult.data || [])
+        } else {
+          console.error('1RM leaderboard error:', oneRMResult.error)
         }
         
-        if (userRankResult.success) {
-          setUserRank(userRankResult.data || null)
+        if (e1rmRankResult.success) {
+          setE1rmUserRank(e1rmRankResult.data || null)
         }
-        // Note: We don't set error for user rank failure as it's optional
+
+        if (oneRMRankResult.success) {
+          setOneRMUserRank(oneRMRankResult.data || null)
+        }
+
+        // Set error only if both fail
+        if (!e1rmResult.success && !oneRMResult.success) {
+          setError('Failed to load leaderboard data')
+        }
         
       } catch (err) {
         console.error('Error fetching leaderboard data:', err)
@@ -79,14 +110,21 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
     return `${Math.round(convertedWeight)} ${userWeightUnit}`
   }
 
-  const formatE1RM = (e1rmInKg: number): string => {
-    const convertedE1RM = convertWeight(e1rmInKg)
-    return `${Math.round(convertedE1RM)}`
+  const formatValue = (valueInKg: number): string => {
+    const convertedValue = convertWeight(valueInKg)
+    return `${Math.round(convertedValue)}`
   }
 
   const getUnitLabel = (): string => {
     return userWeightUnit
   }
+
+  const getModeLabel = (): string => {
+    return mode === 'e1rm' ? 'e1RM' : '1RM'
+  }
+
+  const currentData = mode === 'e1rm' ? e1rmData : oneRMData
+  const currentUserRank = mode === 'e1rm' ? e1rmUserRank : oneRMUserRank
 
   const handleRetry = () => {
     setLoading(true)
@@ -108,19 +146,31 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
           }
         }
         
-        const [leaderboardResult, userRankResult] = await Promise.all([
+        const [e1rmResult, oneRMResult, e1rmRankResult, oneRMRankResult] = await Promise.all([
           getLeaderboardData(lift),
-          getCurrentUserRank(lift)
+          getOneRMLeaderboardData(lift),
+          getCurrentUserRank(lift),
+          getUserOneRMRank(lift)
         ])
         
-        if (leaderboardResult.success) {
-          setData(leaderboardResult.data || [])
-        } else {
-          setError(leaderboardResult.error || 'Failed to load leaderboard data')
+        if (e1rmResult.success) {
+          setE1rmData(e1rmResult.data || [])
+        }
+
+        if (oneRMResult.success) {
+          setOneRMData(oneRMResult.data || [])
         }
         
-        if (userRankResult.success) {
-          setUserRank(userRankResult.data || null)
+        if (e1rmRankResult.success) {
+          setE1rmUserRank(e1rmRankResult.data || null)
+        }
+
+        if (oneRMRankResult.success) {
+          setOneRMUserRank(oneRMRankResult.data || null)
+        }
+
+        if (!e1rmResult.success && !oneRMResult.success) {
+          setError('Failed to load leaderboard data')
         }
         
       } catch (err) {
@@ -200,8 +250,30 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
 
   return (
     <div className="space-y-4">
+      {/* Mode Toggle */}
+      <div className="flex items-center justify-center space-x-2 p-2 bg-gray-50 rounded-lg">
+        <span className={`text-sm font-medium ${mode === 'e1rm' ? 'text-blue-600' : 'text-gray-500'}`}>
+          e1RM (Calculated)
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMode(mode === 'e1rm' ? '1rm' : 'e1rm')}
+          className="p-1 h-8 w-12"
+        >
+          {mode === 'e1rm' ? (
+            <ToggleLeft className="h-6 w-6 text-blue-600" />
+          ) : (
+            <ToggleRight className="h-6 w-6 text-green-600" />
+          )}
+        </Button>
+        <span className={`text-sm font-medium ${mode === '1rm' ? 'text-green-600' : 'text-gray-500'}`}>
+          1RM (Tested Only)
+        </span>
+      </div>
+
       {/* User Rank Card */}
-      {!userRankLoading && userRank && (
+      {!userRankLoading && currentUserRank && (
         <Card className="border-2 border-blue-200 bg-blue-50">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center space-x-2 text-lg">
@@ -213,13 +285,18 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Badge variant="secondary" className="text-lg px-3 py-1">
-                  #{userRank.rank}
+                  #{currentUserRank.rank}
                 </Badge>
-                <span className="text-gray-600">out of {data.length} athletes</span>
+                <span className="text-gray-600">out of {currentData.length} athletes</span>
               </div>
               <div className="text-right">
                 <div className="text-sm text-gray-500">Your Best</div>
-                <div className="text-xl font-bold text-blue-600">{formatE1RM(userRank.best_e1rm)} {getUnitLabel()}</div>
+                <div className="text-xl font-bold text-blue-600">
+                  {mode === 'e1rm' 
+                    ? formatValue((currentUserRank as UserRankData).best_e1rm)
+                    : formatValue((currentUserRank as UserOneRMRankData).one_rm_value)
+                  } {getUnitLabel()}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -227,7 +304,7 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
       )}
 
       {/* Your Rank Row - Highlighted at the bottom */}
-      {!userRankLoading && userRank && (
+      {!userRankLoading && currentUserRank && (
         <div className="mt-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Your Performance</h3>
           <Table>
@@ -235,7 +312,7 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
               <TableRow className="bg-blue-50 border-2 border-blue-200">
                 <TableCell className="font-medium text-lg">
                   <Badge variant="secondary" className="text-lg px-3 py-1">
-                    #{userRank.rank}
+                    #{currentUserRank.rank}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -244,8 +321,15 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
                     <span className="font-medium text-blue-700">You</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-bold text-lg text-blue-600">{formatE1RM(userRank.best_e1rm)}</TableCell>
-                <TableCell className="text-right text-sm text-gray-600">-</TableCell>
+                <TableCell className="text-right font-bold text-lg text-blue-600">
+                  {mode === 'e1rm' 
+                    ? formatValue((currentUserRank as UserRankData).best_e1rm)
+                    : formatValue((currentUserRank as UserOneRMRankData).one_rm_value)
+                  }
+                </TableCell>
+                <TableCell className="text-right text-sm text-gray-600">
+                  {mode === '1rm' ? 'Tested' : '-'}
+                </TableCell>
                 <TableCell className="text-right text-sm text-gray-500">-</TableCell>
               </TableRow>
             </TableBody>
@@ -259,13 +343,17 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
           <TableRow>
             <TableHead className="w-[80px]">Rank</TableHead>
             <TableHead>Athlete</TableHead>
-            <TableHead className="text-right">Best e1RM ({getUnitLabel()})</TableHead>
-            <TableHead className="text-right">Lift</TableHead>
-            <TableHead className="text-right">Date</TableHead>
+            <TableHead className="text-right">Best {getModeLabel()} ({getUnitLabel()})</TableHead>
+            <TableHead className="text-right">
+              {mode === 'e1rm' ? 'Lift' : 'Assessment'}
+            </TableHead>
+            <TableHead className="text-right">
+              {mode === 'e1rm' ? 'Date' : 'Verified'}
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((entry, index) => (
+          {currentData.map((entry, index) => (
             <TableRow 
               key={entry.user_id} 
               className={`${index < 3 ? 'bg-yellow-50' : ''} hover:bg-gray-50 cursor-pointer transition-colors`}
@@ -273,21 +361,53 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
               <TableCell className="font-medium text-lg">
                 {entry.rank === 1 ? <Crown className="w-6 h-6 text-yellow-500" /> : entry.rank}
               </TableCell>
-                          <TableCell>
-              <Link href={`/p/${entry.user_id}`} className="block hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors">
-                <div className="flex items-center space-x-3">
-                  <UserAvatar name={entry.name} profilePictureUrl={entry.profile_picture_url} size={8} disableTooltipLinks />
-                  <span className="font-medium text-blue-600 hover:text-blue-800 transition-colors">{entry.name}</span>
-                </div>
-              </Link>
-            </TableCell>
-              <TableCell className="text-right font-bold text-lg text-indigo-600">{formatE1RM(entry.best_e1rm)}</TableCell>
-              <TableCell className="text-right text-sm text-gray-600">{formatWeight(entry.weight)} x {entry.reps}</TableCell>
-              <TableCell className="text-right text-sm text-gray-500">{formatDistanceToNow(new Date(entry.lift_date), { addSuffix: true })}</TableCell>
+              <TableCell>
+                <Link href={`/p/${entry.user_id}`} className="block hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <UserAvatar name={entry.name} profilePictureUrl={entry.profile_picture_url} size={8} disableTooltipLinks />
+                    <span className="font-medium text-blue-600 hover:text-blue-800 transition-colors">{entry.name}</span>
+                  </div>
+                </Link>
+              </TableCell>
+              <TableCell className="text-right font-bold text-lg text-indigo-600">
+                {mode === 'e1rm' 
+                  ? formatValue((entry as LeaderboardEntry).best_e1rm)
+                  : formatValue((entry as OneRMLeaderboardEntry).one_rm_value)
+                }
+              </TableCell>
+              <TableCell className="text-right text-sm text-gray-600">
+                {mode === 'e1rm' 
+                  ? `${formatWeight((entry as LeaderboardEntry).weight)} x ${(entry as LeaderboardEntry).reps}`
+                  : 'Tested'
+                }
+              </TableCell>
+              <TableCell className="text-right text-sm text-gray-500">
+                {mode === 'e1rm' 
+                  ? formatDistanceToNow(new Date((entry as LeaderboardEntry).lift_date), { addSuffix: true })
+                  : 'Tested'
+                }
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      {currentData.length === 0 && (
+        <div className="text-center py-8">
+          <div className="text-gray-500">
+            No {mode === 'e1rm' ? 'workout data' : 'tested 1RM data'} available for this lift.
+            {mode === '1rm' && (
+              <div className="mt-2 text-sm">
+                Complete your onboarding with actual tested 1RM values to appear here!
+                <br />
+                <span className="text-xs text-gray-400">
+                  (Estimated 1RM values are shown in the e1RM leaderboard)
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

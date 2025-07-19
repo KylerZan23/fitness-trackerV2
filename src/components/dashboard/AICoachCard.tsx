@@ -1,10 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import {
-  getAICoachRecommendation,
-  type AICoachRecommendation as AICoachRecommendationType,
-} from '@/app/_actions/aiCoachActions'
+import { getAICoachRecommendation } from '@/app/_actions/aiCoachActions'
+import type { AICoachRecommendation as AICoachRecommendationType } from '@/lib/types/aiCoach'
 import { submitCoachFeedback } from '@/app/_actions/feedbackActions'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'

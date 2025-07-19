@@ -214,6 +214,86 @@ export function calculate7DayVolume(
 }
 
 /**
+ * Onboarding strength data interface
+ */
+export interface OnboardingStrengthData {
+  squat1RMEstimate?: number
+  benchPress1RMEstimate?: number
+  deadlift1RMEstimate?: number
+  overheadPress1RMEstimate?: number
+  strengthAssessmentType?: 'actual_1rm' | 'estimated_1rm' | 'unsure'
+}
+
+/**
+ * Get current strength levels for major compound lifts, combining workout history with onboarding data
+ * @param allWorkouts - Complete workout history
+ * @param onboardingData - Strength data from onboarding
+ * @param exerciseMapping - Optional custom exercise name mapping
+ * @returns Object with current e1RM for each major lift
+ */
+export function getCurrentStrengthLevelsWithOnboarding(
+  allWorkouts: WorkoutData[],
+  onboardingData?: OnboardingStrengthData,
+  exerciseMapping?: Record<string, string>
+): Record<string, E1RMResult | null> {
+  // Get the workout-based strength levels first
+  const workoutBasedLevels = getCurrentStrengthLevels(allWorkouts, exerciseMapping)
+  
+  // If we have no onboarding data, return workout-based levels
+  if (!onboardingData) {
+    return workoutBasedLevels
+  }
+  
+  // If we have complete workout data for all lifts, prefer that over onboarding
+  if (
+    workoutBasedLevels.squat && 
+    workoutBasedLevels.bench && 
+    workoutBasedLevels.deadlift && 
+    workoutBasedLevels.overhead_press
+  ) {
+    return workoutBasedLevels
+  }
+  
+  // Fill in missing data with onboarding estimates
+  const result = { ...workoutBasedLevels }
+  
+  // Map onboarding fields to lift types
+  const onboardingMapping = {
+    squat: onboardingData.squat1RMEstimate,
+    bench: onboardingData.benchPress1RMEstimate,
+    deadlift: onboardingData.deadlift1RMEstimate,
+    overhead_press: onboardingData.overheadPress1RMEstimate,
+  }
+  
+  // Determine confidence based on assessment type
+  const getOnboardingConfidence = (): 'high' | 'medium' | 'low' => {
+    switch (onboardingData.strengthAssessmentType) {
+      case 'actual_1rm': return 'high'
+      case 'estimated_1rm': return 'medium'
+      case 'unsure': return 'low'
+      default: return 'medium'
+    }
+  }
+  
+  const onboardingConfidence = getOnboardingConfidence()
+  const onboardingDate = new Date().toISOString() // Use current date for onboarding estimates
+  
+  // Fill in missing lifts with onboarding data
+  Object.entries(onboardingMapping).forEach(([liftType, onboardingValue]) => {
+    if (!result[liftType] && onboardingValue && onboardingValue > 0) {
+      result[liftType] = {
+        value: onboardingValue,
+        formula: 'onboarding_estimate',
+        confidence: onboardingConfidence,
+        date: onboardingDate
+      }
+    }
+  })
+  
+  return result
+}
+
+/**
  * Get current e1RM for major lifts (Squat, Bench, Deadlift, OHP)
  * @param allWorkouts - All workout data
  * @param exerciseMapping - Mapping of exercise names to standard lift names

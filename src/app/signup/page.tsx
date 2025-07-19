@@ -64,20 +64,34 @@ export default function SignupPage() {
 
       // If signup successful, create comprehensive profile immediately
       if (authData.user) {
-        console.log('Account created successfully, calling RPC to create profile...')
+        console.log('Account created successfully, creating profile via direct insertion...')
 
-        const { error: profileError } = await supabase.rpc(
-          'create_profile_for_new_user',
-          {
-            user_id: authData.user.id,
-            user_email: data.email,
-            user_name: data.name,
-          }
-        )
+        // Conservative approach: Only insert columns that definitely exist in base schema
+        const profileData = {
+          id: authData.user.id,
+          email: data.email,
+          name: data.name,
+          age: 25, // Default age
+          fitness_goals: 'Get fit', // Default goal
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+
+        console.log('Inserting profile data:', profileData)
+
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert(profileData)
 
         if (profileError) {
-          console.error('Error creating profile via RPC:', profileError)
-          setError('Failed to create your profile. Please try again.')
+          console.error('Error creating profile via direct insertion:', profileError)
+          console.error('Profile error details:', {
+            message: profileError.message,
+            details: profileError.details,
+            hint: profileError.hint,
+            code: profileError.code
+          })
+          setError(`Failed to create your profile: ${profileError.message || 'Unknown error'}`)
           return
         }
 

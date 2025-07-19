@@ -4,6 +4,22 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 ## Recent Updates
 
+- **Strength Vitals Onboarding Integration (2025-01-19)**: Fixed Strength Vitals display to show user's onboarding PR data:
+  - **Data Integration**: Connected onboarding strength estimates with progress page Strength Vitals cards
+  - **Smart Prioritization**: Workout-based e1RM calculations take priority, with onboarding data as intelligent fallback
+  - **Enhanced User Experience**: Users now see their entered PRs immediately after onboarding completion
+  - **Confidence Indicators**: Assessment type mapping (actual_1rm → high, estimated_1rm → medium, unsure → low confidence)
+  - **Progressive Enhancement**: Seamless transition from onboarding estimates to workout-calculated values
+  - **Type Safety**: Added `OnboardingStrengthData` interface and `getCurrentStrengthLevelsWithOnboarding()` function
+
+- **Server Action Exports Fix (2025-01-19)**: Resolved AI Weekly Review functionality issue on progress page:
+  - **Next.js Compliance**: Fixed "use server" file exports to only include async functions, resolving runtime errors
+  - **Type Organization**: Created dedicated `src/lib/types/aiCoach.ts` for schemas, types, and interfaces
+  - **Clean Architecture**: Established clear separation between server actions and type definitions
+  - **Import Updates**: Updated all component imports to use the new types file structure
+  - **Build Stability**: Eliminated server action export violations and ensured TypeScript compilation success
+  - **Best Practices**: Documented proper server action file organization for future development
+
 - **Critical Onboarding Fix (2025-01-09)**: Resolved critical issue preventing training program generation after onboarding completion:
   - **Profile Creation Fix**: Enhanced signup process to create comprehensive profiles with all required fields
   - **Error Handling Improvements**: Added robust validation and user-friendly error messages throughout onboarding flow

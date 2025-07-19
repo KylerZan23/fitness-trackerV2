@@ -2,7 +2,6 @@
 
 import { cookies } from 'next/headers'
 import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
-import { z } from 'zod'
 import { getUserProfile } from '@/lib/db/index'
 import { fetchCurrentWeekGoalsWithProgress } from '@/lib/db/goals'
 import { getActiveTrainingProgram, type TrainingProgramWithId } from '@/lib/db/program'
@@ -10,44 +9,14 @@ import type { GoalWithProgress } from '@/lib/types'
 import { MuscleGroup } from '@/lib/types'
 import type { DayOfWeek } from '@/lib/types/program'
 import { callLLM } from '@/lib/llmService'
-// Assuming OpenAI client might be needed, or similar for LLM interaction
-// import OpenAI from 'openai';
+import { 
+  aiCoachRecommendationSchema,
+  type AICoachRecommendation,
+  type AIWeeklyReview,
+  type AIWeeklyReviewFollowUp
+} from '@/lib/types/aiCoach'
 
 const AI_COACH_CACHE_DURATION_MINUTES = 30
-
-const aiCoachExerciseSchema = z.object({
-  name: z.string(),
-  sets: z.number(),
-  reps: z.union([z.string(), z.number()]),
-  muscle_group: z.nativeEnum(MuscleGroup),
-})
-
-// Define the structure for the AI Coach's recommendation
-export const aiCoachRecommendationSchema = z.object({
-  workoutRecommendation: z.object({
-    title: z.string(),
-    details: z.string(),
-    suggestedExercises: z.array(aiCoachExerciseSchema),
-  }),
-  runRecommendation: z
-    .object({
-      title: z.string(),
-      details: z.string(),
-    })
-    .nullable(),
-  generalInsight: z.object({
-    title: z.string(),
-    details: z.string(),
-  }),
-  focusAreaSuggestion: z
-    .object({
-      title: z.string(),
-      details: z.string(),
-    })
-    .nullable(),
-})
-
-export type AICoachRecommendation = z.infer<typeof aiCoachRecommendationSchema>
 
 interface MuscleExerciseVolume {
   exercise_name: string
@@ -218,20 +187,6 @@ async function getProgramAdherenceData(
 
 // Placeholder for actual OpenAI or LLM client initialization if needed globally
 // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// Define the structure for AI Weekly Review
-export interface AIWeeklyReview {
-  title: string
-  summary: string
-  whatWentWell: string
-  improvementArea: string
-  actionableTip: string
-}
-
-export interface AIWeeklyReviewFollowUp {
-  question: string
-  answer: string
-}
 
 /**
  * Get AI-generated weekly review based on user's past 7 days of activity

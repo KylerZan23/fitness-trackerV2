@@ -5,7 +5,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Trophy, Target, Lightbulb, Brain, Loader2, AlertCircle, MessageCircle, Send, ChevronDown, ChevronUp } from 'lucide-react'
-import { getAIWeeklyReview, getAIWeeklyReviewFollowUp, type AIWeeklyReview, type AIWeeklyReviewFollowUp } from '@/app/_actions/aiCoachActions'
+import { getAIWeeklyReview, getAIWeeklyReviewFollowUp } from '@/app/_actions/aiCoachActions'
+import type { AIWeeklyReview, AIWeeklyReviewFollowUp } from '@/lib/types/aiCoach'
 import ActionProgressTracker from './ActionProgressTracker'
 
 export default function AIWeeklyReviewCard() {
