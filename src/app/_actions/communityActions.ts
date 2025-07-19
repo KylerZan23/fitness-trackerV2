@@ -34,7 +34,7 @@ export async function getCommunityGroups() {
     .select(`
       *,
       members:community_group_members(count),
-      created_by_user:profiles!community_groups_created_by_fkey(name, profile_picture_url)
+      created_by_user:profiles!created_by(name, profile_picture_url)
     `)
     .order('created_at', { ascending: false })
 

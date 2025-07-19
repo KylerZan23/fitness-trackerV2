@@ -1,14 +1,14 @@
 -- Community Groups Migration
 -- This migration creates tables for community groups and posts functionality
 
--- Community Groups Table
+-- Community Groups Table (Corrected)
 CREATE TABLE community_groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
     description TEXT,
     group_type TEXT NOT NULL,
     cover_image_url TEXT,
-    created_by UUID NOT NULL REFERENCES auth.users(id),
+    created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE, -- CORRECTED: Points to profiles(id)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
