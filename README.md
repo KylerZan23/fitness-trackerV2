@@ -718,6 +718,10 @@ The `profiles` table has been updated with the following fields to support Strav
 - **Enhanced Workout Logging**: Track exercises, sets, reps, and weights with **Quick Log** feature
   - **Quick Log**: One-click logging using planned weight and reps values
   - **Smart Auto-fill**: Automatically populates actual values from exercise plan
+- **Community Interaction**: Social features for user engagement
+  - **Community Posts**: Create and share fitness-related content
+  - **Commenting System**: Interactive commenting on all community posts with full CRUD operations
+  - **Real-time Updates**: Automatic refresh of comments and post interactions
   - **PB Detection**: Personal best checking integrated into quick logging
   - **Manual Override**: Full manual input still available when needed
 - **Progress Tracking**: Visual charts and analytics

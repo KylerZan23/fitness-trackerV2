@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { formatDistanceToNow } from 'date-fns'
 import { MessageSquare, Calendar, Loader2 } from 'lucide-react'
+import { CommentsSection } from './CommentsSection'
 
 interface Post {
   id: string
@@ -142,6 +143,7 @@ export function PostList({ groupId, groupName }: PostListProps) {
                 {post.content}
               </p>
             </div>
+            <CommentsSection postId={post.id} />
           </CardContent>
         </Card>
       ))}

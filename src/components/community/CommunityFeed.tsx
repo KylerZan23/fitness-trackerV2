@@ -120,30 +120,37 @@ function getEventBadgeColor(eventType: string) {
 
 function formatEventMessage(event: CommunityFeedEvent): string {
   const { event_type, metadata } = event
-  const userName = event.user.name || 'Someone'
+  const userName = event.user.name ?? 'Someone'
 
   switch (event_type) {
     case 'WORKOUT_COMPLETED':
-      const workoutName = metadata.workoutName || 'their workout'
-      const exerciseCount = metadata.exerciseCount || 0
-      const duration = metadata.duration || 0
+      const workoutName = metadata?.workoutName ?? 'a workout'
+      const exerciseCount = metadata?.exerciseCount
+      const duration = metadata?.duration
       
-      return `${userName} just completed ${workoutName}${exerciseCount > 0 ? ` (${exerciseCount} exercises)` : ''}${duration > 0 ? ` in ${duration} minutes` : ''}!`
+      let details = ''
+      if (exerciseCount > 0) details += ` (${exerciseCount} exercises)`
+      if (duration > 0) details += ` in ${duration} minutes`
+      
+      return `${userName} just completed ${workoutName}${details}!`
 
     case 'NEW_PB':
-      const exerciseName = metadata.exerciseName || 'an exercise'
-      const weight = metadata.weight || 0
-      const reps = metadata.reps || 0
-      const unit = event.user.weight_unit || 'kg'
+      const exerciseName = metadata?.exerciseName ?? 'an exercise'
+      const weight = metadata?.weight ?? 0
+      const reps = metadata?.reps ?? 0
+      const unit = event.user.weight_unit ?? 'kg'
       
       return `${userName} just hit a new ${exerciseName} PR: ${weight} ${unit} for ${reps} reps! 🏆`
 
     case 'STREAK_MILESTONE':
-      const streakDays = metadata.streakDays || 0
-      return `${userName} is on a ${streakDays}-day workout streak! 🔥`
+      const streakDays = metadata?.streakDays
+      if (streakDays > 0) {
+        return `${userName} is on a ${streakDays}-day workout streak! 🔥`
+      }
+      return `${userName} just hit a new streak milestone! 🔥`
 
     case 'NEW_POST':
-      const postTitle = metadata.title || 'something'
+      const postTitle = metadata?.title ?? 'something'
       return `${userName} shared a new post: "${postTitle}"`
 
     default:

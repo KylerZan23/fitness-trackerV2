@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { formatDistanceToNow } from 'date-fns'
+import { CommentsSection } from './CommentsSection'
 
 type Post = {
   id: string
@@ -29,6 +30,7 @@ export function PostCard({ post }: PostCardProps) {
       </CardHeader>
       <CardContent>
         <p className="text-gray-700 whitespace-pre-wrap">{post.content}</p>
+        <CommentsSection postId={post.id} />
       </CardContent>
     </Card>
   )

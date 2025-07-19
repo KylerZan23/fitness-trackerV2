@@ -16,6 +16,16 @@ const createGroupSchema = z.object({
   groupType: z.string().min(1, "Group type is required."),
 })
 
+const createCommentSchema = z.object({
+  content: z.string().min(1, "Comment cannot be empty.").max(1000, "Comment must be less than 1000 characters."),
+  postId: z.string().uuid("Invalid post ID."),
+})
+
+const updateCommentSchema = z.object({
+  content: z.string().min(1, "Comment cannot be empty.").max(1000, "Comment must be less than 1000 characters."),
+  commentId: z.string().uuid("Invalid comment ID."),
+})
+
 // Action to get all community groups
 export async function getCommunityGroups() {
   const supabase = await createClient()
@@ -78,39 +88,23 @@ export async function createCommunityGroup(formData: FormData) {
 
   const { name, description, groupType } = validatedFields.data
 
-  // Create the group
-  const { data: groupData, error: groupError } = await supabase
-    .from('community_groups')
-    .insert({
-      name,
-      description,
-      group_type: groupType,
-      created_by: user.id,
-    })
-    .select()
-    .single()
+  // --- REFACTORED PART ---
+  // Call the transactional RPC function instead of two separate inserts
+  const { data: newGroupId, error } = await supabase.rpc('create_group_and_add_admin', {
+    group_name: name,
+    group_description: description,
+    group_type_param: groupType,
+    creator_id: user.id
+  })
 
-  if (groupError) {
-    console.error("Error creating community group:", groupError)
+  if (error) {
+    console.error("Error creating community group via RPC:", error)
     return { success: false, error: "Failed to create group." }
   }
-
-  // Add the creator as an admin member
-  const { error: memberError } = await supabase
-    .from('community_group_members')
-    .insert({
-      group_id: groupData.id,
-      user_id: user.id,
-      role: 'admin',
-    })
-
-  if (memberError) {
-    console.error("Error adding creator to group:", memberError)
-    // Don't fail the whole operation, just log the error
-  }
+  // --- END REFACTORED PART ---
 
   revalidatePath('/community')
-  return { success: true, message: "Group created successfully!", data: groupData }
+  return { success: true, message: "Group created successfully!", data: { id: newGroupId } }
 }
 
 // Action to join a community group
@@ -244,9 +238,11 @@ export async function createPost(formData: FormData) {
   return { success: true, message: "Post created successfully!" }
 }
 
-// Action to get posts for a specific group
-export async function getGroupPosts(groupId: string) {
+// Action to get posts for a specific group with pagination
+export async function getGroupPosts(groupId: string, page: number = 1, limit: number = 20) {
   const supabase = await createClient()
+  const offset = (page - 1) * limit
+
   const { data, error } = await supabase
     .from('community_posts')
     .select(`
@@ -255,6 +251,7 @@ export async function getGroupPosts(groupId: string) {
     `)
     .eq('group_id', groupId)
     .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1) // Apply pagination
 
   if (error) {
     console.error("Error fetching group posts:", error)
@@ -264,9 +261,11 @@ export async function getGroupPosts(groupId: string) {
   return { success: true, data }
 }
 
-// Action to get all posts (global feed)
-export async function getAllPosts() {
+// Action to get all posts (global feed) with pagination
+export async function getAllPosts(page: number = 1, limit: number = 20) {
   const supabase = await createClient()
+  const offset = (page - 1) * limit
+
   const { data, error } = await supabase
     .from('community_posts')
     .select(`
@@ -276,6 +275,7 @@ export async function getAllPosts() {
     `)
     .is('group_id', null) // Only global posts
     .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1) // Apply pagination
 
   if (error) {
     console.error("Error fetching posts:", error)
@@ -285,32 +285,234 @@ export async function getAllPosts() {
   return { success: true, data }
 }
 
-// Action to get group details and posts
-export async function getGroupDetailsAndPosts(groupId: string) {
+// Action to get group details and posts with pagination
+export async function getGroupDetailsAndPosts(groupId: string, page: number = 1, limit: number = 20) {
   const supabase = await createClient()
   
-  const { data, error } = await supabase
+  // First get the group details
+  const { data: groupData, error: groupError } = await supabase
     .from('community_groups')
     .select(`
       id,
       name,
-      description,
-      posts:community_posts (
-        id,
-        title,
-        content,
-        created_at,
-        user:profiles!community_posts_user_id_fkey(name, profile_picture_url)
-      )
+      description
     `)
     .eq('id', groupId)
-    .order('created_at', { referencedTable: 'community_posts', ascending: false })
     .single()
 
-  if (error) {
-    console.error("Error fetching group details:", error)
+  if (groupError) {
+    console.error("Error fetching group details:", groupError)
     return { success: false, error: "Community not found." }
   }
 
-  return { success: true, data }
+  // Then get paginated posts for the group
+  const offset = (page - 1) * limit
+  const { data: postsData, error: postsError } = await supabase
+    .from('community_posts')
+    .select(`
+      id,
+      title,
+      content,
+      created_at,
+      user:profiles!community_posts_user_id_fkey(name, profile_picture_url)
+    `)
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (postsError) {
+    console.error("Error fetching group posts:", postsError)
+    return { success: false, error: "Failed to load posts." }
+  }
+
+  // Combine the data
+  const combinedData = {
+    ...groupData,
+    posts: postsData || []
+  }
+
+  return { success: true, data: combinedData }
+}
+
+// Helper function to get total count of global posts
+export async function getGlobalPostsCount() {
+  const supabase = await createClient()
+  const { count, error } = await supabase
+    .from('community_posts')
+    .select('*', { count: 'exact', head: true })
+    .is('group_id', null)
+
+  if (error) {
+    console.error("Error counting global posts:", error)
+    return { success: false, error: "Failed to count posts." }
+  }
+
+  return { success: true, count: count || 0 }
+}
+
+// Helper function to get total count of posts in a group
+export async function getGroupPostsCount(groupId: string) {
+  const supabase = await createClient()
+  const { count, error } = await supabase
+    .from('community_posts')
+    .select('*', { count: 'exact', head: true })
+    .eq('group_id', groupId)
+
+  if (error) {
+    console.error("Error counting group posts:", error)
+    return { success: false, error: "Failed to count posts." }
+  }
+
+  return { success: true, count: count || 0 }
+}
+
+// Comment-related actions
+
+// Action to create a new comment
+export async function createComment(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "You must be logged in to comment." }
+  }
+
+  const validatedFields = createCommentSchema.safeParse({
+    content: formData.get('content'),
+    postId: formData.get('postId'),
+  })
+
+  if (!validatedFields.success) {
+    return { success: false, error: "Invalid comment data.", errors: validatedFields.error.flatten().fieldErrors }
+  }
+
+  const { content, postId } = validatedFields.data
+
+  // Verify the post exists
+  const { data: post, error: postError } = await supabase
+    .from('community_posts')
+    .select('id, group_id')
+    .eq('id', postId)
+    .single()
+
+  if (postError || !post) {
+    return { success: false, error: "Post not found." }
+  }
+
+  const { error } = await supabase.from('community_comments').insert({
+    user_id: user.id,
+    post_id: postId,
+    content,
+  })
+
+  if (error) {
+    console.error("Error creating comment:", error)
+    return { success: false, error: "Failed to create comment." }
+  }
+
+  revalidatePath('/community')
+  if (post.group_id) {
+    revalidatePath(`/community/${post.group_id}`)
+  }
+  return { success: true, message: "Comment created successfully!" }
+}
+
+// Action to get comments for a specific post
+export async function getPostComments(postId: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('community_comments')
+    .select(`
+      id,
+      content,
+      created_at,
+      updated_at,
+      user_id,
+      user:profiles!community_comments_user_id_fkey(name, profile_picture_url)
+    `)
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error("Error fetching comments:", error)
+    return { success: false, error: "Failed to load comments." }
+  }
+
+  return { success: true, data: data || [] }
+}
+
+// Action to update a comment
+export async function updateComment(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "You must be logged in to update comments." }
+  }
+
+  const validatedFields = updateCommentSchema.safeParse({
+    content: formData.get('content'),
+    commentId: formData.get('commentId'),
+  })
+
+  if (!validatedFields.success) {
+    return { success: false, error: "Invalid comment data.", errors: validatedFields.error.flatten().fieldErrors }
+  }
+
+  const { content, commentId } = validatedFields.data
+
+  const { error } = await supabase
+    .from('community_comments')
+    .update({ content })
+    .eq('id', commentId)
+    .eq('user_id', user.id) // Ensure user can only update their own comments
+
+  if (error) {
+    console.error("Error updating comment:", error)
+    return { success: false, error: "Failed to update comment." }
+  }
+
+  revalidatePath('/community')
+  return { success: true, message: "Comment updated successfully!" }
+}
+
+// Action to delete a comment
+export async function deleteComment(commentId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "You must be logged in to delete comments." }
+  }
+
+  const { error } = await supabase
+    .from('community_comments')
+    .delete()
+    .eq('id', commentId)
+    .eq('user_id', user.id) // Ensure user can only delete their own comments
+
+  if (error) {
+    console.error("Error deleting comment:", error)
+    return { success: false, error: "Failed to delete comment." }
+  }
+
+  revalidatePath('/community')
+  return { success: true, message: "Comment deleted successfully!" }
+}
+
+// Helper function to get comment count for a post
+export async function getPostCommentsCount(postId: string) {
+  const supabase = await createClient()
+  const { count, error } = await supabase
+    .from('community_comments')
+    .select('*', { count: 'exact', head: true })
+    .eq('post_id', postId)
+
+  if (error) {
+    console.error("Error counting comments:", error)
+    return { success: false, error: "Failed to count comments." }
+  }
+
+  return { success: true, count: count || 0 }
 } 
