@@ -11,6 +11,8 @@ import { formatDistanceToNow } from 'date-fns'
 import { Crown, Dumbbell, Target, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { kgToLbs } from '@/lib/units'
+import { supabase } from '@/lib/supabase'
 
 function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
   const [data, setData] = useState<LeaderboardEntry[]>([])
@@ -18,12 +20,27 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
   const [loading, setLoading] = useState(true)
   const [userRankLoading, setUserRankLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userWeightUnit, setUserWeightUnit] = useState<'kg' | 'lbs'>('kg')
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
         setError(null)
+        
+        // Get user's weight unit preference
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('weight_unit')
+            .eq('id', user.id)
+            .single()
+          
+          if (profile?.weight_unit) {
+            setUserWeightUnit(profile.weight_unit as 'kg' | 'lbs')
+          }
+        }
         
         const [leaderboardResult, userRankResult] = await Promise.all([
           getLeaderboardData(lift),
@@ -52,12 +69,45 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
     fetchData()
   }, [lift])
 
+  // Helper functions for unit conversion
+  const convertWeight = (weightInKg: number): number => {
+    return userWeightUnit === 'lbs' ? kgToLbs(weightInKg) : weightInKg
+  }
+
+  const formatWeight = (weightInKg: number): string => {
+    const convertedWeight = convertWeight(weightInKg)
+    return `${Math.round(convertedWeight)} ${userWeightUnit}`
+  }
+
+  const formatE1RM = (e1rmInKg: number): string => {
+    const convertedE1RM = convertWeight(e1rmInKg)
+    return `${Math.round(convertedE1RM)}`
+  }
+
+  const getUnitLabel = (): string => {
+    return userWeightUnit
+  }
+
   const handleRetry = () => {
     setLoading(true)
     setError(null)
     // Re-fetch data
     const fetchData = async () => {
       try {
+        // Get user's weight unit preference
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('weight_unit')
+            .eq('id', user.id)
+            .single()
+          
+          if (profile?.weight_unit) {
+            setUserWeightUnit(profile.weight_unit as 'kg' | 'lbs')
+          }
+        }
+        
         const [leaderboardResult, userRankResult] = await Promise.all([
           getLeaderboardData(lift),
           getCurrentUserRank(lift)
@@ -169,7 +219,7 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
               </div>
               <div className="text-right">
                 <div className="text-sm text-gray-500">Your Best</div>
-                <div className="text-xl font-bold text-blue-600">{Math.round(userRank.best_e1rm)} kg</div>
+                <div className="text-xl font-bold text-blue-600">{formatE1RM(userRank.best_e1rm)} {getUnitLabel()}</div>
               </div>
             </div>
           </CardContent>
@@ -194,7 +244,7 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
                     <span className="font-medium text-blue-700">You</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-bold text-lg text-blue-600">{Math.round(userRank.best_e1rm)}</TableCell>
+                <TableCell className="text-right font-bold text-lg text-blue-600">{formatE1RM(userRank.best_e1rm)}</TableCell>
                 <TableCell className="text-right text-sm text-gray-600">-</TableCell>
                 <TableCell className="text-right text-sm text-gray-500">-</TableCell>
               </TableRow>
@@ -209,7 +259,7 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
           <TableRow>
             <TableHead className="w-[80px]">Rank</TableHead>
             <TableHead>Athlete</TableHead>
-            <TableHead className="text-right">Best e1RM (kg)</TableHead>
+            <TableHead className="text-right">Best e1RM ({getUnitLabel()})</TableHead>
             <TableHead className="text-right">Lift</TableHead>
             <TableHead className="text-right">Date</TableHead>
           </TableRow>
@@ -226,13 +276,13 @@ function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
                           <TableCell>
               <Link href={`/p/${entry.user_id}`} className="block hover:bg-gray-50 rounded-md p-1 -m-1 transition-colors">
                 <div className="flex items-center space-x-3">
-                  <UserAvatar name={entry.name} profilePictureUrl={entry.profile_picture_url} size={8} />
+                  <UserAvatar name={entry.name} profilePictureUrl={entry.profile_picture_url} size={8} disableTooltipLinks />
                   <span className="font-medium text-blue-600 hover:text-blue-800 transition-colors">{entry.name}</span>
                 </div>
               </Link>
             </TableCell>
-              <TableCell className="text-right font-bold text-lg text-indigo-600">{Math.round(entry.best_e1rm)}</TableCell>
-              <TableCell className="text-right text-sm text-gray-600">{entry.weight}kg x {entry.reps}</TableCell>
+              <TableCell className="text-right font-bold text-lg text-indigo-600">{formatE1RM(entry.best_e1rm)}</TableCell>
+              <TableCell className="text-right text-sm text-gray-600">{formatWeight(entry.weight)} x {entry.reps}</TableCell>
               <TableCell className="text-right text-sm text-gray-500">{formatDistanceToNow(new Date(entry.lift_date), { addSuffix: true })}</TableCell>
             </TableRow>
           ))}

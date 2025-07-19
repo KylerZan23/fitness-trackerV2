@@ -35,7 +35,10 @@ async function seedCommunityData() {
     console.log('✅ Community data seeded successfully!')
     console.log('')
     console.log('📊 What was created:')
-    console.log('   • 5 community groups (Powerlifting, Bodybuilding, CrossFit, Running, Yoga)')
+    console.log('   • 13 community groups including:')
+    console.log('     - Core: Powerlifting, Bodybuilding, CrossFit, Running, Yoga')
+    console.log('     - New: Olympic Weightlifting, Strongman, Calisthenics, Cycling')
+    console.log('     - Specialized: Boxing, Nutrition, Women\'s Fitness, Senior Fitness')
     console.log('   • Sample posts and feed events')
     console.log('')
     console.log('🎉 Your community section should now feel alive and engaging!')
@@ -83,6 +86,63 @@ async function createGroupsWithoutUsers() {
       name: 'Yoga & Wellness',
       description: 'Mind-body connection through yoga, meditation, and holistic wellness practices. Find your inner strength.',
       group_type: 'Wellness',
+      created_by: placeholderUserId
+    },
+    // Phase 1 Expansion: Core New Communities
+    {
+      id: 'a1b2c3d4-9e4a-4b0a-8b1e-3f9e8d389e4f',
+      name: 'Olympic Weightlifting',
+      description: 'Master the snatch and clean & jerk. Technical discussions, form checks, and competition prep for Olympic lifting athletes.',
+      group_type: 'Olympic Lifting',
+      created_by: placeholderUserId
+    },
+    {
+      id: 'b2c3d4e5-9e4a-4b0a-8b1e-3f9e8d389e50',
+      name: 'Strongman Training',
+      description: 'Atlas stones, tire flips, and farmer walks! Functional strength training with unconventional implements and strongman events.',
+      group_type: 'Strongman',
+      created_by: placeholderUserId
+    },
+    {
+      id: 'c3d4e5f6-9e4a-4b0a-8b1e-3f9e8d389e51',
+      name: 'Calisthenics Masters',
+      description: 'Bodyweight mastery and skill development. From basic pull-ups to advanced human flags and muscle-ups.',
+      group_type: 'Calisthenics',
+      created_by: placeholderUserId
+    },
+    {
+      id: 'd4e5f6g7-9e4a-4b0a-8b1e-3f9e8d389e52',
+      name: 'Cycling Enthusiasts',
+      description: 'Road warriors, mountain bikers, and indoor cycling fanatics. Share routes, training plans, and gear recommendations.',
+      group_type: 'Cycling',
+      created_by: placeholderUserId
+    },
+    {
+      id: 'e5f6g7h8-9e4a-4b0a-8b1e-3f9e8d389e53',
+      name: 'Boxing & Combat Sports',
+      description: 'Sweet science and martial arts training. Boxing, MMA, kickboxing technique, conditioning, and fight preparation.',
+      group_type: 'Combat Sports',
+      created_by: placeholderUserId
+    },
+    {
+      id: 'f6g7h8i9-9e4a-4b0a-8b1e-3f9e8d389e54',
+      name: 'Nutrition & Meal Prep',
+      description: 'Fuel your fitness with proper nutrition. Meal planning, recipe sharing, supplement discussions, and diet strategies.',
+      group_type: 'Nutrition',
+      created_by: placeholderUserId
+    },
+    {
+      id: 'g7h8i9j0-9e4a-4b0a-8b1e-3f9e8d389e55',
+      name: 'Women\'s Fitness',
+      description: 'Female-focused fitness community. Strength training, hormonal health, pregnancy fitness, and empowering women in fitness.',
+      group_type: 'Women\'s Health',
+      created_by: placeholderUserId
+    },
+    {
+      id: 'h8i9j0k1-9e4a-4b0a-8b1e-3f9e8d389e56',
+      name: 'Senior Fitness',
+      description: 'Staying strong and active at any age. Age-appropriate training, mobility work, and fitness for the 50+ community.',
+      group_type: 'Senior Health',
       created_by: placeholderUserId
     }
   ]
@@ -135,6 +195,63 @@ async function createGroupsWithUsers(userId: string) {
       name: 'Yoga & Wellness',
       description: 'Mind-body connection through yoga, meditation, and holistic wellness practices. Find your inner strength.',
       group_type: 'Wellness',
+      created_by: userId
+    },
+    // Phase 1 Expansion: Core New Communities
+    {
+      id: 'a1b2c3d4-9e4a-4b0a-8b1e-3f9e8d389e4f',
+      name: 'Olympic Weightlifting',
+      description: 'Master the snatch and clean & jerk. Technical discussions, form checks, and competition prep for Olympic lifting athletes.',
+      group_type: 'Olympic Lifting',
+      created_by: userId
+    },
+    {
+      id: 'b2c3d4e5-9e4a-4b0a-8b1e-3f9e8d389e50',
+      name: 'Strongman Training',
+      description: 'Atlas stones, tire flips, and farmer walks! Functional strength training with unconventional implements and strongman events.',
+      group_type: 'Strongman',
+      created_by: userId
+    },
+    {
+      id: 'c3d4e5f6-9e4a-4b0a-8b1e-3f9e8d389e51',
+      name: 'Calisthenics Masters',
+      description: 'Bodyweight mastery and skill development. From basic pull-ups to advanced human flags and muscle-ups.',
+      group_type: 'Calisthenics',
+      created_by: userId
+    },
+    {
+      id: 'd4e5f6g7-9e4a-4b0a-8b1e-3f9e8d389e52',
+      name: 'Cycling Enthusiasts',
+      description: 'Road warriors, mountain bikers, and indoor cycling fanatics. Share routes, training plans, and gear recommendations.',
+      group_type: 'Cycling',
+      created_by: userId
+    },
+    {
+      id: 'e5f6g7h8-9e4a-4b0a-8b1e-3f9e8d389e53',
+      name: 'Boxing & Combat Sports',
+      description: 'Sweet science and martial arts training. Boxing, MMA, kickboxing technique, conditioning, and fight preparation.',
+      group_type: 'Combat Sports',
+      created_by: userId
+    },
+    {
+      id: 'f6g7h8i9-9e4a-4b0a-8b1e-3f9e8d389e54',
+      name: 'Nutrition & Meal Prep',
+      description: 'Fuel your fitness with proper nutrition. Meal planning, recipe sharing, supplement discussions, and diet strategies.',
+      group_type: 'Nutrition',
+      created_by: userId
+    },
+    {
+      id: 'g7h8i9j0-9e4a-4b0a-8b1e-3f9e8d389e55',
+      name: 'Women\'s Fitness',
+      description: 'Female-focused fitness community. Strength training, hormonal health, pregnancy fitness, and empowering women in fitness.',
+      group_type: 'Women\'s Health',
+      created_by: userId
+    },
+    {
+      id: 'h8i9j0k1-9e4a-4b0a-8b1e-3f9e8d389e56',
+      name: 'Senior Fitness',
+      description: 'Staying strong and active at any age. Age-appropriate training, mobility work, and fitness for the 50+ community.',
+      group_type: 'Senior Health',
       created_by: userId
     }
   ]

@@ -12,15 +12,32 @@ import { Loader2, Users } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 const GROUP_TYPES = [
-  { value: 'Strength Training', label: '💪 Strength Training' },
-  { value: 'Cardio', label: '🏃‍♂️ Cardio & Running' },
-  { value: 'Yoga', label: '🧘‍♀️ Yoga & Wellness' },
-  { value: 'CrossFit', label: '🔥 CrossFit' },
-  { value: 'Bodybuilding', label: '🏋️‍♂️ Bodybuilding' },
+  // Strength & Power Sports
   { value: 'Powerlifting', label: '🏆 Powerlifting' },
-  { value: 'Nutrition', label: '🥗 Nutrition & Diet' },
-  { value: 'Beginner', label: '🌟 Fitness Beginners' },
+  { value: 'Bodybuilding', label: '🏋️‍♂️ Bodybuilding' },
+  { value: 'Olympic Lifting', label: '🥇 Olympic Weightlifting' },
+  { value: 'Strongman', label: '💪 Strongman Training' },
+  { value: 'Calisthenics', label: '🤸‍♂️ Calisthenics' },
+  
+  // Endurance & Cardio
+  { value: 'Running', label: '🏃‍♂️ Running' },
+  { value: 'Cycling', label: '🚴‍♂️ Cycling' },
+  { value: 'CrossFit', label: '🔥 CrossFit' },
+  
+  // Combat & Martial Arts
+  { value: 'Combat Sports', label: '🥊 Boxing & Combat Sports' },
+  
+  // Specialized Training
+  { value: 'Women\'s Health', label: '👩‍💪 Women\'s Fitness' },
+  { value: 'Senior Health', label: '👴 Senior Fitness' },
+  
+  // Lifestyle & Wellness
+  { value: 'Wellness', label: '🧘‍♀️ Yoga & Wellness' },
+  { value: 'Nutrition', label: '🥗 Nutrition & Meal Prep' },
+  
+  // General Categories
   { value: 'General', label: '💪 General Fitness' },
+  { value: 'Beginner', label: '🌟 Fitness Beginners' },
 ]
 
 export function CreateGroupForm() {

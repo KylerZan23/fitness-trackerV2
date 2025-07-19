@@ -26,6 +26,11 @@ const updateCommentSchema = z.object({
   commentId: z.string().uuid("Invalid comment ID."),
 })
 
+const voteSchema = z.object({
+  postId: z.string().uuid("Invalid post ID."),
+  voteType: z.enum(['up', 'down'], { errorMap: () => ({ message: "Vote type must be 'up' or 'down'" }) }),
+})
+
 // Action to get all community groups
 export async function getCommunityGroups() {
   const supabase = await createClient()
@@ -34,7 +39,7 @@ export async function getCommunityGroups() {
     .select(`
       *,
       members:community_group_members(count),
-      created_by_user:profiles!created_by(name, profile_picture_url)
+      created_by_user:profiles!community_groups_created_by_fkey(name, profile_picture_url)
     `)
     .order('created_at', { ascending: false })
 
@@ -289,6 +294,14 @@ export async function getAllPosts(page: number = 1, limit: number = 20) {
 export async function getGroupDetailsAndPosts(groupId: string, page: number = 1, limit: number = 20) {
   const supabase = await createClient()
   
+  // First ensure we have a user session for RLS policies
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    console.error("No authenticated user for community access")
+    return { success: false, error: "Please log in to view communities." }
+  }
+  
   // First get the group details
   const { data: groupData, error: groupError } = await supabase
     .from('community_groups')
@@ -515,4 +528,135 @@ export async function getPostCommentsCount(postId: string) {
   }
 
   return { success: true, count: count || 0 }
+}
+
+// Vote-related actions
+
+// Action to vote on a post (thumbs up/down)
+export async function voteOnPost(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "You must be logged in to vote." }
+  }
+
+  const validatedFields = voteSchema.safeParse({
+    postId: formData.get('postId'),
+    voteType: formData.get('voteType'),
+  })
+
+  if (!validatedFields.success) {
+    return { success: false, error: "Invalid vote data.", errors: validatedFields.error.flatten().fieldErrors }
+  }
+
+  const { postId, voteType } = validatedFields.data
+
+  // Check if user has already voted on this post
+  const { data: existingVote, error: fetchError } = await supabase
+    .from('community_post_votes')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('post_id', postId)
+    .single()
+
+  if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found"
+    console.error("Error checking existing vote:", fetchError)
+    return { success: false, error: "Failed to check existing vote." }
+  }
+
+  if (existingVote) {
+    // If user already voted the same way, remove the vote (toggle off)
+    if (existingVote.vote_type === voteType) {
+      const { error: deleteError } = await supabase
+        .from('community_post_votes')
+        .delete()
+        .eq('id', existingVote.id)
+
+      if (deleteError) {
+        console.error("Error removing vote:", deleteError)
+        return { success: false, error: "Failed to remove vote." }
+      }
+
+      return { success: true, message: "Vote removed successfully!" }
+    } else {
+      // If user voted differently, update the vote
+      const { error: updateError } = await supabase
+        .from('community_post_votes')
+        .update({ vote_type: voteType })
+        .eq('id', existingVote.id)
+
+      if (updateError) {
+        console.error("Error updating vote:", updateError)
+        return { success: false, error: "Failed to update vote." }
+      }
+
+      return { success: true, message: "Vote updated successfully!" }
+    }
+  } else {
+    // Create new vote
+    const { error: insertError } = await supabase
+      .from('community_post_votes')
+      .insert({
+        user_id: user.id,
+        post_id: postId,
+        vote_type: voteType,
+      })
+
+    if (insertError) {
+      console.error("Error creating vote:", insertError)
+      return { success: false, error: "Failed to create vote." }
+    }
+
+    return { success: true, message: "Vote created successfully!" }
+  }
+}
+
+// Action to get vote counts for a post
+export async function getPostVoteCounts(postId: string) {
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase.rpc('get_post_vote_counts', {
+    post_uuid: postId
+  })
+
+  if (error) {
+    console.error("Error getting vote counts:", error)
+    return { success: false, error: "Failed to get vote counts." }
+  }
+
+  const counts = data?.[0] || { upvotes: 0, downvotes: 0, total_votes: 0 }
+  
+  return { 
+    success: true, 
+    data: {
+      upvotes: Number(counts.upvotes),
+      downvotes: Number(counts.downvotes),
+      totalVotes: Number(counts.total_votes)
+    }
+  }
+}
+
+// Action to get user's vote on a specific post
+export async function getUserVoteOnPost(postId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: true, data: null } // Not logged in, no vote
+  }
+
+  const { data, error } = await supabase
+    .from('community_post_votes')
+    .select('vote_type')
+    .eq('user_id', user.id)
+    .eq('post_id', postId)
+    .single()
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+    console.error("Error getting user vote:", error)
+    return { success: false, error: "Failed to get user vote." }
+  }
+
+  return { success: true, data: data?.vote_type || null }
 } 
