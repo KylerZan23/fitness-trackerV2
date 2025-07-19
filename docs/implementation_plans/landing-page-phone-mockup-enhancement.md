@@ -142,4 +142,4 @@ The phone mockup maintains its responsive behavior:
 ## Conclusion
 This phone mockup enhancement transforms the landing page from showcasing abstract placeholders to demonstrating the actual, compelling fitness tracking interface. The realistic representation builds trust, demonstrates value, and provides users with a clear preview of what they'll experience in the app.
 
-The integration with the new color palette creates a cohesive, professional presentation that effectively communicates the sophistication and utility of the FitTrackAI platform. 
+The integration with the new color palette creates a cohesive, professional presentation that effectively communicates the sophistication and utility of the NeuralLift platform. 

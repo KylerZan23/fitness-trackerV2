@@ -7,9 +7,9 @@ import { ToastProvider } from '@/components/ui/Toast'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'FitnessTracker - Track Your Progress, Unlock Your Potential',
+  title: 'NeuralLift - AI-Powered Strength Training & Progress Optimization',
   description:
-    'Log workouts, track runs with Strava, analyze your performance, and achieve your fitness goals with FitnessTracker.',
+    'Transform your strength training with AI-powered programs, track workouts with Strava integration, and unlock your lifting potential with NeuralLift.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

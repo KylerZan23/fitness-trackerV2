@@ -14,7 +14,7 @@ export interface StravaTokens {
 }
 
 // Local storage key for Strava tokens
-const STRAVA_TOKENS_KEY = 'fitness_tracker_strava_tokens'
+const STRAVA_TOKENS_KEY = 'neurallift_strava_tokens'
 
 /**
  * Saves Strava tokens to localStorage for temporary client-side storage

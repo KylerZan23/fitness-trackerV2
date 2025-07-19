@@ -1,6 +1,6 @@
 # Database Setup Instructions
 
-This directory contains the SQL schema for the FitnessTracker application. Follow these steps to set up your Supabase database correctly.
+This directory contains the SQL schema for the NeuralLift application. Follow these steps to set up your Supabase database correctly.
 
 ## Setting Up Your Database Schema
 

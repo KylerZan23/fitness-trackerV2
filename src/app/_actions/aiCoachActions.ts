@@ -822,7 +822,7 @@ export async function getAICoachRecommendation(): Promise<
 - Last Logged Workout vs Plan: N/A`
 
     const promptText = `
-You are an expert AI Fitness Coach for FitnessTracker V2. Your primary goal is to provide a concise, encouraging, and tactical piece of advice for today's planned workout, using the ProgramAdherenceData and UserActivitySummary to inform your recommendation. If it's a rest day, provide a recovery-focused tip.
+You are an expert AI Fitness Coach for NeuralLift. Your primary goal is to provide a concise, encouraging, and tactical piece of advice for today's planned workout, using the ProgramAdherenceData and UserActivitySummary to inform your recommendation. If it's a rest day, provide a recovery-focused tip.
 
 **Key Instructions for LLM:**
 1.  **Focus on TODAY**: Your advice must be directly relevant to today's planned session.

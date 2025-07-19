@@ -371,7 +371,7 @@ function LoginContent() {
           href="/"
           className="block mx-auto text-center text-3xl font-bold text-indigo-600 hover:text-indigo-700 mb-2"
         >
-          FitnessTracker
+          NeuralLift
         </Link>
         <h2 className="mt-1 text-center text-2xl font-semibold text-gray-800">
           Sign in to your account
@@ -510,7 +510,7 @@ export default function LoginPage() {
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="block mx-auto text-center text-3xl font-bold text-indigo-600 mb-2">
-            FitnessTracker
+            NeuralLift
           </div>
           <h2 className="mt-1 text-center text-2xl font-semibold text-gray-800">
             Loading...

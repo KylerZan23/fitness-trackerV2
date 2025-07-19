@@ -8,7 +8,7 @@ const testimonials = [
     role: 'Marketing Manager',
     photo: 'SC',
     rating: 5,
-    quote: 'FitTrackAI completely transformed my approach to fitness. The AI-generated programs are spot-on for my goals, and I\'ve seen incredible progress in just 3 months. The personalization is unmatched!'
+    quote: 'NeuralLift completely transformed my approach to fitness. The AI-generated programs are spot-on for my goals, and I\'ve seen incredible progress in just 3 months. The personalization is unmatched!'
   },
   {
     name: 'Marcus Rodriguez',
@@ -22,7 +22,7 @@ const testimonials = [
     role: 'Physical Therapist',
     photo: 'EJ',
     rating: 5,
-    quote: 'The injury-aware programming is incredible. After my knee surgery, FitTrackAI helped me safely return to strength training with modifications I never would have thought of. Truly impressive technology.'
+    quote: 'The injury-aware programming is incredible. After my knee surgery, NeuralLift helped me safely return to strength training with modifications I never would have thought of. Truly impressive technology.'
   }
 ]
 

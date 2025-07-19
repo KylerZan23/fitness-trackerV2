@@ -113,7 +113,7 @@ export default function SignupPage() {
           href="/"
           className="block mx-auto text-center text-3xl font-bold text-indigo-600 hover:text-indigo-700 mb-2"
         >
-          FitnessTracker
+                            NeuralLift
         </Link>
         <h2 className="mt-1 text-center text-2xl font-semibold text-gray-800">
           Start Your 7-Day Free Trial

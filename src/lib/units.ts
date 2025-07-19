@@ -2,7 +2,7 @@
  * Unit Conversion Utilities
  *
  * This file contains utility functions for converting between metric and imperial units
- * for the fitness tracker application.
+ * for the NeuralLift application.
  *
  * For consistency with the ADR: imperial-units-support.md decision, all display values use imperial
  * units while data storage uses metric units.

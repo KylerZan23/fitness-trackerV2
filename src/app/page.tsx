@@ -218,7 +218,7 @@ const Header = ({ isAuthenticated, profile, onSignOut }: { isAuthenticated: bool
     <div className="container flex h-14 max-w-screen-2xl items-center justify-between">
       <Link href="/" className="flex items-center space-x-2">
         <Dumbbell className="h-6 w-6 text-brand-indigo" />
-        <span className="font-bold">FitTrackAI</span>
+                        <span className="font-bold">NeuralLift</span>
       </Link>
       <nav className="flex items-center space-x-4">
         {isAuthenticated && profile ? (
@@ -281,7 +281,7 @@ const Footer = () => (
         </div>
       </div>
       <div className="mt-12 border-t border-gray-800 pt-8 text-center text-sm">
-        <p>© {new Date().getFullYear()} FitTrackAI. All rights reserved.</p>
+                    <p>© {new Date().getFullYear()} NeuralLift. All rights reserved.</p>
       </div>
     </div>
   </footer>

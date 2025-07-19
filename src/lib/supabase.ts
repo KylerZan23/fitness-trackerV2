@@ -23,7 +23,7 @@ export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      'x-client-info': 'fitness-tracker-v2',
+      'x-client-info': 'neurallift',
     },
   },
 })

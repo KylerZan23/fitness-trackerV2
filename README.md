@@ -1,4 +1,4 @@
-# FitnessTracker V2
+# NeuralLift
 
 A modern fitness tracking application built with Next.js, Supabase, and Tailwind CSS.
 
@@ -414,8 +414,8 @@ A modern fitness tracking application built with Next.js, Supabase, and Tailwind
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/KylerZan23/fitness-trackerV2.git
-   cd fitness-trackerV2
+   git clone https://github.com/KylerZan23/neurallift.git
+cd neurallift
    ```
 
 2. **Install dependencies**
