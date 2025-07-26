@@ -1,35 +1,15 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { getSupabaseServerConfig, isDevelopment } from '@/lib/env'
 
-// Add console logs to verify env vars on server start/middleware run
-console.log('MIDDLEWARE ENV URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + '...') // Log prefix only
-console.log(
-  'MIDDLEWARE ENV KEY:',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 10) + '...'
-) // Log prefix only
+// Get validated Supabase configuration
+const { url: validatedSupabaseUrl, anonKey: validatedSupabaseAnonKey } = getSupabaseServerConfig()
 
-// Validate environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!supabaseUrl) {
-  throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_URL')
+// Add console logs to verify env vars on server start/middleware run (development only)
+if (isDevelopment()) {
+  console.log('MIDDLEWARE ENV URL:', validatedSupabaseUrl?.substring(0, 20) + '...') // Log prefix only
+  console.log('MIDDLEWARE ENV KEY:', validatedSupabaseAnonKey?.substring(0, 10) + '...') // Log prefix only
 }
-
-if (!supabaseAnonKey) {
-  throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY')
-}
-
-// Validate URL format
-try {
-  new URL(supabaseUrl)
-} catch (error) {
-  throw new Error('Invalid NEXT_PUBLIC_SUPABASE_URL format')
-}
-
-// After validation, we can safely assert these are strings
-const validatedSupabaseUrl: string = supabaseUrl
-const validatedSupabaseAnonKey: string = supabaseAnonKey
 
 // Cookie name for Supabase auth - this might change based on your project ID
 const SUPABASE_AUTH_COOKIE = 'sb-oimcnjdkcqwdltdpkmnu-auth-token'

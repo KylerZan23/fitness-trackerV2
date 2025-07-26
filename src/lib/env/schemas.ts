@@ -1,0 +1,173 @@
+import { z } from 'zod'
+
+// Custom validation helpers
+const envStringRequired = (name: string) =>
+  z
+    .string({
+      required_error: `${name} is required`,
+      invalid_type_error: `${name} must be a string`,
+    })
+    .min(1, `${name} cannot be empty`)
+
+const envUrl = (name: string) =>
+  z
+    .string({
+      required_error: `${name} is required`,
+      invalid_type_error: `${name} must be a string`,
+    })
+    .url(`${name} must be a valid URL`)
+
+const envApiKey = (name: string, minLength = 20) =>
+  z
+    .string({
+      required_error: `${name} is required`,
+      invalid_type_error: `${name} must be a string`,
+    })
+    .min(minLength, `${name} must be at least ${minLength} characters long`)
+
+// Supabase-specific validation
+const supabaseKey = (name: string) =>
+  z
+    .string({
+      required_error: `${name} is required`,
+      invalid_type_error: `${name} must be a string`,
+    })
+    .min(100, `${name} appears to be invalid (too short)`)
+    .regex(/^[A-Za-z0-9_-]+$/, `${name} contains invalid characters`)
+
+// Base environment schema - common to all environments
+export const BaseEnvironmentSchema = z.object({
+  // System/Runtime Variables
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'], {
+      required_error: 'NODE_ENV must be specified',
+      invalid_type_error: 'NODE_ENV must be development, production, or test',
+    })
+    .default('development'),
+
+  CI: z
+    .string()
+    .optional()
+    .transform(val => val === 'true' || val === '1'),
+
+  // Supabase Configuration (Core - Required)
+  NEXT_PUBLIC_SUPABASE_URL: envUrl('NEXT_PUBLIC_SUPABASE_URL').refine(
+    url => url.includes('.supabase.co'),
+    {
+      message: 'NEXT_PUBLIC_SUPABASE_URL must be a valid Supabase URL',
+    }
+  ),
+
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseKey('NEXT_PUBLIC_SUPABASE_ANON_KEY').refine(
+    key => key.startsWith('eyJ'),
+    {
+      message: 'NEXT_PUBLIC_SUPABASE_ANON_KEY appears to be invalid',
+    }
+  ),
+
+  // Server-side only Supabase key (optional in base schema)
+  SUPABASE_SERVICE_ROLE_KEY: supabaseKey('SUPABASE_SERVICE_ROLE_KEY')
+    .optional()
+    .refine(key => !key || key.startsWith('eyJ'), {
+      message: 'SUPABASE_SERVICE_ROLE_KEY appears to be invalid',
+    }),
+
+  // AI/LLM Configuration
+  LLM_API_KEY: envApiKey('LLM_API_KEY').refine(
+    key => key.startsWith('sk-') || key.startsWith('ak-'),
+    {
+      message: 'LLM_API_KEY must be a valid OpenAI or Anthropic API key',
+    }
+  ),
+
+  LLM_API_ENDPOINT: envUrl('LLM_API_ENDPOINT').default(
+    'https://api.openai.com/v1/chat/completions'
+  ),
+
+  // Strava Integration (Optional)
+  NEXT_PUBLIC_STRAVA_CLIENT_ID: envStringRequired('NEXT_PUBLIC_STRAVA_CLIENT_ID')
+    .optional()
+    .refine(id => !id || /^\d+$/.test(id), {
+      message: 'NEXT_PUBLIC_STRAVA_CLIENT_ID must be numeric',
+    }),
+
+  STRAVA_CLIENT_SECRET: envApiKey('STRAVA_CLIENT_SECRET', 40)
+    .optional()
+    .refine(secret => !secret || /^[a-f0-9]{40}$/.test(secret), {
+      message: 'STRAVA_CLIENT_SECRET must be a 40-character hex string',
+    }),
+
+  NEXT_PUBLIC_STRAVA_REDIRECT_URI: envUrl('NEXT_PUBLIC_STRAVA_REDIRECT_URI').optional(),
+
+  // Observability Configuration (Optional)
+
+  LOGTAIL_TOKEN: envApiKey('LOGTAIL_TOKEN', 32).optional(),
+})
+
+// Development environment schema
+export const DevelopmentEnvironmentSchema = BaseEnvironmentSchema.extend({
+  // In development, service role key is optional but recommended
+  SUPABASE_SERVICE_ROLE_KEY: BaseEnvironmentSchema.shape.SUPABASE_SERVICE_ROLE_KEY,
+
+  // LLM API key is optional in development (can be mocked)
+  LLM_API_KEY: BaseEnvironmentSchema.shape.LLM_API_KEY.optional(),
+})
+
+// Production environment schema
+export const ProductionEnvironmentSchema = BaseEnvironmentSchema.extend({
+  // Service role key is required in production
+  SUPABASE_SERVICE_ROLE_KEY: supabaseKey('SUPABASE_SERVICE_ROLE_KEY'),
+
+  // All core features must be properly configured
+  LLM_API_KEY: BaseEnvironmentSchema.shape.LLM_API_KEY,
+
+  // Ensure NODE_ENV is set correctly
+  NODE_ENV: z.literal('production'),
+})
+
+// Test environment schema
+export const TestEnvironmentSchema = BaseEnvironmentSchema.extend({
+  // Most services can be mocked in tests
+  LLM_API_KEY: BaseEnvironmentSchema.shape.LLM_API_KEY.optional(),
+  SUPABASE_SERVICE_ROLE_KEY: BaseEnvironmentSchema.shape.SUPABASE_SERVICE_ROLE_KEY.optional(),
+
+  // Strava integration not needed in tests
+  NEXT_PUBLIC_STRAVA_CLIENT_ID: z.string().optional(),
+  STRAVA_CLIENT_SECRET: z.string().optional(),
+  NEXT_PUBLIC_STRAVA_REDIRECT_URI: z.string().optional(),
+
+  // Ensure NODE_ENV is set correctly
+  NODE_ENV: z.literal('test'),
+})
+
+// Client-side environment schema (only public variables)
+export const ClientEnvironmentSchema = z.object({
+  NODE_ENV: BaseEnvironmentSchema.shape.NODE_ENV,
+  NEXT_PUBLIC_SUPABASE_URL: BaseEnvironmentSchema.shape.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: BaseEnvironmentSchema.shape.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_STRAVA_CLIENT_ID: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRAVA_CLIENT_ID,
+  NEXT_PUBLIC_STRAVA_REDIRECT_URI: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRAVA_REDIRECT_URI,
+})
+
+// Server-side environment schema (all variables)
+export const ServerEnvironmentSchema = BaseEnvironmentSchema
+
+// Export environment-specific schemas
+export const EnvironmentSchemas = {
+  development: DevelopmentEnvironmentSchema,
+  production: ProductionEnvironmentSchema,
+  test: TestEnvironmentSchema,
+  client: ClientEnvironmentSchema,
+  server: ServerEnvironmentSchema,
+} as const
+
+// Type exports
+export type BaseEnvironment = z.infer<typeof BaseEnvironmentSchema>
+export type DevelopmentEnvironment = z.infer<typeof DevelopmentEnvironmentSchema>
+export type ProductionEnvironment = z.infer<typeof ProductionEnvironmentSchema>
+export type TestEnvironment = z.infer<typeof TestEnvironmentSchema>
+export type ClientEnvironment = z.infer<typeof ClientEnvironmentSchema>
+export type ServerEnvironment = z.infer<typeof ServerEnvironmentSchema>
+
+// Environment type union
+export type ValidatedEnvironment = DevelopmentEnvironment | ProductionEnvironment | TestEnvironment

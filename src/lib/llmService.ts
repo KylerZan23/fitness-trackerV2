@@ -5,6 +5,9 @@
  * Provides a consistent interface and error handling for AI model calls
  */
 
+import { getLLMConfig } from '@/lib/env'
+import { logger } from '@/lib/logging'
+
 interface LLMOptions {
   model?: string
   temperature?: number
@@ -19,14 +22,23 @@ export async function callLLM(
   options: LLMOptions = {}
 ): Promise<any> {
   // Consider a more specific return type if possible, e.g., parsed JSON or string
-  const apiKey = process.env.LLM_API_KEY
-  // Use environment variable if set, otherwise default to standard OpenAI chat completions endpoint
-  const apiEndpoint = process.env.LLM_API_ENDPOINT || 'https://api.openai.com/v1/chat/completions'
+  let apiKey: string
+  let apiEndpoint: string
 
-  if (!apiKey) {
-    console.error('CRITICAL: LLM_API_KEY is not set in environment variables.')
-    // It's better to throw an error here to make the misconfiguration immediately obvious
-    throw new Error('AI Service configuration error: API key not set.')
+  try {
+    const config = getLLMConfig()
+    apiKey = config.apiKey
+    apiEndpoint = config.endpoint
+  } catch (error) {
+    logger.error(
+      'LLM service configuration error',
+      {
+        operation: 'llmConfig',
+        component: 'llmService',
+      },
+      error as Error
+    )
+    throw new Error('AI Service configuration error: ' + (error as Error).message)
   }
 
   const body = {
@@ -56,7 +68,16 @@ export async function callLLM(
       } catch (e) {
         // Ignore if error response is not JSON
       }
-      console.error('LLM API Error Response:', response.status, errorDetails)
+
+      logger.error('LLM API request failed', {
+        operation: 'llmApiCall',
+        component: 'llmService',
+        status: response.status,
+        errorDetails,
+        model: options.model,
+        promptLength: promptContent.length,
+      })
+
       throw new Error(`LLM API Error: ${response.status} - ${errorDetails}`)
     }
 
@@ -68,7 +89,12 @@ export async function callLLM(
       !data.choices[0].message ||
       typeof data.choices[0].message.content !== 'string'
     ) {
-      console.error('Invalid response structure from LLM:', data)
+      logger.error('Invalid LLM response structure', {
+        operation: 'llmApiCall',
+        component: 'llmService',
+        model: options.model,
+        responseData: JSON.stringify(data).substring(0, 500),
+      })
       throw new Error('Invalid response structure from LLM.')
     }
 
@@ -79,12 +105,18 @@ export async function callLLM(
       try {
         return JSON.parse(contentString)
       } catch (parseError) {
-        console.error(
-          'Failed to parse LLM JSON response:',
-          parseError,
-          'Raw content:',
-          contentString
+        logger.error(
+          'Failed to parse LLM JSON response',
+          {
+            operation: 'llmJsonParse',
+            component: 'llmService',
+            model: options.model,
+            rawContent: contentString.substring(0, 200),
+            parseError: (parseError as Error).message,
+          },
+          parseError as Error
         )
+
         // It's crucial to know what the LLM actually returned when JSON parsing fails
         throw new Error(
           `LLM returned invalid JSON when JSON was expected. Raw content: ${contentString.substring(0, 200)}...`
