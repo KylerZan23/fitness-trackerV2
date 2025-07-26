@@ -33,7 +33,7 @@ const supabaseKey = (name: string) =>
       invalid_type_error: `${name} must be a string`,
     })
     .min(100, `${name} appears to be invalid (too short)`)
-    .regex(/^[A-Za-z0-9_-]+$/, `${name} contains invalid characters`)
+    .regex(/^[A-Za-z0-9_.-]+$/, `${name} contains invalid characters`)
 
 // Base environment schema - common to all environments
 export const BaseEnvironmentSchema = z.object({
