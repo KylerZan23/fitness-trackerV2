@@ -366,7 +366,7 @@ USER PROFILE:
 
 USER GOALS & PREFERENCES:
 - Primary Goal: ${onboarding.primaryGoal}
-- Secondary Goal: ${onboarding.secondaryGoal || 'None'}
+
 - Sport-Specific Details: ${onboarding.sportSpecificDetails || 'None'}
 - Training Frequency: ${onboarding.trainingFrequencyDays} days per week
 - Session Duration: ${onboarding.sessionDuration}

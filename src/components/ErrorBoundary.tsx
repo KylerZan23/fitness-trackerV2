@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
         component: 'ErrorBoundary',
         error: error.message,
         stack: error.stack,
-        componentStack: errorInfo.componentStack,
+        componentStack: errorInfo.componentStack ?? undefined,
         retryCount: this.retryCount,
       },
       error

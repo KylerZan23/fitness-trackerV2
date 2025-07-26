@@ -31,7 +31,7 @@ const createMockUser = () => ({
 
 const createMockOnboardingData = (): FullOnboardingAnswers => ({
   primaryGoal: 'Muscle Gain',
-  secondaryGoal: 'Strength Gain',
+  
   sportSpecificDetails: '',
   trainingFrequencyDays: 4,
   sessionDuration: '60-75 minutes',
@@ -260,7 +260,7 @@ describe('onboardingActions', () => {
         onboarding_completed: true,
         onboarding_responses: {
           primaryGoal: 'Build muscle',
-          secondaryGoal: 'Improve strength',
+    
           sportSpecificDetails: '',
           trainingFrequencyDays: 4,
           sessionDuration: '60-75 minutes',
@@ -387,7 +387,6 @@ describe('onboardingActions', () => {
       const mockUser = createMockUser()
       const minimalFormData: FullOnboardingAnswers = {
         primaryGoal: 'Build muscle',
-        secondaryGoal: '',
         sportSpecificDetails: '',
         trainingFrequencyDays: 3,
         sessionDuration: '45-60 minutes',
@@ -427,7 +426,6 @@ describe('onboardingActions', () => {
       expect(mockQueryBuilder.update).toHaveBeenCalledWith(
         expect.objectContaining({
           onboarding_responses: expect.objectContaining({
-            secondaryGoal: '',
             exercisePreferences: '',
             injuriesLimitations: '',
             squat1RMEstimate: '',

@@ -37,28 +37,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     isOptional: false
   },
 
-  {
-    id: 'secondaryGoal',
-    title: "Any secondary goals? 🎯",
-    description: "Sometimes we have multiple objectives - what else would you like to work on?",
-    component: PlaceholderQuestion,
-    validation: z.enum([
-      'Muscle Gain: General',
-      'Muscle Gain: Hypertrophy Focus',
-      'Strength Gain: Powerlifting Peak',
-      'Strength Gain: General',
-      'Endurance Improvement: Gym Cardio',
-      'Sport-Specific S&C: Explosive Power',
-      'General Fitness: Foundational Strength',
-      'Weight Loss: Gym Based',
-      'Bodyweight Mastery',
-      'Recomposition: Lean Mass & Fat Loss'
-    ]).optional(),
-    category: 'profile',
-    order: 2,
-    isOptional: true,
-    shouldShow: (answers) => !!answers.primaryGoal
-  },
+
 
   {
     id: 'experienceLevel',
@@ -67,7 +46,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.string().min(1, 'Please select your experience level'),
     category: 'profile',
-    order: 3,
+    order: 2,
     isOptional: false
   },
 
@@ -78,7 +57,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.enum(['kg', 'lbs']),
     category: 'profile',
-    order: 4,
+    order: 3,
     isOptional: false
   },
 
@@ -90,7 +69,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.number().min(2, 'Minimum 2 days per week').max(7, 'Maximum 7 days per week'),
     category: 'training',
-    order: 5,
+    order: 4,
     isOptional: false
   },
 
@@ -101,7 +80,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.enum(['30-45 minutes', '45-60 minutes', '60-75 minutes', '75+ minutes']),
     category: 'training',
-    order: 6,
+    order: 5,
     isOptional: false
   },
 
@@ -119,7 +98,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
       'Cardio Machines (Treadmill, Bike, Rower, Elliptical)'
     ])).min(1, 'Please select at least one equipment option'),
     category: 'training',
-    order: 7,
+    order: 6,
     isOptional: false
   },
 
@@ -131,7 +110,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.number().positive().optional(),
     category: 'strength',
-    order: 8,
+    order: 7,
     isOptional: true
   },
 
@@ -142,7 +121,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.number().positive().optional(),
     category: 'strength',
-    order: 9,
+    order: 8,
     isOptional: true
   },
 
@@ -153,7 +132,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.number().positive().optional(),
     category: 'strength',
-    order: 10,
+    order: 9,
     isOptional: true
   },
 
@@ -164,7 +143,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.number().positive().optional(),
     category: 'strength',
-    order: 11,
+    order: 10,
     isOptional: true
   },
 
@@ -175,7 +154,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.enum(['actual_1rm', 'estimated_1rm', 'unsure']).optional(),
     category: 'strength',
-    order: 12,
+    order: 11,
     isOptional: true,
     shouldShow: (answers) => !!(
       answers.squat1RMEstimate || 
@@ -193,7 +172,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.string().optional(),
     category: 'preferences',
-    order: 13,
+    order: 12,
     isOptional: true
   },
 
@@ -204,7 +183,7 @@ export const ONBOARDING_QUESTIONS: Question[] = [
     component: PlaceholderQuestion,
     validation: z.string().optional(),
     category: 'preferences',
-    order: 14,
+    order: 13,
     isOptional: true
   }
 ]
@@ -214,8 +193,6 @@ export const ONBOARDING_QUESTIONS: Question[] = [
  * These conditions determine when questions should be shown
  */
 export const QUESTION_CONDITIONS: QuestionConditions = {
-  secondaryGoal: (answers) => !!answers.primaryGoal,
-  
   strengthAssessmentType: (answers) => !!(
     answers.squat1RMEstimate || 
     answers.benchPress1RMEstimate || 

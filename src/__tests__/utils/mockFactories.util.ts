@@ -316,7 +316,7 @@ export const expectDatabaseCall = (
  */
 export const generateOnboardingAnswers = (overrides: Record<string, any> = {}) => ({
   primaryGoal: 'Build muscle',
-  secondaryGoal: 'Improve strength',
+  
   sportSpecificDetails: '',
   trainingFrequencyDays: 4,
   sessionDuration: '60-75 minutes',

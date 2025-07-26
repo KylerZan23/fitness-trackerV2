@@ -3,7 +3,7 @@
 import React from 'react'
 import { BaseQuestionLayout } from './questions/BaseQuestionLayout'
 import { PrimaryGoalQuestion } from './questions/PrimaryGoalQuestion'
-import { SecondaryGoalQuestion } from './questions/SecondaryGoalQuestion'
+
 
 import { ExperienceLevelQuestion } from './questions/ExperienceLevelQuestion'
 import { SessionDurationQuestion } from './questions/SessionDurationQuestion'
@@ -241,8 +241,7 @@ function QuestionRenderer({ question, value, onChange, error, allAnswers }: {
   switch (question.id) {
     case 'primaryGoal':
       return <PrimaryGoalQuestion {...questionProps} />
-    case 'secondaryGoal':
-      return <SecondaryGoalQuestion {...questionProps} />
+
     case 'experienceLevel':
       return <ExperienceLevelQuestion {...questionProps} />
     case 'weightUnit':

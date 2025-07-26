@@ -47,7 +47,7 @@ const createMockUserProfile = () => ({
   experience_level: 'Intermediate',
   onboarding_responses: {
     primaryGoal: 'Build muscle',
-    secondaryGoal: 'Improve strength',
+    
     trainingFrequencyDays: 4,
     sessionDuration: '60-75 minutes',
     equipment: ['Dumbbells', 'Barbell', 'Pull-up bar'],

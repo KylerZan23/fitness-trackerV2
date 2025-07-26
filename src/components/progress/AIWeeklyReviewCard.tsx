@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Trophy, Target, Lightbulb, Brain, Loader2, AlertCircle, MessageCircle, Send, ChevronDown, ChevronUp } from 'lucide-react'
 import { getAIWeeklyReview, getAIWeeklyReviewFollowUp } from '@/app/_actions/aiCoachActions'
 import type { AIWeeklyReview, AIWeeklyReviewFollowUp } from '@/lib/types/aiCoach'
-import ActionProgressTracker from './ActionProgressTracker'
+
 
 export default function AIWeeklyReviewCard() {
   const [reviewData, setReviewData] = useState<AIWeeklyReview | null>(null)
@@ -147,7 +147,7 @@ export default function AIWeeklyReviewCard() {
       </div>
       
       {/* What Went Well */}
-      <div className="mb-4">
+      <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
         <div className="flex items-start space-x-3">
           <Trophy className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
           <div>
@@ -160,7 +160,7 @@ export default function AIWeeklyReviewCard() {
       </div>
       
       {/* Improvement Area */}
-      <div className="mb-4">
+      <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
         <div className="flex items-start space-x-3">
           <Target className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
           <div>
@@ -183,16 +183,6 @@ export default function AIWeeklyReviewCard() {
             </p>
           </div>
         </div>
-      </div>
-      
-      {/* Action Progress Tracker */}
-      <div className="mt-4">
-        <ActionProgressTracker 
-          actionableTip={reviewData.actionableTip}
-          onProgressUpdate={(status) => {
-            console.log('Action progress updated:', status)
-          }}
-        />
       </div>
       
       {/* Interactive Follow-up Section */}

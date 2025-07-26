@@ -268,13 +268,13 @@ export function MuscleDistributionChart({
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
         <div className="flex space-x-2 mb-4 sm:mb-0">
           <button
-            className={`px-3 py-1 rounded-lg text-sm ${period === 'week' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${period === 'week' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
             onClick={() => setPeriod('week')}
           >
             Week
           </button>
           <button
-            className={`px-3 py-1 rounded-lg text-sm ${period === 'month' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${period === 'month' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
             onClick={() => setPeriod('month')}
           >
             Month
@@ -284,13 +284,13 @@ export function MuscleDistributionChart({
         {/* View mode toggle */}
         <div className="flex space-x-2 mb-4 sm:mb-0">
           <button
-            className={`px-3 py-1 rounded-lg text-sm ${viewMode === 'sets' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${viewMode === 'sets' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
             onClick={() => setViewMode('sets')}
           >
             Sets
           </button>
           <button
-            className={`px-3 py-1 rounded-lg text-sm ${viewMode === 'volume' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${viewMode === 'volume' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
             onClick={() => setViewMode('volume')}
           >
             Volume

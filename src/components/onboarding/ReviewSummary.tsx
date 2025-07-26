@@ -248,13 +248,6 @@ function buildSummarySections(answers: Partial<OnboardingFormData>): SummarySect
           value: answers.primaryGoal || '',
           questionId: 'primaryGoal',
           isEmpty: !answers.primaryGoal
-        },
-        {
-          label: 'Secondary Goal',
-          value: answers.secondaryGoal || '',
-          questionId: 'secondaryGoal',
-          isOptional: true,
-          isEmpty: !answers.secondaryGoal
         }
       ]
     },

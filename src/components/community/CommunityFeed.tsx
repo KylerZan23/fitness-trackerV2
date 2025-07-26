@@ -47,6 +47,7 @@ function useCommunityFeedEvents() {
               weight_unit
             )
           `)
+          .eq('event_type', 'NEW_PB')
           .order('created_at', { ascending: false })
           .limit(50)
 
@@ -57,20 +58,34 @@ function useCommunityFeedEvents() {
           return
         }
 
-        // Transform the data to match our interface
-        const transformedEvents = (data || []).map((item: any) => ({
-          id: item.id,
-          event_type: item.event_type,
-          metadata: item.metadata,
-          created_at: item.created_at,
-          user: {
-            id: item.profiles.id,
-            name: item.profiles.name,
-            email: item.profiles.email,
-            avatar_url: item.profiles.profile_picture_url,
-            weight_unit: item.profiles.weight_unit
-          }
-        })) as CommunityFeedEvent[]
+        // Transform the data and filter for big three lifts only
+        const bigThreeExercises = ['bench press', 'squat', 'deadlift']
+        
+        const transformedEvents = (data || [])
+          .map((item: any) => ({
+            id: item.id,
+            event_type: item.event_type,
+            metadata: item.metadata,
+            created_at: item.created_at,
+            user: {
+              id: item.profiles.id,
+              name: item.profiles.name,
+              email: item.profiles.email,
+              avatar_url: item.profiles.profile_picture_url,
+              weight_unit: item.profiles.weight_unit
+            }
+          }))
+          .filter((event: any) => {
+            // Only show NEW_PB events for bench press, squat, and deadlift
+            if (event.event_type === 'NEW_PB' && event.metadata?.exerciseName) {
+              const exerciseName = event.metadata.exerciseName.toLowerCase()
+              return bigThreeExercises.some(exercise => 
+                exerciseName.includes(exercise) || 
+                exerciseName.includes(exercise.replace(' ', ''))
+              )
+            }
+            return false
+          }) as CommunityFeedEvent[]
 
         setEvents(transformedEvents)
       } catch (error) {
@@ -260,10 +275,10 @@ export function CommunityFeed() {
   if (events.length === 0) {
     return (
       <div className="text-center py-12">
-        <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No community activity yet</h3>
+        <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No PRs to celebrate yet</h3>
         <p className="text-gray-600 max-w-md mx-auto">
-          Complete your first workout or hit a personal best to start sharing your achievements with the community!
+          Hit a new personal record in bench press, squat, or deadlift to see it celebrated here! 🏆
         </p>
       </div>
     )

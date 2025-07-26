@@ -660,3 +660,203 @@ export async function getUserVoteOnPost(postId: string) {
 
   return { success: true, data: data?.vote_type || null }
 } 
+
+/**
+ * Get activities from users that the current user follows
+ */
+export async function getFollowedUsersActivities(limit: number = 20): Promise<{
+  success: boolean
+  data?: FollowedUserActivity[]
+  error?: string
+}> {
+  try {
+    const supabase = await createClient()
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Get the list of users that the current user follows
+    const { data: following, error: followingError } = await supabase
+      .from('user_followers')
+      .select('following_id')
+      .eq('follower_id', user.id)
+
+    if (followingError) {
+      console.error('Error fetching following list:', followingError)
+      return { success: false, error: 'Failed to fetch following list' }
+    }
+
+    if (!following || following.length === 0) {
+      return { success: true, data: [] }
+    }
+
+    const followingIds = following.map(f => f.following_id)
+
+    // Get workout groups with user profiles
+    const { data: workoutGroups, error: groupsError } = await supabase
+      .from('workout_groups')
+      .select(`
+        id,
+        name,
+        duration,
+        created_at,
+        user_id
+      `)
+      .in('user_id', followingIds)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (groupsError) {
+      console.error('Error fetching workout groups:', groupsError)
+      return { success: false, error: 'Failed to fetch workout groups' }
+    }
+
+    // Get user profiles for the workout groups
+    const { data: userProfiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, profile_picture_url')
+      .in('id', followingIds)
+
+    if (profilesError) {
+      console.error('Error fetching user profiles:', profilesError)
+      return { success: false, error: 'Failed to fetch user profiles' }
+    }
+
+    // Get workouts for these groups to calculate stats
+    const { data: workouts, error: workoutsError } = await supabase
+      .from('workouts')
+      .select('id, exercise_name, sets, reps, weight, duration, workout_group_id, user_id, created_at')
+      .in('user_id', followingIds)
+      .order('created_at', { ascending: false })
+      .limit(limit * 5) // Get more to account for grouping
+
+    if (workoutsError) {
+      console.error('Error fetching workouts:', workoutsError)
+      return { success: false, error: 'Failed to fetch activities' }
+    }
+
+    // Create profiles lookup map
+    const profilesMap = new Map(userProfiles?.map(p => [p.id, p]) || [])
+
+    // Process and combine activities
+    const activities: FollowedUserActivity[] = []
+
+    // Process workout groups (sessions)
+    if (workoutGroups) {
+      for (const group of workoutGroups) {
+        const userProfile = profilesMap.get(group.user_id)
+        if (!userProfile) continue
+
+        // Get exercises for this group
+        const groupExercises = workouts?.filter(w => w.workout_group_id === group.id) || []
+        
+        if (groupExercises.length > 0) {
+          const totalVolume = groupExercises.reduce((sum, exercise) => 
+            sum + (exercise.weight * exercise.sets * exercise.reps), 0
+          )
+          
+          const totalSets = groupExercises.reduce((sum, exercise) => sum + exercise.sets, 0)
+          
+          activities.push({
+            id: `group-${group.id}`,
+            type: 'workout_session',
+            user: {
+              id: userProfile.id,
+              name: userProfile.name,
+              profile_picture_url: userProfile.profile_picture_url
+            },
+            workout: {
+              name: group.name,
+              duration: group.duration,
+              sets: totalSets,
+              volume: Math.round(totalVolume),
+              exercises: groupExercises.length,
+              prCount: 0
+            },
+            created_at: group.created_at
+          })
+        }
+      }
+    }
+
+    // Process individual workouts (for users who don't use groups)
+    if (workouts) {
+      const individualWorkouts = workouts.filter(w => !w.workout_group_id)
+      
+      // Group individual workouts by user and day to create sessions
+      const workoutsByUserAndDay = new Map<string, typeof workouts>()
+      
+      individualWorkouts.forEach(workout => {
+        const dateKey = new Date(workout.created_at).toDateString()
+        const userDateKey = `${workout.user_id}-${dateKey}`
+        
+        if (!workoutsByUserAndDay.has(userDateKey)) {
+          workoutsByUserAndDay.set(userDateKey, [])
+        }
+        workoutsByUserAndDay.get(userDateKey)!.push(workout)
+      })
+
+      // Convert grouped workouts to activities
+      workoutsByUserAndDay.forEach((dayWorkouts, userDateKey) => {
+        if (activities.length >= limit) return
+        
+        const firstWorkout = dayWorkouts[0]
+        const userProfile = profilesMap.get(firstWorkout.user_id)
+        if (!userProfile) return
+
+        const totalVolume = dayWorkouts.reduce((sum, w) => sum + (w.weight * w.sets * w.reps), 0)
+        const totalSets = dayWorkouts.reduce((sum, w) => sum + w.sets, 0)
+        const totalDuration = dayWorkouts.reduce((sum, w) => sum + w.duration, 0)
+
+        activities.push({
+          id: `individual-${userDateKey}`,
+          type: 'workout_session',
+          user: {
+            id: userProfile.id,
+            name: userProfile.name,
+            profile_picture_url: userProfile.profile_picture_url
+          },
+          workout: {
+            name: dayWorkouts.length > 1 ? 'Mixed Training' : firstWorkout.exercise_name,
+            duration: totalDuration,
+            sets: totalSets,
+            volume: Math.round(totalVolume),
+            exercises: dayWorkouts.length,
+            prCount: 0
+          },
+          created_at: firstWorkout.created_at
+        })
+      })
+    }
+
+    // Sort activities by date and limit
+    activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    const limitedActivities = activities.slice(0, limit)
+
+    return { success: true, data: limitedActivities }
+  } catch (error) {
+    console.error('Error fetching followed users activities:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+export interface FollowedUserActivity {
+  id: string
+  type: 'workout_session'
+  user: {
+    id: string
+    name: string
+    profile_picture_url?: string
+  }
+  workout: {
+    name: string
+    duration: number // in minutes
+    sets: number
+    volume: number // total weight lifted in lbs/kg
+    exercises: number
+    prCount: number
+  }
+  created_at: string
+} 

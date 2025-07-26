@@ -1,4 +1,8 @@
 export { CommunityFeed } from './CommunityFeed'
+export { ActivitiesFeed } from './ActivitiesFeed'
+export { WorkoutActivityCard } from './WorkoutActivityCard'
+export { UserSearchBar } from './UserSearchBar'
+export { UserSearchCard } from './UserSearchCard'
 export { Leaderboard } from './Leaderboard'
 export { CommunityGroupList } from './CommunityGroupList'
 export { CreatePostForm } from './CreatePostForm'

@@ -23,7 +23,7 @@ export default function OnboardingPage() {
       const onboardingData: FullOnboardingAnswers = {
         // Core onboarding fields
         primaryGoal: data.primaryGoal,
-        secondaryGoal: data.secondaryGoal,
+
         sportSpecificDetails: data.sportSpecificDetails,
         trainingFrequencyDays: data.trainingFrequencyDays,
         sessionDuration: data.sessionDuration,

@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { supabase } from '@/lib/supabase'
-import { Users, Trophy, Flame, Library } from 'lucide-react'
+import { Users, Trophy, Library } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CommunityFeed, Leaderboard, CommunityGroupList } from '@/components/community'
+import { ActivitiesFeed, Leaderboard, CommunityGroupList, UserSearchBar } from '@/components/community'
 
 export default function CommunityPage() {
   const [userProfile, setUserProfile] = useState<{
@@ -71,8 +71,8 @@ export default function CommunityPage() {
         <Tabs defaultValue="feed" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="feed">
-              <Flame className="w-4 h-4 mr-2" />
-              Activity Feed
+              <Trophy className="w-4 h-4 mr-2" />
+              Activities
             </TabsTrigger>
             <TabsTrigger value="groups">
               <Library className="w-4 h-4 mr-2" />
@@ -84,8 +84,13 @@ export default function CommunityPage() {
             </TabsTrigger>
           </TabsList>
           
+          {/* Search Bar */}
+          <div className="mt-6 mb-6">
+            <UserSearchBar placeholder="Search for people to follow..." />
+          </div>
+          
           <TabsContent value="feed" className="mt-6">
-            <CommunityFeed />
+            <ActivitiesFeed />
           </TabsContent>
           
           <TabsContent value="groups" className="mt-6">

@@ -38,8 +38,7 @@ export interface OnboardingData {
   /** Primary fitness goal selected by the user */
   primaryGoal: FitnessGoal
 
-  /** Optional secondary fitness goal */
-  secondaryGoal?: FitnessGoal
+
 
   /** Sport-specific details if "Sport-Specific" goal is selected */
   sportSpecificDetails?: string
