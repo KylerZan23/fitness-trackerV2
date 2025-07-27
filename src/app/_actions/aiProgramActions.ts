@@ -1057,11 +1057,11 @@ async function createCommunityFeedEventServer(
 }
 
 /**
- * Checks if a logged set is a personal best and registers it
+ * Checks if a logged set is a personal record and registers it
  * @param exerciseName - Name of the exercise
  * @param weight - Weight lifted
  * @param reps - Number of reps performed
- * @returns Object indicating if it's a PB and details
+ * @returns Object indicating if it's a PR and details
  */
 export async function checkAndRegisterPB(
   exerciseName: string,
@@ -1074,7 +1074,7 @@ export async function checkAndRegisterPB(
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
-      console.error('Error getting user for PB check:', userError)
+      console.error('Error getting user for PR check:', userError)
       return { isPB: false }
     }
 
@@ -1087,24 +1087,14 @@ export async function checkAndRegisterPB(
       .order('created_at', { ascending: false })
 
     if (workoutsError) {
-      console.error('Error fetching workout history for PB check:', workoutsError)
+      console.error('Error fetching workout history for PR check:', workoutsError)
       return { isPB: false }
     }
 
     if (!workouts || workouts.length === 0) {
-      // First time doing this exercise - it's a PB by default
-      console.log(`First time performing ${exerciseName} - automatic PB!`)
-      
-      // Create community feed event for first-time PB
-      await createCommunityFeedEventServer('NEW_PB', {
-        exerciseName,
-        weight,
-        reps,
-        pbType: 'first-time',
-        previousBest: null,
-      }, supabase)
-      
-      return { isPB: true, pbType: 'first-time' }
+      // First time doing this exercise - no PR since there's no previous record to beat
+      console.log(`First time performing ${exerciseName} - no PR since no previous records exist`)
+      return { isPB: false }
     }
 
     // Find the best previous performance
@@ -1137,15 +1127,15 @@ export async function checkAndRegisterPB(
       }
     })
 
-    // Check for different types of PBs
+    // Check for different types of PRs
     const currentWeight = parseFloat(weight.toString())
     const currentReps = parseInt(reps.toString())
 
     // Type 1: Heaviest weight ever (regardless of reps)
     if (currentWeight > bestWeight) {
-      console.log(`New weight PB for ${exerciseName}: ${currentWeight} (previous: ${bestWeight})`)
+      console.log(`New weight PR for ${exerciseName}: ${currentWeight} (previous: ${bestWeight})`)
       
-      // Create community feed event for weight PB
+      // Create community feed event for weight PR
       await createCommunityFeedEventServer('NEW_PB', {
         exerciseName,
         weight: currentWeight,
@@ -1163,9 +1153,9 @@ export async function checkAndRegisterPB(
 
     // Type 2: Most reps ever (regardless of weight)
     if (currentReps > bestReps) {
-      console.log(`New reps PB for ${exerciseName}: ${currentReps} (previous: ${bestReps})`)
+      console.log(`New reps PR for ${exerciseName}: ${currentReps} (previous: ${bestReps})`)
       
-      // Create community feed event for reps PB
+      // Create community feed event for reps PR
       await createCommunityFeedEventServer('NEW_PB', {
         exerciseName,
         weight: currentWeight,
@@ -1183,9 +1173,9 @@ export async function checkAndRegisterPB(
 
     // Type 3: Heaviest weight at this rep count
     if (currentWeight > bestWeightAtReps) {
-      console.log(`New weight PB for ${exerciseName} at ${currentReps} reps: ${currentWeight} (previous: ${bestWeightAtReps})`)
+      console.log(`New weight PR for ${exerciseName} at ${currentReps} reps: ${currentWeight} (previous: ${bestWeightAtReps})`)
       
-      // Create community feed event for weight-at-reps PB
+      // Create community feed event for weight-at-reps PR
       await createCommunityFeedEventServer('NEW_PB', {
         exerciseName,
         weight: currentWeight,
@@ -1201,7 +1191,7 @@ export async function checkAndRegisterPB(
       }
     }
 
-    // No PB achieved
+    // No PR achieved
     return { isPB: false }
 
   } catch (error) {

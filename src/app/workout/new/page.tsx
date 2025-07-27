@@ -260,6 +260,22 @@ function SessionTracker() {
     return allExercises
   }
 
+  // Check if an exercise at a given index is a warmup or cooldown exercise
+  const isWarmupOrCooldownExercise = (exerciseIndex: number): boolean => {
+    if (!plannedWorkout) return false
+    
+    const warmUpCount = plannedWorkout.warmUp ? plannedWorkout.warmUp.length : 0
+    const mainExercisesCount = plannedWorkout.exercises ? plannedWorkout.exercises.length : 0
+    
+    // Exercise is warmup if it's in the first warmUpCount indices
+    if (exerciseIndex < warmUpCount) return true
+    
+    // Exercise is cooldown if it's after warmup + main exercises
+    if (exerciseIndex >= warmUpCount + mainExercisesCount) return true
+    
+    return false
+  }
+
   // Check if current exercise is completed (all sets have weight and reps)
   const isCurrentExerciseCompleted = (exerciseIndex: number): boolean => {
     if (!plannedWorkout) return false
@@ -405,13 +421,13 @@ function SessionTracker() {
     router.push('/program')
   }
 
-  // Handle PB checking
+  // Handle PR checking
   const handlePBCheck = async (exerciseName: string, weight: number, reps: number) => {
     try {
       const result = await checkAndRegisterPB(exerciseName, weight, reps)
       return result
     } catch (error) {
-      console.error('Error checking for PB:', error)
+      console.error('Error checking for PR:', error)
       return { isPB: false }
     }
   }
@@ -809,6 +825,7 @@ function SessionTracker() {
                 onSetComplete={(setIndex, weight, reps) => handleSetComplete(index, setIndex, weight, reps)}
                 onSetUncomplete={(setIndex) => handleSetUncomplete(index, setIndex)}
                 onPBCheck={handlePBCheck}
+                isWarmupOrCooldown={isWarmupOrCooldownExercise(index)}
               />
             ))
           ) : (
@@ -820,6 +837,7 @@ function SessionTracker() {
                 onSetComplete={(setIndex, weight, reps) => handleSetComplete(currentExerciseIndex, setIndex, weight, reps)}
                 onSetUncomplete={(setIndex) => handleSetUncomplete(currentExerciseIndex, setIndex)}
                 onPBCheck={handlePBCheck}
+                isWarmupOrCooldown={isWarmupOrCooldownExercise(currentExerciseIndex)}
               />
             ) : (
               // Show completion card when all exercises are done in focused view
