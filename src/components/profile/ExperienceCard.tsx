@@ -36,7 +36,7 @@ function getExperienceData(experienceLevel: string | null) {
     case 'Advanced (2+ years)':
       return {
         level: 'Advanced',
-        duration: '5+ Years',
+        duration: '2+ Years',
         progress: 90,
         color: 'bg-purple-500'
       }

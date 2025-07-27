@@ -5,8 +5,10 @@
  */
 
 import { useState } from 'react'
-import { UserIcon, UsersIcon } from 'lucide-react'
+import { UserIcon, UsersIcon, Edit3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ProfilePictureUpload } from '@/components/profile/ProfilePictureUpload'
+import { updateProfilePicture } from '@/app/_actions/profileActions'
 import Image from 'next/image'
 
 interface SocialProfileHeaderProps {
@@ -24,6 +26,7 @@ interface SocialProfileHeaderProps {
   onFollow?: () => void
   onMessage?: () => void
   onFollowersClick?: (tab: 'followers' | 'following') => void
+  onProfileUpdate?: () => void
 }
 
 export function SocialProfileHeader({
@@ -32,9 +35,12 @@ export function SocialProfileHeader({
   isFollowing = false,
   onFollow,
   onMessage,
-  onFollowersClick
+  onFollowersClick,
+  onProfileUpdate
 }: SocialProfileHeaderProps) {
   const [isFollowLoading, setIsFollowLoading] = useState(false)
+  const [isEditingProfilePicture, setIsEditingProfilePicture] = useState(false)
+  const [currentProfilePicture, setCurrentProfilePicture] = useState(profile.profile_picture_url)
 
   const handleFollow = async () => {
     if (!onFollow) return
@@ -43,6 +49,21 @@ export function SocialProfileHeader({
       await onFollow()
     } finally {
       setIsFollowLoading(false)
+    }
+  }
+
+  const handleProfilePictureUpdate = async (newUrl: string) => {
+    try {
+      const result = await updateProfilePicture(newUrl)
+      if (result.success) {
+        setCurrentProfilePicture(newUrl)
+        onProfileUpdate?.()
+        setIsEditingProfilePicture(false)
+      } else {
+        console.error('Failed to update profile picture:', result.error)
+      }
+    } catch (error) {
+      console.error('Error updating profile picture:', error)
     }
   }
 
@@ -59,11 +80,11 @@ export function SocialProfileHeader({
         <div className="relative z-10">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
           {/* Profile Picture */}
-          <div className="flex-shrink-0">
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-3 border-white/20 bg-white/10">
-              {profile.profile_picture_url ? (
+          <div className="flex-shrink-0 relative">
+            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-3 border-white/20 bg-white/10 relative">
+              {currentProfilePicture ? (
                 <Image
-                  src={profile.profile_picture_url}
+                  src={currentProfilePicture}
                   alt={profile.name}
                   width={96}
                   height={96}
@@ -73,6 +94,16 @@ export function SocialProfileHeader({
                 <div className="w-full h-full flex items-center justify-center">
                   <UserIcon className="w-8 h-8 md:w-10 md:h-10 text-white/70" />
                 </div>
+              )}
+              
+              {/* Edit Overlay for Own Profile */}
+              {isOwnProfile && !isEditingProfilePicture && (
+                <button
+                  onClick={() => setIsEditingProfilePicture(true)}
+                  className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center group"
+                >
+                  <Edit3 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                </button>
               )}
             </div>
           </div>
@@ -151,6 +182,30 @@ export function SocialProfileHeader({
           )}
         </div>
       </div>
+
+      {/* Profile Picture Edit Modal */}
+      {isEditingProfilePicture && isOwnProfile && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Update Profile Picture</h3>
+            
+            <ProfilePictureUpload
+              userId={profile.id}
+              existingUrl={currentProfilePicture || null}
+              onUploadComplete={handleProfilePictureUpdate}
+            />
+            
+            <div className="flex justify-end gap-2 mt-4">
+              <Button
+                onClick={() => setIsEditingProfilePicture(false)}
+                variant="outline"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

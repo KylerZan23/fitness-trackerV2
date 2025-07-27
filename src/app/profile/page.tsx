@@ -224,6 +224,17 @@ export default function ProfilePage() {
             setFollowersModalTab(tab)
             setFollowersModalOpen(true)
           }}
+          onProfileUpdate={async () => {
+            // Reload profile data after update
+            try {
+              const profileResult = await getUserProfileData()
+              if (profileResult.success && profileResult.data) {
+                setProfile(profileResult.data)
+              }
+            } catch (error) {
+              console.error('Error reloading profile data:', error)
+            }
+          }}
         />
         
         {/* Training Focus */}
@@ -243,18 +254,51 @@ export default function ProfilePage() {
                 weight_kg: profile.weight_kg,
                 birth_date: profile.birth_date
               }} 
-              weightUnit={profile.weight_unit} 
+              weightUnit={profile.weight_unit}
+              onProfileUpdate={async () => {
+                // Reload profile data after update
+                try {
+                  const profileResult = await getUserProfileData()
+                  if (profileResult.success && profileResult.data) {
+                    setProfile(profileResult.data)
+                  }
+                } catch (error) {
+                  console.error('Error reloading profile data:', error)
+                }
+              }}
             />
           </div>
           
           {/* Personal Records */}
           <PersonalRecordsSection 
             records={personalRecords} 
-            weightUnit={profile.weight_unit} 
+            weightUnit={profile.weight_unit}
+            onRecordsUpdate={async () => {
+              // Reload personal records and profile data after update
+              try {
+                const [recordsResult, profileResult] = await Promise.all([
+                  getUserPersonalRecords(profile.weight_unit),
+                  getUserProfileData()
+                ])
+                
+                if (recordsResult.success && recordsResult.data) {
+                  setPersonalRecords(recordsResult.data)
+                }
+                
+                if (profileResult.success && profileResult.data) {
+                  setProfile(profileResult.data)
+                }
+              } catch (error) {
+                console.error('Error reloading data after PR update:', error)
+              }
+            }}
           />
           
           {/* Activity Feed */}
-          <ActivityFeed activities={activities} />
+          <ActivityFeed 
+            activities={activities} 
+            defaultExpanded={true}
+          />
         </div>
       </div>
 

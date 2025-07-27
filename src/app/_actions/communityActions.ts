@@ -737,8 +737,36 @@ export async function getFollowedUsersActivities(limit: number = 20): Promise<{
       return { success: false, error: 'Failed to fetch activities' }
     }
 
-    // Create profiles lookup map
+    // Get community feed events for PRs from the same time period
+    const { data: prEvents, error: prEventsError } = await supabase
+      .from('community_feed_events')
+      .select('user_id, event_type, metadata, created_at')
+      .in('user_id', followingIds)
+      .eq('event_type', 'NEW_PB')
+      .order('created_at', { ascending: false })
+      .limit(limit * 10) // Get more PR events to match with workouts
+
+    if (prEventsError) {
+      console.error('Error fetching PR events:', prEventsError)
+    }
+
+    // Create lookup maps
     const profilesMap = new Map(userProfiles?.map(p => [p.id, p]) || [])
+    
+    // Create PR lookup map by user and exercise name for recent PRs
+    const prMap = new Map<string, any>()
+    if (prEvents) {
+      prEvents.forEach(event => {
+        const key = `${event.user_id}-${event.metadata?.exerciseName}`
+        const eventDate = new Date(event.created_at)
+        
+        // Only include PRs from the last 7 days to match with recent workouts
+        const daysDiff = Math.abs(new Date().getTime() - eventDate.getTime()) / (1000 * 60 * 60 * 24)
+        if (daysDiff <= 7) {
+          prMap.set(key, event.metadata)
+        }
+      })
+    }
 
     // Process and combine activities
     const activities: FollowedUserActivity[] = []
@@ -759,6 +787,33 @@ export async function getFollowedUsersActivities(limit: number = 20): Promise<{
           
           const totalSets = groupExercises.reduce((sum, exercise) => sum + exercise.sets, 0)
           
+          // Check for PRs and build exercise details
+          const exerciseDetails: ExerciseDetail[] = []
+          const prExercises: string[] = []
+          let prCount = 0
+          
+          groupExercises.forEach(exercise => {
+            const prKey = `${exercise.user_id}-${exercise.exercise_name}`
+            const prData = prMap.get(prKey)
+            const isPR = !!prData
+            
+            if (isPR) {
+              prCount++
+              prExercises.push(exercise.exercise_name)
+            }
+            
+            exerciseDetails.push({
+              id: exercise.id,
+              exercise_name: exercise.exercise_name,
+              sets: exercise.sets,
+              reps: exercise.reps,
+              weight: exercise.weight,
+              duration: exercise.duration,
+              isPR,
+              prType: prData?.pbType
+            })
+          })
+          
           activities.push({
             id: `group-${group.id}`,
             type: 'workout_session',
@@ -773,7 +828,9 @@ export async function getFollowedUsersActivities(limit: number = 20): Promise<{
               sets: totalSets,
               volume: Math.round(totalVolume),
               exercises: groupExercises.length,
-              prCount: 0
+              prCount,
+              exerciseDetails,
+              prExercises
             },
             created_at: group.created_at
           })
@@ -810,6 +867,33 @@ export async function getFollowedUsersActivities(limit: number = 20): Promise<{
         const totalSets = dayWorkouts.reduce((sum, w) => sum + w.sets, 0)
         const totalDuration = dayWorkouts.reduce((sum, w) => sum + w.duration, 0)
 
+        // Check for PRs in individual workouts
+        const exerciseDetails: ExerciseDetail[] = []
+        const prExercises: string[] = []
+        let prCount = 0
+        
+        dayWorkouts.forEach(workout => {
+          const prKey = `${workout.user_id}-${workout.exercise_name}`
+          const prData = prMap.get(prKey)
+          const isPR = !!prData
+          
+          if (isPR) {
+            prCount++
+            prExercises.push(workout.exercise_name)
+          }
+          
+          exerciseDetails.push({
+            id: workout.id,
+            exercise_name: workout.exercise_name,
+            sets: workout.sets,
+            reps: workout.reps,
+            weight: workout.weight,
+            duration: workout.duration,
+            isPR,
+            prType: prData?.pbType
+          })
+        })
+
         activities.push({
           id: `individual-${userDateKey}`,
           type: 'workout_session',
@@ -824,7 +908,9 @@ export async function getFollowedUsersActivities(limit: number = 20): Promise<{
             sets: totalSets,
             volume: Math.round(totalVolume),
             exercises: dayWorkouts.length,
-            prCount: 0
+            prCount,
+            exerciseDetails,
+            prExercises
           },
           created_at: firstWorkout.created_at
         })
@@ -835,11 +921,51 @@ export async function getFollowedUsersActivities(limit: number = 20): Promise<{
     activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     const limitedActivities = activities.slice(0, limit)
 
+    // Get social data for activities
+    if (limitedActivities.length > 0) {
+      const activityIds = limitedActivities.map(activity => activity.id)
+      
+      // Get likes data
+      const { data: likesData } = await supabase
+        .from('activity_likes')
+        .select('activity_id, user_id')
+        .in('activity_id', activityIds)
+
+      // Get comments count
+      const { data: commentsData } = await supabase
+        .from('activity_comments')
+        .select('activity_id, id')
+        .in('activity_id', activityIds)
+
+      // Add social data to activities
+      limitedActivities.forEach(activity => {
+        // Count likes for this activity
+        const activityLikes = likesData?.filter(like => like.activity_id === activity.id) || []
+        activity.likes_count = activityLikes.length
+        activity.user_has_liked = activityLikes.some(like => like.user_id === user.id)
+        
+        // Count comments for this activity
+        const activityComments = commentsData?.filter(comment => comment.activity_id === activity.id) || []
+        activity.comments_count = activityComments.length
+      })
+    }
+
     return { success: true, data: limitedActivities }
   } catch (error) {
     console.error('Error fetching followed users activities:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
+}
+
+export interface ExerciseDetail {
+  id: string
+  exercise_name: string
+  sets: number
+  reps: number
+  weight: number
+  duration: number
+  isPR?: boolean // Added to track if this exercise achieved a PR
+  prType?: string // Type of PR (weight, reps, etc.)
 }
 
 export interface FollowedUserActivity {
@@ -857,6 +983,12 @@ export interface FollowedUserActivity {
     volume: number // total weight lifted in lbs/kg
     exercises: number
     prCount: number
+    exerciseDetails?: ExerciseDetail[] // Added exercise details
+    prExercises?: string[] // List of exercises that achieved PRs
   }
   created_at: string
+  // Social interaction data
+  likes_count?: number
+  comments_count?: number
+  user_has_liked?: boolean
 } 

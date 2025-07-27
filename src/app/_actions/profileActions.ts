@@ -449,6 +449,257 @@ export async function getUserActivityFeed(limit: number = 10): Promise<{ success
 }
 
 /**
+ * Update basic profile information
+ */
+export async function updateProfileBasicInfo(data: {
+  age?: number | null
+  height_cm?: number | null
+  weight_kg?: number | null
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Validate input data
+    if (data.age !== undefined && data.age !== null && (data.age < 13 || data.age > 120)) {
+      return { success: false, error: 'Age must be between 13 and 120 years' }
+    }
+
+    if (data.height_cm !== undefined && data.height_cm !== null && (data.height_cm < 100 || data.height_cm > 250)) {
+      return { success: false, error: 'Height must be between 100cm and 250cm' }
+    }
+
+    if (data.weight_kg !== undefined && data.weight_kg !== null && (data.weight_kg < 30 || data.weight_kg > 300)) {
+      return { success: false, error: 'Weight must be between 30kg and 300kg' }
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update(data)
+      .eq('id', user.id)
+
+    if (updateError) {
+      console.error('Profile update error:', updateError)
+      return { success: false, error: 'Failed to update profile information' }
+    }
+
+    return { success: true }
+
+  } catch (error) {
+    console.error('Error updating profile:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+/**
+ * Update profile picture URL
+ */
+export async function updateProfilePicture(pictureUrl: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ profile_picture_url: pictureUrl })
+      .eq('id', user.id)
+
+    if (updateError) {
+      console.error('Profile picture update error:', updateError)
+      return { success: false, error: 'Failed to update profile picture' }
+    }
+
+    return { success: true }
+
+  } catch (error) {
+    console.error('Error updating profile picture:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+/**
+ * Update or create a personal record by adding/updating workout data
+ */
+export async function updatePersonalRecord(data: {
+  exerciseName: string
+  weight: number
+  reps: number
+  achievedAt?: string
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Validate input data
+    if (data.weight <= 0 || data.weight > 1000) {
+      return { success: false, error: 'Weight must be between 0 and 1000' }
+    }
+
+    if (data.reps <= 0 || data.reps > 100) {
+      return { success: false, error: 'Reps must be between 1 and 100' }
+    }
+
+    const validExercises = ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press']
+    if (!validExercises.includes(data.exerciseName)) {
+      return { success: false, error: 'Invalid exercise name' }
+    }
+
+    // Map display names to database names
+    const exerciseMap: { [key: string]: string } = {
+      'Squat': 'squat',
+      'Bench Press': 'bench_press',
+      'Deadlift': 'deadlift',
+      'Overhead Press': 'overhead_press'
+    }
+
+    const dbExerciseName = exerciseMap[data.exerciseName]
+    const achievedAt = data.achievedAt ? new Date(data.achievedAt) : new Date()
+
+    // Check if this is actually a better record than existing ones
+    const { data: existingWorkouts, error: fetchError } = await supabase
+      .from('workouts')
+      .select('weight, reps, created_at')
+      .eq('user_id', user.id)
+      .eq('exercise_name', dbExerciseName)
+      .order('created_at', { ascending: false })
+
+    if (fetchError) {
+      console.error('Error fetching existing workouts:', fetchError)
+      return { success: false, error: 'Failed to validate personal record' }
+    }
+
+    // Calculate E1RM for the new record
+    const newE1RM = calculateE1RM(data.weight, data.reps)
+
+    // Check if this is actually a personal record
+    if (existingWorkouts && existingWorkouts.length > 0) {
+      const bestExistingE1RM = Math.max(...existingWorkouts.map(w => 
+        calculateE1RM(parseFloat(w.weight.toString()), w.reps)
+      ))
+
+      if (newE1RM <= bestExistingE1RM) {
+        return { 
+          success: false, 
+          error: `This is not a personal record. Your current best E1RM is ${Math.round(bestExistingE1RM)}` 
+        }
+      }
+    }
+
+    // Insert the new workout record
+    const { error: insertError } = await supabase
+      .from('workouts')
+      .insert({
+        user_id: user.id,
+        exercise_name: dbExerciseName,
+        weight: data.weight,
+        reps: data.reps,
+        sets: 1, // Single rep max
+        duration: 0, // Required field, set to 0 for PR records
+        created_at: achievedAt.toISOString()
+      })
+
+    if (insertError) {
+      console.error('Error inserting workout record:', insertError)
+      return { success: false, error: 'Failed to save personal record' }
+    }
+
+    return { success: true }
+
+  } catch (error) {
+    console.error('Error updating personal record:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+/**
+ * Delete a personal record by removing the best workout for that exercise
+ */
+export async function deletePersonalRecord(exerciseName: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Map display names to database names
+    const exerciseMap: { [key: string]: string } = {
+      'Squat': 'squat',
+      'Bench Press': 'bench_press',
+      'Deadlift': 'deadlift',
+      'Overhead Press': 'overhead_press'
+    }
+
+    const dbExerciseName = exerciseMap[exerciseName]
+    if (!dbExerciseName) {
+      return { success: false, error: 'Invalid exercise name' }
+    }
+
+    // Find the best workout for this exercise
+    const { data: workouts, error: fetchError } = await supabase
+      .from('workouts')
+      .select('id, weight, reps')
+      .eq('user_id', user.id)
+      .eq('exercise_name', dbExerciseName)
+
+    if (fetchError) {
+      console.error('Error fetching workouts:', fetchError)
+      return { success: false, error: 'Failed to find personal record' }
+    }
+
+    if (!workouts || workouts.length === 0) {
+      return { success: false, error: 'No personal record found for this exercise' }
+    }
+
+    // Find the workout with the highest E1RM
+    let bestWorkout = workouts[0]
+    let bestE1RM = calculateE1RM(parseFloat(bestWorkout.weight.toString()), bestWorkout.reps)
+
+    for (const workout of workouts) {
+      const e1rm = calculateE1RM(parseFloat(workout.weight.toString()), workout.reps)
+      if (e1rm > bestE1RM) {
+        bestE1RM = e1rm
+        bestWorkout = workout
+      }
+    }
+
+    // Delete the best workout
+    const { error: deleteError } = await supabase
+      .from('workouts')
+      .delete()
+      .eq('id', bestWorkout.id)
+
+    if (deleteError) {
+      console.error('Error deleting workout:', deleteError)
+      return { success: false, error: 'Failed to delete personal record' }
+    }
+
+    return { success: true }
+
+  } catch (error) {
+    console.error('Error deleting personal record:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+/**
  * Map community feed event to activity item
  */
 function mapFeedEventToActivity(event: any): ActivityItem | null {

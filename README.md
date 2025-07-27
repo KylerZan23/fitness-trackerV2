@@ -4,7 +4,39 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 
 ## Recent Updates
 
-### Profile Backend Integration (Latest)
+### Profile Enhancement & Personal Records Editing (Latest)
+✅ **Complete Profile Editing & Personal Records Management**
+- **Profile Picture Upload**: Integrated profile picture editing with hover overlay
+  - Click-to-edit functionality directly from profile header
+  - Modal-based upload interface with image validation
+  - Real-time updates with automatic profile refresh
+- **Editable Profile Fields**: Inline editing for personal information
+  - Age input with validation (13-120 years)
+  - Height input supporting both metric (cm) and imperial (feet/inches)
+  - Weight input with automatic unit conversion (kg/lbs)
+  - Save/cancel functionality with error handling
+- **Personal Records Editing**: Full CRUD operations for personal records
+  - Inline editing for weight and reps with proper validation
+  - Add new personal records for Squat, Bench Press, Deadlift, Overhead Press
+  - Delete existing personal records with confirmation
+  - E1RM validation ensures only true personal records are saved
+  - Real-time updates with automatic data refresh
+- **Activity Feed Improvements**: Collapsible activity section
+  - Dropdown toggle to show/hide recent activity
+  - Activity count indicator and smooth animations
+  - Configurable default expanded/collapsed state
+- **UI/UX Improvements**: Removed hardcoded text and enhanced user experience
+  - Removed "5+ Years" text from Advanced experience level 
+  - Removed "Prime Age" badge from age statistics
+  - Clean, intuitive editing interface with proper validation
+- **Enhanced Server Actions**: Extended `profileActions.ts` with comprehensive update capabilities
+  - `updateProfileBasicInfo()`: Updates age, height, weight with validation
+  - `updateProfilePicture()`: Handles profile picture URL updates
+  - `updatePersonalRecord()`: Creates/updates personal records via workout data
+  - `deletePersonalRecord()`: Removes personal records safely
+  - E1RM calculation integration and comprehensive validation
+
+### Profile Backend Integration
 ✅ **Complete Backend Integration for Profile Page**
 - **New Server Actions**: Created `profileActions.ts` with comprehensive data fetching
   - `getUserProfileData()`: Fetches complete profile with enhanced fields
@@ -48,7 +80,8 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 ✅ **Advanced Progress Tracking**
 - E1RM (Estimated 1-Rep Max) calculations using multiple formulas
 - Strength progression charts and trend analysis
-- Muscle distribution heatmaps and volume tracking
+- **Enhanced Muscle Group Categorization**: Intelligent exercise classification that handles LLM-generated variations (e.g., "Dumbbell Bench Press", "Romanian Deadlifts")
+- Muscle distribution heatmaps and volume tracking with accurate categorization
 - Weekly and monthly progress summaries
 
 ### Onboarding Experience
