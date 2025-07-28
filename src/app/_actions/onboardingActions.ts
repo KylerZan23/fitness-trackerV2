@@ -79,6 +79,23 @@ export async function saveOnboardingData(
     // Separate the data: profile fields vs onboarding responses
     const { experienceLevel, weightUnit, ...onboardingResponses } = formData
     
+    // Convert strength estimates to kg for consistent storage
+    // This ensures all stored weights are in kg, regardless of user's preference
+    if (weightUnit === 'lbs') {
+      if (onboardingResponses.squat1RMEstimate) {
+        onboardingResponses.squat1RMEstimate = onboardingResponses.squat1RMEstimate / 2.20462
+      }
+      if (onboardingResponses.benchPress1RMEstimate) {
+        onboardingResponses.benchPress1RMEstimate = onboardingResponses.benchPress1RMEstimate / 2.20462
+      }
+      if (onboardingResponses.deadlift1RMEstimate) {
+        onboardingResponses.deadlift1RMEstimate = onboardingResponses.deadlift1RMEstimate / 2.20462
+      }
+      if (onboardingResponses.overheadPress1RMEstimate) {
+        onboardingResponses.overheadPress1RMEstimate = onboardingResponses.overheadPress1RMEstimate / 2.20462
+      }
+    }
+    
     // Derive training focus from primary goal
     const primaryTrainingFocus = mapGoalToTrainingFocus(formData.primaryGoal)
 

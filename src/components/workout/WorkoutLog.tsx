@@ -8,9 +8,10 @@ import { logWorkout } from '@/lib/db/index'
 
 interface WorkoutLogProps {
   onSuccess?: () => void
+  weightUnit?: 'kg' | 'lbs'
 }
 
-export function WorkoutLog({ onSuccess }: WorkoutLogProps) {
+export function WorkoutLog({ onSuccess, weightUnit = 'kg' }: WorkoutLogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -118,7 +119,7 @@ export function WorkoutLog({ onSuccess }: WorkoutLogProps) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="weight" className="block text-sm font-medium text-foreground">
-              Weight (kg/lbs)
+              Weight ({weightUnit})
             </label>
             <input
               id="weight"

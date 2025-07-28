@@ -114,6 +114,7 @@ const TrainingWeekSchema = z.object({
   notes: z.string().optional(),
   weekInPhase: z.number().optional(),
   weeklyGoals: z.array(z.string()).optional(),
+  progressionStrategy: z.string().optional(),
 })
 
 const TrainingPhaseSchema = z.object({
@@ -123,6 +124,7 @@ const TrainingPhaseSchema = z.object({
   notes: z.string().optional(),
   objectives: z.array(z.string()).optional(),
   phaseNumber: z.number().optional(),
+  progressionStrategy: z.string().optional(),
 })
 
 const TrainingProgramSchema = z.object({
@@ -214,6 +216,7 @@ interface TrainingWeek {
   notes?: string;
   weekInPhase?: number;
   weeklyGoals?: string[];
+  progressionStrategy?: string; // How to progress from previous week. e.g., 'Add 2.5kg to all compound lifts', 'Add 1 set to all accessory exercises', 'Maintain weights but increase RPE to 8-9'
 }
 
 interface TrainingPhase {
@@ -223,6 +226,7 @@ interface TrainingPhase {
   notes?: string;
   objectives?: string[];
   phaseNumber?: number;
+  progressionStrategy?: string; // Overall progression approach for this phase. e.g., 'Linear weight increases each week', 'Volume accumulation then intensification', 'Autoregulated RPE progression'
 }
 
 interface TrainingProgram {
@@ -335,6 +339,243 @@ function getExpertGuidelines(
 }
 
 /**
+ * Interface for weak point analysis input
+ */
+interface WeakPointAnalysisInput {
+  squat?: number
+  bench?: number
+  deadlift?: number
+  ohp?: number
+  experienceLevel?: string
+  primaryGoal?: string
+  injuriesLimitations?: string
+  strengthAssessmentType?: string
+}
+
+/**
+ * Interface for weak point analysis result
+ */
+interface WeakPointAnalysisResult {
+  primaryWeakPoint: string
+  secondaryWeakPoint?: string
+  weakPointDescription: string
+  recommendedAccessories: string[]
+  rationale: string
+}
+
+/**
+ * Analyze user's weak points based on strength ratios and profile data
+ */
+function analyzeWeakPoints(input: WeakPointAnalysisInput): WeakPointAnalysisResult {
+  const { squat, bench, deadlift, ohp, experienceLevel, primaryGoal, injuriesLimitations } = input
+  
+  // Default fallback for insufficient data
+  const defaultResult: WeakPointAnalysisResult = {
+    primaryWeakPoint: 'General Muscle Balance',
+    weakPointDescription: 'Focus on balanced muscle development',
+    recommendedAccessories: ['Face Pulls', 'Band Pull-Aparts', 'Plank variations'],
+    rationale: 'Without sufficient strength data, prioritizing general muscle balance and postural health'
+  }
+
+  // If we don't have at least 2 lift estimates, return general balance focus
+  const availableLifts = [squat, bench, deadlift, ohp].filter(lift => lift && lift > 0)
+  if (availableLifts.length < 2) {
+    return defaultResult
+  }
+
+  const weakPoints: Array<{ priority: number; result: WeakPointAnalysisResult }> = []
+
+  // Posterior Chain Analysis (Deadlift vs Squat)
+  if (deadlift && squat && deadlift > 0 && squat > 0) {
+    const deadliftToSquatRatio = deadlift / squat
+    // Typical ratio should be 1.2-1.3 for most lifters
+    if (deadliftToSquatRatio < 1.1) {
+      weakPoints.push({
+        priority: 1,
+        result: {
+          primaryWeakPoint: 'Posterior Chain Weakness',
+          weakPointDescription: 'Deadlift strength significantly lower than squat strength',
+          recommendedAccessories: [
+            'Romanian Deadlifts',
+            'Good Mornings', 
+            'Glute Ham Raises',
+            'Hip Thrusts',
+            'Single-leg Romanian Deadlifts'
+          ],
+          rationale: `Deadlift to squat ratio of ${deadliftToSquatRatio.toFixed(2)} indicates posterior chain weakness (target: 1.2-1.3)`
+        }
+      })
+    }
+  }
+
+  // Upper Body Pressing Analysis (Bench vs Overall)
+  if (bench && squat && bench > 0 && squat > 0) {
+    const benchToSquatRatio = bench / squat
+    // Typical ratio should be 0.6-0.8 for most lifters
+    if (benchToSquatRatio < 0.5) {
+      weakPoints.push({
+        priority: 2,
+        result: {
+          primaryWeakPoint: 'Upper Body Pressing Weakness',
+          weakPointDescription: 'Bench press strength disproportionately low compared to squat',
+          recommendedAccessories: [
+            'Close-Grip Bench Press',
+            'Incline Dumbbell Press',
+            'Tricep Dips',
+            'Push-up variations',
+            'Tricep-focused work'
+          ],
+          rationale: `Bench to squat ratio of ${benchToSquatRatio.toFixed(2)} indicates upper body pressing weakness (target: 0.6-0.8)`
+        }
+      })
+    }
+  }
+
+  // Overhead Strength Analysis (OHP vs Bench)
+  if (ohp && bench && ohp > 0 && bench > 0) {
+    const ohpToBenchRatio = ohp / bench
+    // Typical ratio should be 0.6-0.7 for most lifters
+    if (ohpToBenchRatio < 0.5) {
+      weakPoints.push({
+        priority: 3,
+        result: {
+          primaryWeakPoint: 'Overhead Pressing Weakness',
+          weakPointDescription: 'Overhead press strength significantly lower than bench press',
+          recommendedAccessories: [
+            'Seated Dumbbell Press',
+            'Pike Push-ups',
+            'Lateral Raises',
+            'Face Pulls',
+            'Band Pull-Aparts',
+            'Shoulder stability work'
+          ],
+          rationale: `OHP to bench ratio of ${ohpToBenchRatio.toFixed(2)} indicates overhead pressing and shoulder stability weakness (target: 0.6-0.7)`
+        }
+      })
+    }
+  }
+
+  // Push/Pull Imbalance Analysis
+  if (bench && !injuriesLimitations?.toLowerCase().includes('shoulder')) {
+    weakPoints.push({
+      priority: 4,
+      result: {
+        primaryWeakPoint: 'Push/Pull Imbalance',
+        weakPointDescription: 'Modern lifestyle and gym training often create anterior dominance',
+        recommendedAccessories: [
+          'Face Pulls',
+          'Band Pull-Aparts',
+          'Rear Delt Flyes',
+          'Wall Angels',
+          'Thoracic spine mobility work'
+        ],
+        rationale: 'Proactive approach to prevent rounded shoulders and improve posture from excessive pressing'
+      }
+    })
+  }
+
+  // Core Stability for Advanced Lifters
+  if (experienceLevel === 'Advanced' && squat && squat > 150) { // Assuming kg
+    weakPoints.push({
+      priority: 5,
+      result: {
+        primaryWeakPoint: 'Core Stability Enhancement',
+        weakPointDescription: 'Advanced lifters benefit from targeted core stability work',
+        recommendedAccessories: [
+          'Pallof Press',
+          'Dead Bug variations',
+          'Bird Dog',
+          'Single-arm/single-leg carries',
+          'Anti-extension planks'
+        ],
+        rationale: 'High strength levels require proportional core stability for continued progress and injury prevention'
+      }
+    })
+  }
+
+  // Goal-Specific Weak Points
+  if (primaryGoal?.includes('Hypertrophy') || primaryGoal?.includes('Muscle Gain')) {
+    weakPoints.push({
+      priority: 6,
+      result: {
+        primaryWeakPoint: 'Muscle Group Specialization',
+        weakPointDescription: 'Hypertrophy goals benefit from targeted weak muscle group development',
+        recommendedAccessories: [
+          'Bicep Curls',
+          'Lateral Raises',
+          'Calf Raises',
+          'Rear Delt work',
+          'Tricep isolation'
+        ],
+        rationale: 'Hypertrophy focus requires attention to smaller muscle groups often undertrained in compound movements'
+      }
+    })
+  }
+
+  // Injury-Specific Considerations
+  if (injuriesLimitations) {
+    const injuryLower = injuriesLimitations.toLowerCase()
+    if (injuryLower.includes('knee')) {
+      weakPoints.push({
+        priority: 2,
+        result: {
+          primaryWeakPoint: 'Knee Stability & Hip Mobility',
+          weakPointDescription: 'Previous knee issues require focused stability and mobility work',
+          recommendedAccessories: [
+            'Clamshells',
+            'Glute Bridges',
+            'Hip Flexor Stretches',
+            'Terminal Knee Extensions',
+            'Single-leg stability work'
+          ],
+          rationale: 'Knee injury history requires proactive hip stability and mobility maintenance'
+        }
+      })
+    } else if (injuryLower.includes('back') || injuryLower.includes('spine')) {
+      weakPoints.push({
+        priority: 1,
+        result: {
+          primaryWeakPoint: 'Spinal Stability & Core',
+          weakPointDescription: 'Back injury history requires careful core and spinal stability work',
+          recommendedAccessories: [
+            'Dead Bug',
+            'Bird Dog',
+            'McGill Big 3',
+            'Cat-Cow stretches',
+            'Hip flexor stretches'
+          ],
+          rationale: 'Back injury history requires conservative approach with evidence-based spinal stability exercises'
+        }
+      })
+    } else if (injuryLower.includes('shoulder')) {
+      weakPoints.push({
+        priority: 2,
+        result: {
+          primaryWeakPoint: 'Shoulder Health & Stability',
+          weakPointDescription: 'Shoulder injury history requires targeted stability and mobility work',
+          recommendedAccessories: [
+            'Band Pull-Aparts',
+            'Wall Slides',
+            'Shoulder Dislocations with Band',
+            'External Rotations',
+            'Face Pulls'
+          ],
+          rationale: 'Shoulder injury history requires proactive stability and mobility maintenance'
+        }
+      })
+    }
+  }
+
+  // Return highest priority weak point, or default if none identified
+  if (weakPoints.length > 0) {
+    const prioritizedWeakPoint = weakPoints.sort((a, b) => a.priority - b.priority)[0]
+    return prioritizedWeakPoint.result
+  }
+
+  return defaultResult
+}
+
+/**
  * Construct the detailed LLM prompt for program generation
  */
 function constructLLMPrompt(profile: UserProfileForGeneration): string {
@@ -351,6 +592,18 @@ function constructLLMPrompt(profile: UserProfileForGeneration): string {
   const overheadPress1RMEstimate = onboarding.overheadPress1RMEstimate
   const strengthAssessmentType = onboarding.strengthAssessmentType
   const weightUnit = profile.weight_unit || 'kg' // Get weight unit from profile
+
+  // Analyze weak points based on strength ratios and user data
+  const weakPointAnalysis = analyzeWeakPoints({
+    squat: squat1RMEstimate,
+    bench: benchPress1RMEstimate,
+    deadlift: deadlift1RMEstimate,
+    ohp: overheadPress1RMEstimate,
+    experienceLevel: profile.experience_level || undefined,
+    primaryGoal: onboarding.primaryGoal,
+    injuriesLimitations: onboarding.injuriesLimitations || undefined,
+    strengthAssessmentType: strengthAssessmentType
+  })
 
   const typeDefinitions = getTypeScriptInterfaceDefinitions()
   
@@ -416,23 +669,114 @@ Based on the \`USER GOALS & PREFERENCES -> Injuries/Limitations\` field (verbati
 - If specific exercises are listed as 'disliked' in \`exercisePreferences\`, DO NOT include them. Find appropriate substitutes.
 - If specific exercises are listed as 'liked' or 'preferred', PRIORITIZE their inclusion if they align with the user's goals and overall program structure.
 
+**Exercise Selection Principles - Optimize Stimulus-to-Fatigue Ratio (SFR)**:
+- **For Hypertrophy/Muscle Gain Goals**: Prioritize exercises with high stability that train the target muscle through its full contractile range of motion. Focus on maximizing muscle tension and metabolic stress.
+    - **Primary Selection Criteria**: Machine-based movements, supported dumbbell movements, and exercises with stable base of support
+    - **Range of Motion Priority**: Exercises that allow full stretch and contraction (e.g., incline dumbbell press over flat bench, Romanian deadlift over conventional for hamstrings)
+    - **Stability Advantage**: Machines > cables > dumbbells > barbells for isolation work. Compound movements still use barbells/dumbbells as primary tools.
+    - **Examples**: Leg press over back squat for quad focus, seated cable row over bent-over row for lat isolation, machine chest press for beginners over barbell bench
+- **For Strength/Powerlifting Goals**: Prioritize specificity to competition lifts and movement patterns. Focus on skill acquisition and neural adaptations.
+    - **Primary Selection Criteria**: Competition lifts (squat, bench press, deadlift, overhead press) and their close variations
+    - **Specificity Hierarchy**: Competition lift > competition variation > competition accessory > general strength exercise
+    - **Movement Pattern Integrity**: Maintain similar joint angles, loading patterns, and muscle recruitment as competition lifts
+    - **Examples**: Back squat > front squat > leg press for squat strength, competition bench > close-grip bench > dumbbell press for bench strength
+- **For General Fitness Goals**: Create balanced selection covering all major movement patterns and muscle groups. Focus on functional movement quality.
+    - **Movement Pattern Coverage**: Squat (knee-dominant), hinge (hip-dominant), push (horizontal/vertical), pull (horizontal/vertical), carry/core
+    - **Compound Priority**: Emphasize multi-joint exercises that train multiple muscle groups simultaneously
+    - **Balance Requirement**: Equal attention to opposing muscle groups (push/pull, quad/hamstring, etc.)
+    - **Examples**: Goblet squat, Romanian deadlift, push-ups, bent-over row, farmer's carries, planks
+
+**Enhanced Substitution Logic**:
+- **Equipment Limitations**: When substituting due to equipment constraints, find alternatives that target the same muscle group with similar movement pattern and loading characteristics.
+    - **Barbell → Dumbbell**: Barbell squat → Dumbbell goblet squat or Bulgarian split squat
+    - **Barbell → Bodyweight**: Barbell row → Inverted row or pull-ups
+    - **Machine → Free Weight**: Leg press → Goblet squat or dumbbell lunges
+    - **Cable → Dumbbell**: Cable row → Dumbbell row or bent-over row
+- **Injury/Limitation Modifications**: When modifying for injuries, select exercises that avoid the problematic movement or joint position while maintaining muscle group training.
+    - **Knee Pain**: Barbell squat → Box squat (reduced range), leg press (supported), or hip thrust (knee-sparing)
+    - **Lower Back Issues**: Conventional deadlift → Trap bar deadlift, Romanian deadlift, or hip thrust
+    - **Shoulder Impingement**: Overhead press → Landmine press, incline dumbbell press with neutral grip, or seated dumbbell press
+    - **Wrist Pain**: Barbell exercises → Dumbbell alternatives with neutral grip or cable exercises
+- **Experience Level Modifications**: Adjust exercise complexity based on user experience and movement competency.
+    - **Beginner**: Machine versions → Dumbbell versions → Barbell versions as progression pathway
+    - **Intermediate/Advanced**: Include unilateral work, tempo variations, and advanced movement patterns
+    - **Movement Quality**: Always prioritize proper form and range of motion over load progression
+
 3.  **Structure & Content**:
     *   Structure the program with 1-2 phases as appropriate for a 4-6 week duration and the user's goals, based on the expert guidelines.
-    *   Implement progressive overload principles as described in the expert guidelines.
-    *   Ensure exercise names are standard and recognizable. If an exercise from the guidelines is not in the provided TypeScript \`ExerciseDetail.name\` list, use a very common, standard alternative or break it down if it's a complex movement.
+    *   **Implement Dynamic, Autoregulated Periodization based on Experience Level**:
+        *   **For Intermediate/Advanced Users (6+ months experience) - Implement a 4-Week Undulating Periodization Model with Scientific Volume Progression**:
+            *   **Week 1 (Volume Accumulation - MEV Start):** Main compound lifts should target RPE 7-8 (2-3 Reps in Reserve). Start at Minimum Effective Volume (MEV) as specified in expert guidelines (typically 10-14 sets/muscle/week). Focus on building training volume and movement quality.
+            *   **Week 2 (Volume Accumulation - Progression towards MAV):** Increase load slightly on main lifts while maintaining RPE 7-8. Add 1-2 sets to key muscle groups, progressing towards Maximum Adaptive Volume (MAV) as specified in guidelines (typically 16-22 sets/muscle/week).
+            *   **Week 3 (Intensification - Approach MAV):** Increase load on main lifts to target RPE 8-9 (1-2 Reps in Reserve). Reach or approach MAV for target muscle groups but do not exceed Maximum Recoverable Volume (MRV). Focus on intensity over further volume increases.
+            *   **Week 4 (Deload - Return to MEV):** Reduce total sets to approximately MEV levels (50-60% volume reduction from Week 3) and intensity to RPE 5-6 (4-5 Reps in Reserve) across ALL exercises to promote recovery and supercompensation.
+        *   **For Beginner Users (<6 months experience) - Implement Linear Progression Model**:
+            *   Keep set/rep schemes consistent across all weeks. Aim to add small amounts of weight (2.5kg/5lbs for lower body, 1.25kg/2.5lbs for upper body) to compound lifts each week.
+            *   Target RPE 6-7 (3-4 Reps in Reserve) to prioritize technique development and avoid overreaching. Focus on movement quality over intensity.
+            *   Include technique-focused notes and form cues in every compound exercise. Build confidence and competency before pursuing higher intensities.
+    *   **Volume Progression Framework**: Based on the volume landmarks (MEV/MAV/MRV) specified in the EXPERT GUIDELINES, structure the weekly sets per muscle group progression:
+        *   **Week 1**: Start at MEV (Minimum Effective Volume) as specified in guidelines
+        *   **Week 2**: Progress towards MAV (Maximum Adaptive Volume), typically adding 2-4 sets total across key muscle groups
+        *   **Week 3**: Approach or reach MAV but never exceed MRV (Maximum Recoverable Volume). Prioritize intensity over additional volume.
+        *   **Week 4**: Return to MEV levels for deload (approximately 50-60% of Week 3 volume)
+        *   **CRITICAL**: Count sets per muscle group carefully. Each exercise contributes sets to its primary muscle groups. Ensure total weekly sets per muscle align with the specified MEV/MAV/MRV ranges from the expert guidelines.
+    *   **Progression Strategy Field - MANDATORY**: For each \`TrainingWeek\` and \`TrainingPhase\`, you MUST populate the \`progressionStrategy\` field with clear, actionable progression instructions:
+        *   **TrainingWeek.progressionStrategy**: Specific instructions for how to progress from the previous week. Must align with the periodization model and user experience level.
+            *   **Week 1 Examples**: "Start conservatively at prescribed weights and RPE targets", "Establish baseline performance for all exercises"
+            *   **Week 2 Examples**: "Add 2.5kg to lower body compounds, 1.25kg to upper body compounds", "Add 1 set to primary muscle group exercises", "Increase RPE from 7 to 7-8 on main lifts"
+            *   **Week 3 Examples**: "Add 2.5kg to all compound lifts from Week 2", "Maintain sets but increase RPE to 8-9", "Add final volume progression set to key exercises"
+            *   **Week 4 Examples**: "Reduce all weights by 10-15% and focus on form", "Drop 1-2 sets from all exercises for recovery", "Maintain RPE 5-6 for active recovery"
+        *   **TrainingPhase.progressionStrategy**: Overall progression approach for the entire phase, explaining the systematic progression philosophy.
+            *   **Volume Phase Examples**: "Progressive volume accumulation from MEV to MAV over 3 weeks, followed by deload"
+            *   **Intensity Phase Examples**: "Linear weight increases each week while maintaining set/rep schemes"
+            *   **Mixed Phase Examples**: "Weeks 1-2 focus on volume progression, Week 3 emphasizes intensity, Week 4 deloads both volume and intensity"
+        *   **Experience Level Considerations**:
+            *   **Beginner**: Simple, conservative progressions (e.g., "Add 2.5kg when you can complete all sets with good form")
+            *   **Intermediate**: Systematic progressions (e.g., "Increase load by 2-3% or add 1 set based on RPE feedback")
+            *   **Advanced**: Autoregulated progressions (e.g., "Progress based on daily readiness - add weight if RPE <7, maintain if RPE 7-8, reduce if RPE >8")
+    *   Implement progressive overload principles as described in the expert guidelines, but now systematically structured within the periodization and volume progression models above.
+    *   **Individualized Weak Point Targeting - MANDATORY**: Based on the user's strength ratios and profile analysis, you MUST incorporate targeted weak point training:
+        *   **Primary Weak Point Identified**: ${weakPointAnalysis.primaryWeakPoint}
+        *   **Weak Point Description**: ${weakPointAnalysis.weakPointDescription}
+        *   **Scientific Rationale**: ${weakPointAnalysis.rationale}
+        *   **IMPLEMENTATION REQUIREMENTS**:
+            *   **Dedicate 1-2 accessory exercise slots per relevant workout** to address this specific weak point
+            *   **Recommended Exercises**: Prioritize these specific exercises: ${weakPointAnalysis.recommendedAccessories.join(', ')}
+            *   **Training Integration**: Incorporate weak point exercises as targeted accessories, not as replacements for main compound lifts
+            *   **Progressive Emphasis**: Give weak point exercises higher priority than general accessory work
+            *   **Volume Considerations**: Weak point exercises should receive 2-4 sets per workout when included, prioritizing consistency over volume
+            *   **Educational Notes**: Include brief explanations in exercise notes about why these exercises address the identified weak point
+        *   **Example Implementation**: If posterior chain weakness is identified, include Romanian Deadlifts, Hip Thrusts, or Good Mornings as priority accessories on lower body and/or pull days
+    *   **Exercise Selection & Naming Standards**:
+        *   Ensure exercise names are standard and recognizable. If an exercise from the guidelines is not in the provided TypeScript \`ExerciseDetail.name\` list, use a very common, standard alternative or break it down if it's a complex movement.
+        *   **CRITICAL**: Apply the Exercise Selection Principles above when choosing between similar exercises. Always select the option with the best stimulus-to-fatigue ratio for the user's specific goal.
+        *   When multiple exercise options exist for the same muscle group, prioritize based on SFR hierarchy:
+            *   **Hypertrophy**: Machine chest press > dumbbell chest press > barbell bench press (for isolation and safety)
+            *   **Strength**: Barbell bench press > dumbbell bench press > machine chest press (for specificity)
+            *   **General Fitness**: Dumbbell bench press > barbell bench press > machine chest press (for balance of functionality and safety)
+        *   Include exercise variations that match the user's equipment availability and experience level while maintaining optimal SFR.
     *   Include warm-up and cool-down for each training day. If guidelines are sparse on this, apply general best practices (e.g., 5-10 min light cardio and dynamic stretches for warm-up; 5-10 min static stretches for cool-down).
     *   Set \`estimatedDurationMinutes\` for each WorkoutDay to align with the user's preferred session duration, adapting the number of exercises or sets from the guidelines if necessary.
     *   For the \`notes\` field in each \`ExerciseDetail\`:
         *   If the exercise is a major compound lift (e.g., Squat, Bench Press, Deadlift, Overhead Press), ALWAYS include 1-2 concise, critical form cues. Examples: For Squat: 'Keep chest up, drive knees out, descend to at least parallel.' For Deadlift: 'Maintain neutral spine, engage lats, push through the floor.'
         *   If the user's \`Experience Level\` is 'Beginner (<6 months)', provide more detailed form cues or safety reminders for most exercises.
-        *   If an exercise was modified due to an injury/limitation, briefly note this (e.g., 'Modified for knee comfort').
+        *   **SFR Optimization Notes**: Include brief explanations when exercise selection prioritizes stimulus-to-fatigue ratio:
+            *   For hypertrophy-focused exercises: 'Chosen for optimal muscle isolation and stretch' or 'Machine version for better stability and muscle focus'
+            *   For strength-focused exercises: 'Competition movement for maximum specificity' or 'Close variation to improve competition lift'
+            *   For general fitness exercises: 'Functional movement pattern training multiple muscle groups'
+        *   If an exercise was modified due to an injury/limitation, briefly note this and explain the SFR benefit (e.g., 'Modified for knee comfort while maintaining quad training')
+        *   If an exercise was substituted due to equipment limitations, note the substitution reason and maintained training effect (e.g., 'Dumbbell alternative maintaining same movement pattern').
 4.  **Output Format**:
     *   Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.).
     *   For rest days, set \`isRestDay: true\` and provide a minimal or empty exercises array.
     *   Ensure ${onboarding.trainingFrequencyDays} training days and ${7 - onboarding.trainingFrequencyDays} rest days per week, distributing them reasonably (e.g., not all training days consecutively if possible, unless specified in guidelines).
     *   Set \`generatedAt\` to the current ISO date string.
     *   Include appropriate tags based on goals and focus.
-    *   For the \`generalAdvice\` field: Provide a brief (2-3 sentences) explanation of the program's overall structure and how it aligns with the user's \`Primary Goal\`, \`Experience Level\`, and \`Available Equipment\`. Example: 'This 4-week program focuses on Full Body workouts 3 times per week, which is ideal for your 'Beginner' experience level and 'General Fitness' goal, utilizing the Dumbbells and Bodyweight exercises you have available. The primary aim is to build foundational strength and improve movement patterns.'
+    *   For the \`generalAdvice\` field: Provide a brief (3-4 sentences) explanation of the program's overall structure, periodization approach, and how it aligns with the user's \`Primary Goal\`, \`Experience Level\`, and \`Available Equipment\`. **MUST include explanation of the periodization model used**:
+        *   For Intermediate/Advanced: Explain the 4-week undulating periodization (MEV → MAV progression → intensification → deload) and RPE-based autoregulation with volume landmarks
+        *   For Beginners: Explain the linear progression approach and emphasis on technique development with conservative RPE targets
+        *   Example for Intermediate: 'This 4-week program uses undulating periodization with scientific volume progression: Week 1 starts at MEV (X sets/muscle), Week 2-3 progress toward MAV (Y sets/muscle), and Week 4 deloads to MEV. The RPE-based approach (7-8 → 8-9 → 5-6) combined with volume landmarks allows you to optimize both stimulus and recovery for your Intermediate experience level.'
+        *   Example for Beginner: 'This 4-week program uses linear progression, gradually adding weight each week while maintaining conservative RPE 6-7 targets and moderate volume (MEV to low-MAV range). This approach prioritizes technique mastery and movement quality, which is ideal for building a strong foundation at your Beginner experience level.'
 5.  **Focus Field**: For the \`focus\` field in WorkoutDay objects, you MUST strictly use ONLY one of these exact predefined values from the TypeScript interface:
     - "Upper Body" (for bench press, overhead press, upper body days)
     - "Lower Body" (for squat, deadlift, leg-focused days)  
@@ -459,15 +803,26 @@ Based on the \`USER GOALS & PREFERENCES -> Injuries/Limitations\` field (verbati
     - Overhead Press day = "Upper Body" or "Push"
     
     If more specificity is needed, use the notes field of the WorkoutDay.
-6.  **Weight Prescription**:
+6.  **Weight Prescription & Autoregulation**:
     *   Utilize the "USER STRENGTH ESTIMATES" provided. The unit for these estimates is ${weightUnit}.
     *   For core compound exercises (Squat, Bench Press, Deadlift, Overhead Press if applicable) where a 1RM/e1RM is provided by the user:
         *   For sets in the 1-5 rep range (strength focus), suggest working weights typically between 80-95% of the user's 1RM/e1RM.
         *   For sets in the 6-12 rep range (hypertrophy focus), suggest working weights typically between 65-80% of 1RM/e1RM.
         *   For sets in the 12-15+ rep range (endurance focus), suggest working weights typically between 50-65% of 1RM/e1RM.
+        *   **CRITICAL**: Always include the target RPE in the \`rpe\` field and provide RPE/RIR guidance in the \`notes\` or \`weight\` field to enable autoregulation.
     *   If the user's \`Experience Level\` is 'Beginner' or \`Values Determined By\` is 'Unsure / Just a guess', instruct the AI to be conservative. It should prioritize form and suggest starting at the lower end of percentage ranges or even with 'just the bar' for complex movements. Emphasize gradual weight increase.
-    *   For exercises where a direct 1RM is not applicable or not provided by the user (e.g., isolation exercises like Bicep Curls, dumbbell accessories, or if the user didn't provide a 1RM for the parent compound lift), instruct the AI to provide descriptive guidance. Examples: "Challenging weight for X reps", "Use bodyweight", "Light dumbbells", or suggest selecting a weight that matches a target RPE (e.g., "Select weight for RPE 7-8").
-    *   The output for the \`weight\` field in the \`ExerciseDetail\` JSON object should be a string. Examples: "100 ${weightUnit}", "45 ${weightUnit}", "Bodyweight", "Challenging weight for 10 reps (RPE 8)". If a specific weight is given, ALWAYS include the unit (${weightUnit}).
+    *   **For exercises where a direct 1RM is not applicable or not provided by the user, you MUST provide RPE or RIR guidance for autoregulation**. This is CRUCIAL for intermediate/advanced users. Examples:
+        *   "Select a weight for 10 reps at RPE 8 (leaving 2 reps in the tank)"
+        *   "Challenging weight for 12 reps (RIR 1-2)"
+        *   "Moderate weight for 15 reps at RPE 7 (could do 3 more reps)"
+        *   "Heavy weight for 6 reps at RPE 9 (1 rep in reserve)"
+        *   For beginners: "Light-moderate weight for 10 reps at RPE 6-7 (focus on form)"
+    *   **RPE/RIR Education in Program Notes**: For users unfamiliar with RPE, include brief explanations:
+        *   "RPE 6-7: Moderate effort, could do 3-4 more reps"
+        *   "RPE 8: Hard effort, could do 2 more reps" 
+        *   "RPE 9: Very hard, could do 1 more rep"
+        *   "RIR = Reps in Reserve (how many more reps you could do)"
+    *   The output for the \`weight\` field in the \`ExerciseDetail\` JSON object should be a string. Examples: "100 ${weightUnit}", "45 ${weightUnit}", "Bodyweight", "Select weight for RPE 8 (2 RIR)", "Moderate weight for 12 reps at RPE 7". If a specific weight is given, ALWAYS include the unit (${weightUnit}).
 
 IMPORTANT: Return ONLY valid JSON matching the TrainingProgram interface. No additional text or markdown.
 `

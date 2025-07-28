@@ -117,6 +117,9 @@ export interface TrainingWeek {
 
   /** Optional weekly goals or targets */
   weeklyGoals?: string[]
+
+  /** Progression strategy for this week - how to progress from previous week */
+  progressionStrategy?: string
 }
 
 /**
@@ -140,6 +143,9 @@ export interface TrainingPhase {
 
   /** Phase number within the overall program */
   phaseNumber?: number
+
+  /** Overall progression strategy for this phase */
+  progressionStrategy?: string
 }
 
 /**

@@ -13,7 +13,8 @@ export const MUSCLE_GAIN_BEGINNER_GUIDELINES = `
 PRINCIPLES
 • 3 full‑body sessions ‑> high‑frequency boosts motor learning & volume quality.
 • 8–12 reps (~65–75 % 1RM) to near‑failure (RIR 1‑2) after technique is sound.
-• Weekly target >10 hard sets·muscle⁻¹.  Protein ≥1.6 g·kg‑1·d‑1, 5–10 % kcal surplus.
+• Volume landmarks: Start at MEV (8-10 sets/muscle/week), progress to MAV (12-16 sets/muscle/week). Do not exceed MRV (18 sets/muscle/week) for beginners.
+• Protein ≥1.6 g·kg‑1·d‑1, 5–10 % kcal surplus.
 • Rest — Compounds **90–180 s**; Isolation **60–90 s**.
 
 WEEKLY PLAN (3 d)
@@ -34,7 +35,8 @@ OPTIONS
 
 export const MUSCLE_GAIN_INTERMEDIATE_GUIDELINES = `
 PRINCIPLES
-• 2×/muscle frequency edges out 1× (volume equal). Aim 12–20 sets weekly.
+• 2×/muscle frequency edges out 1× (volume equal). 
+• Volume landmarks: Start at MEV (10-12 sets/muscle/week), progress towards MAV (18-22 sets/muscle/week) over the training block. Do not exceed MRV (24 sets/muscle/week).
 • Load mix: 6–12 main, 12–20 metabolite work. RPE 7‑9.
 • Rest — Compounds **90–180 s**; Isolation **60–90 s** (shorter only if adding sets).
 
@@ -54,7 +56,8 @@ OPTIONS
 
 export const MUSCLE_GAIN_ADVANCED_GUIDELINES = `
 PRINCIPLES
-• High volume (15–25 sets) + ≥2×/wk frequency best for growth (2024 meta‑reg).
+• ≥2×/wk frequency best for growth (2024 meta‑reg).
+• Volume landmarks: Start at MEV (12-15 sets/muscle/week), progress towards MAV (20-25 sets/muscle/week) over the training block. Experienced users can approach MRV (26-28 sets/muscle/week) but monitor recovery closely.
 • Include mechanical tension (5–8 reps), hypertrophy zone (8–12), metabolite (15‑20).
 • Intensity techniques ≤10 % volume.
 • Rest — Heavy sets **2–3 min**; other compounds **90–120 s**; isolation **60–90 s**.
@@ -96,6 +99,7 @@ export const STRENGTH_GAIN_INTERMEDIATE_GUIDELINES = `
 PRINCIPLES
 • 4 d Upper/Lower H‑L. Periodization > linear (2023 meta‑analysis).
 • Main lifts 3‑6 reps @RPE 7‑8; accessories 6‑12.
+• Volume landmarks for accessories: MEV (8-10 sets/muscle/week), progress to MAV (14-18 sets/muscle/week). Focus on movement-specific strength over hypertrophy volume.
 • Rest — Top sets **3–5 min**; back‑offs **2–3 min**; accessories **90 s**.
 
 WEEKLY PLAN
@@ -301,7 +305,7 @@ OPTIONS
 export const MUSCLE_GAIN_HYPERTROPHY_FOCUS_INTERMEDIATE_GUIDELINES = `
 PRINCIPLES
 • Advanced hypertrophy techniques: drop sets, rest‑pause, cluster sets (≤15% volume).
-• 4‑5 d with 16‑22 sets per muscle weekly; multiple rep ranges 6‑20.
+• Volume landmarks: Start at MEV (14-16 sets/muscle/week), progress towards MAV (20-24 sets/muscle/week) with hypertrophy specialization. Do not exceed MRV (26 sets/muscle/week).
 • Tempo manipulation: 2‑3 s eccentrics, 1‑2 s pause on stretched position.
 • Rest — Heavy sets **90–120 s**; isolation/metabolic **45–60 s**.
 
