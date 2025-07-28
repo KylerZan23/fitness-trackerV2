@@ -767,15 +767,15 @@ Each workout MUST be structured logically using a three-tier hierarchy that opti
             *   Use the same set and rep scheme from the previous block's Week 1
             *   Increase weight for the same volume structure established in the previous mesocycle
             *   Return to rep/set progression within the new weight ranges
-        *   **TrainingWeek.progressionStrategy Examples (with Anchor Lift Focus)**:
-            *   **Week 1**: "Focus on Anchor Lift progression: establish baseline with prescribed reps and sets. Add reps within target range (e.g., Squat 3x5-8 → aim for 3x6-8 reps). Apply same progression to supporting exercises. Minimal weight adjustments."
-            *   **Week 2**: "Anchor Lift priority: if top range achieved last week, add 1 set (e.g., Squat 3x5-8 → 4x5-8 if achieved 3x8). Continue rep progression for supporting exercises. Secondary exercises follow same pattern when qualified."
-            *   **Week 3**: "Final volume week: complete Anchor Lift progression to MAV. Add remaining sets to reach maximum productive volume. Focus on Anchor Lift performance before deload."
-            *   **Week 4**: "Deload: reduce Anchor Lift to Week 1 volume and intensity (RPE 5-6). Prepare Anchor Lift for next mesocycle weight increases. All supporting exercises follow deload pattern."
-        *   **TrainingPhase.progressionStrategy**: Overall progression approach for the entire phase, explaining the systematic progression philosophy.
-            *   **Volume-Focused Phase**: "Primary progression through set addition over 3 weeks (MEV → MAV), followed by deload. Weight increases minimal during accumulation."
-            *   **Next Block Preparation**: "Following deload, next mesocycle will use same volume structure with increased weights from previous block's Week 1 baseline."
-            *   **Long-term Progression**: "Alternating mesocycles of volume accumulation and weight progression to optimize both muscle growth and strength development."
+        *   **TrainingWeek.progressionStrategy Examples (Anchor Lift Focus)**:
+            *   **Week 1**: "Anchor Lift baseline: add reps within range, minimal weight changes"
+            *   **Week 2**: "Add 1 set to Anchor Lift if top range achieved, continue rep progression"  
+            *   **Week 3**: "Complete Anchor Lift MAV progression, final volume increases"
+            *   **Week 4**: "Deload: Week 1 volume, RPE 5-6, prepare for next mesocycle"
+        *   **TrainingPhase.progressionStrategy**: Overall approach.
+            *   **Volume Phase**: "Set addition progression (MEV→MAV), minimal weight increases"
+            *   **Next Block**: "Same structure, increased weights from previous Week 1"
+            *   **Long-term**: "Alternating volume/weight focus for optimal development"
     *   Implement progressive overload principles as described in the expert guidelines, but now systematically structured within the periodization and volume progression models above.
     *   **Individualized Weak Point Targeting - MANDATORY**: Based on the user's strength ratios and profile analysis, you MUST incorporate targeted weak point training:
         *   **Primary Weak Point Identified**: ${weakPointAnalysis.primaryWeakPoint}
@@ -847,11 +847,11 @@ Each workout MUST be structured logically using a three-tier hierarchy that opti
     *   Set \`generatedAt\` to the current ISO date string.
     *   Include appropriate tags based on goals and focus.
     *   For the \`generalAdvice\` field: Provide a brief (3-4 sentences) explanation of the program's overall structure, periodization approach, and how it aligns with the user's \`Primary Goal\`, \`Experience Level\`, and \`Available Equipment\`. **MUST include explanation of both the periodization model AND tiered exercise structure**:
-        *   **Anchor Lift and Tiered Structure Explanation**: ALWAYS include 1-2 sentences explaining the Anchor Lift concept and three-tier exercise organization: "Each workout is built around a designated Anchor Lift - the primary compound movement that drives program progression and receives priority focus. The workout follows a strategic three-tier structure: Anchor Lift first when fresh, Tier 2 hypertrophy-focused exercises, and Tier 3 isolation finishers. This approach optimizes performance on the most important lift while supporting overall development."
+        *   **Anchor Lift and Tiered Structure Explanation**: ALWAYS include: "Each workout centers on an Anchor Lift (primary compound) with 3-tier structure: Tier 1 compounds when fresh, Tier 2 hypertrophy work, Tier 3 isolation finishers."
         *   For Intermediate/Advanced: Explain the 4-week undulating periodization (MEV → MAV progression → intensification → deload) and RPE-based autoregulation with volume landmarks, PLUS tiered structure
         *   For Beginners: Explain the linear progression approach and emphasis on technique development with conservative RPE targets, PLUS tiered structure
-        *   Example for Intermediate: 'This 4-week mesocycle uses volume-focused progression with Anchor Lift priority: Weeks 1-3 progress primarily through adding sets (MEV → MAV), with minimal weight increases during accumulation. Week 4 deloads to MEV for recovery. Each workout is built around a designated Anchor Lift that drives program progression, followed by supporting exercises in a three-tier structure. Progression follows a specific hierarchy: first add reps within target range, then add sets when top range is achieved, with Anchor Lift receiving priority focus.'
-        *   Example for Beginner: 'This 4-week program uses volume-focused progression with Anchor Lift emphasis and conservative RPE 6-7 targets. Each workout centers on an Anchor Lift - your primary compound movement for the day. Primary progression is through adding reps within target ranges, then adding sets when rep ranges are mastered, with the Anchor Lift receiving priority attention. Weight increases are minimal during accumulation weeks, prioritizing movement quality and gradual volume adaptation on your most important lifts.'
+        *   Example for Intermediate: 'Volume-focused 4-week mesocycle: Weeks 1-3 progress through set addition (MEV→MAV), Week 4 deloads. Each workout centers on Anchor Lift with tiered structure. Rep progression first, then set addition when range mastered.'
+        *   Example for Beginner: 'Conservative volume progression with Anchor Lift focus. RPE 6-7 targets, rep mastery before set addition, minimal weight increases during accumulation weeks.'
 5.  **Focus Field**: For the \`focus\` field in WorkoutDay objects, you MUST strictly use ONLY one of these exact predefined values from the TypeScript interface:
     - "Upper Body" (for bench press, overhead press, upper body days)
     - "Lower Body" (for squat, deadlift, leg-focused days)  
@@ -944,10 +944,11 @@ function getDurationBasedOnGoals(onboarding: OnboardingData): number {
 async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: string }> {
   try {
     console.log('Calling shared LLM service for program generation...')
+    console.log(`Prompt length: ${prompt.length} characters`)
 
     const parsedProgram = await callLLM(prompt, 'user', {
       response_format: { type: 'json_object' },
-      max_tokens: 16000, // Reduced to stay within model limits (max 16384)
+      max_tokens: 16384, // Adjusted to model's maximum supported completion tokens
       model: 'gpt-4o', // Upgraded to more capable model for complex program generation
     })
 
