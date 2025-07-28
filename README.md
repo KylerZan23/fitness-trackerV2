@@ -4,7 +4,67 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 
 ## Recent Updates
 
-### Individualized Weak Point Targeting System (Latest)
+### Mandatory Anchor Lift Implementation (Latest)
+✅ **Clear Training Focus with Primary Movement Priority**
+- **Anchor Lift Requirement**: Every non-rest day MUST designate the first exercise as the "Anchor Lift"
+  - Position: MUST be first exercise after warm-up (Tier 1, Position 1)
+  - Exercise Type: Major compound movement (Squat, Bench Press, Deadlift, Overhead Press, or close variations)
+  - Progression Priority: Weekly progression strategy most clearly applied to this lift
+  - Primary Goal: User's main objective is to progress on this lift over the program
+- **Professional Training Structure**: Mirrors elite coaching practices
+  - Peak neural energy dedicated to most important movement
+  - Clear hierarchy of exercise importance eliminates training confusion
+  - Optimal energy allocation for compound movement mastery
+  - Supporting exercises complement rather than compete with Anchor Lift
+- **Enhanced Progression Focus**: Systematic advancement on primary movements
+  - Volume progression prioritized for Anchor Lift before secondary exercises
+  - Weight increases between mesocycles prioritize Anchor Lift development
+  - Clear tracking and performance focus on most important lift
+- **User Experience Benefits**: Reduced decision fatigue and clear training objectives
+  - Every workout has obvious primary focus and progression target
+  - Educational value in understanding exercise prioritization
+  - Improved motivation through tangible focus on meaningful movements
+
+### Refined Mesocycle Progression Strategy
+✅ **Volume-Focused Progression with Clear Hierarchy**
+- **Progression Hierarchy**: Systematic approach to progression methods
+  - Step 1: Add reps within target rep range until TOP of range achieved for all sets
+  - Step 2: Once top rep range achieved, ADD ONE SET to that exercise the following week
+  - Step 3: Weight increases MINIMAL during accumulation (only when form breakdown occurs)
+- **Mesocycle Structure**: Evidence-based 4-week progression model
+  - Weeks 1-3 (Accumulation): Primary progression through set addition, not weight increases
+  - Week 3 (Final Volume): Complete progression to MAV (Maximum Adaptive Volume)
+  - Week 4 (Deload): Return to MEV levels, prepare for next mesocycle
+  - After Mesocycle: Next block uses weight increases with same volume structure
+- **Scientific Foundation**: Aligns with current periodization research
+  - Volume progression optimizes muscle growth stimulus over weight-focused approaches
+  - Set addition allows better fatigue management and recovery adaptation
+  - Alternating volume/intensity focus prevents stagnation and optimizes long-term progress
+- **User Education**: Clear guidance on when and how to progress
+  - Specific examples for each training week and phase
+  - Integration with volume landmarks (MEV/MAV/MRV) for optimal progression
+  - Long-term mesocycle thinking and block periodization concepts
+
+### Tiered Exercise Selection Within Workouts
+✅ **Structured Workout Organization for Optimal Training Stimulus**
+- **Three-Tier Exercise Hierarchy**: Strategic exercise ordering based on neurological demands
+  - Tier 1 (Primary Compound): 1-2 exercises, free weights, 5-10 reps, RPE 7-8 (when fresh)
+  - Tier 2 (Secondary): 2-3 exercises, stable variations, 8-15 reps, RPE 8-9 (hypertrophy focus)
+  - Tier 3 (Isolation): 2-3 exercises, single-joint movements, 12-25 reps, RPE 9-10 (metabolic stress)
+- **Equipment Priority by Tier**: Optimized for different training adaptations
+  - Tier 1: Barbell > Dumbbell > Machine (maximum neural demand)
+  - Tier 2: Machine > Cable > Supported Dumbbell (stability for muscle isolation)
+  - Tier 3: Cable > Machine > Dumbbell (consistent tension for metabolic stress)
+- **Goal-Specific Tier Applications**: Different training goals emphasize different tiers
+  - Hypertrophy Goals: Tier 2 becomes primary driver with Tier 1 providing strength base
+  - Strength Goals: Tier 1 takes priority with Tiers 2-3 supporting main lifts
+  - General Fitness: All tiers contribute to balanced development
+- **Educational Tier Guidance**: Users understand the rationale behind exercise ordering
+  - Tier-specific notes explain focus and execution approach for each exercise type
+  - Scientific rationale for fatigue management and neurological demand optimization
+  - Integration with existing SFR optimization and periodization models
+
+### Individualized Weak Point Targeting System
 ✅ **Intelligent Strength Assessment and Targeted Accessory Programming**
 - **Strength Ratio Analysis**: Automatic identification of muscular imbalances and weak points
   - Deadlift/Squat ratio analysis (target: 1.2-1.3) for posterior chain health assessment
