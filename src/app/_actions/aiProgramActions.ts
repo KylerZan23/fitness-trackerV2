@@ -81,6 +81,11 @@ const WorkoutFocusEnum = z.enum([
   'Sport-Specific',
   'Rest Day',
   'Lower Body Endurance',
+  // Lift-specific focuses commonly returned by LLM
+  'Squat',
+  'Bench',
+  'Deadlift',
+  'Overhead Press',
 ])
 
 const ExerciseDetailSchema = z.object({
@@ -201,7 +206,7 @@ interface ExerciseDetail {
 
 interface WorkoutDay {
   dayOfWeek: DayOfWeek; // 1-7 (Monday=1)
-  focus?: "Upper Body" | "Lower Body" | "Push" | "Pull" | "Legs" | "Full Body" | "Cardio" | "Core" | "Arms" | "Back" | "Chest" | "Shoulders" | "Glutes" | "Recovery/Mobility" | "Sport-Specific" | "Rest Day" | "Lower Body Endurance"; // MUST use one of these exact values
+  focus?: "Upper Body" | "Lower Body" | "Push" | "Pull" | "Legs" | "Full Body" | "Cardio" | "Core" | "Arms" | "Back" | "Chest" | "Shoulders" | "Glutes" | "Recovery/Mobility" | "Sport-Specific" | "Rest Day" | "Lower Body Endurance" | "Squat" | "Bench" | "Deadlift" | "Overhead Press"; // MUST use one of these exact values
   exercises: ExerciseDetail[];
   warmUp?: ExerciseDetail[];
   coolDown?: ExerciseDetail[];
@@ -590,333 +595,49 @@ async function constructLLMPrompt(profile: UserProfileForGeneration): Promise<st
   const benchPress1RMEstimate = onboarding.benchPress1RMEstimate
   const deadlift1RMEstimate = onboarding.deadlift1RMEstimate
   const overheadPress1RMEstimate = onboarding.overheadPress1RMEstimate
-  const strengthAssessmentType = onboarding.strengthAssessmentType
-  const weightUnit = profile.weight_unit || 'kg' // Get weight unit from profile
-
-  // Analyze weak points based on strength ratios and user data
-  const weakPointAnalysis = analyzeWeakPoints({
-    squat: squat1RMEstimate,
-    bench: benchPress1RMEstimate,
-    deadlift: deadlift1RMEstimate,
-    ohp: overheadPress1RMEstimate,
-    experienceLevel: profile.experience_level || undefined,
-    primaryGoal: onboarding.primaryGoal,
-    injuriesLimitations: onboarding.injuriesLimitations || undefined,
-    strengthAssessmentType: strengthAssessmentType
-  })
-
-  // Analyze previous programs for phasic exercise variation opportunities
-  const phasicVariationAnalysis = await analyzePhasicVariationOpportunities(profile.id)
+  const weightUnit = profile.weight_unit || 'kg'
 
   const typeDefinitions = getTypeScriptInterfaceDefinitions()
   
   // Get expert guidelines based on user's training focus and experience level
   const expertGuidelines = getExpertGuidelines(profile.primary_training_focus, profile.experience_level)
 
-  const userDataSection = `
-USER PROFILE:
-- Name: ${profile.name}
-- Age: ${profile.age}
-- Experience Level: ${profile.experience_level || 'Not specified'}
-- Primary Training Focus: ${profile.primary_training_focus || 'Not specified'}
-
-USER GOALS & PREFERENCES:
-- Primary Goal: ${onboarding.primaryGoal}
-
-- Sport-Specific Details: ${onboarding.sportSpecificDetails || 'None'}
-- Training Frequency: ${onboarding.trainingFrequencyDays} days per week
-- Session Duration: ${onboarding.sessionDuration}
-- Available Equipment: ${onboarding.equipment.join(', ')}
-- Exercise Preferences: ${onboarding.exercisePreferences || 'None specified'}
-- Injuries/Limitations: ${onboarding.injuriesLimitations || 'None specified'}
-`
-
-  const strengthDataSection = `
-USER STRENGTH ESTIMATES (in ${weightUnit}):
-- Squat 1RM / Estimate: ${squat1RMEstimate || 'Not provided'}
-- Bench Press 1RM / Estimate: ${benchPress1RMEstimate || 'Not provided'}
-- Deadlift 1RM / Estimate: ${deadlift1RMEstimate || 'Not provided'}
-- Overhead Press 1RM / Estimate: ${overheadPress1RMEstimate || 'Not provided'}
-- Values Determined By: ${strengthAssessmentType || 'Not provided'}
-`
-
-  const instructions = `
-PROGRAM GENERATION INSTRUCTIONS:
-
-**MANDATORY SESSION REQUIREMENTS (NON-NEGOTIABLE)**:
-Based on the user's selected session duration (${onboarding.sessionDuration}), you MUST include the following MINIMUM number of exercises per workout:
-- **30-45 minutes**: Minimum 6-8 total exercises (2-3 warm-up, 3-4 main workout, 1-2 cool-down)
-- **45-60 minutes**: Minimum 8-10 total exercises (3-4 warm-up, 4-5 main workout, 1-2 cool-down)  
-- **60-75 minutes**: Minimum 10-14 total exercises (3-4 warm-up, 6-8 main workout, 2-3 cool-down)
-- **75+ minutes**: Minimum 12-16 total exercises (4-5 warm-up, 7-9 main workout, 2-3 cool-down)
-
-**CRITICAL**: These exercise counts are ABSOLUTE MINIMUMS. If the expert guidelines below suggest fewer exercises, you MUST supplement them with appropriate additional exercises (accessory work, variations, isolation movements) to meet these requirements while maintaining the core principles of the expert guidelines.
-
-For ADVANCED users doing ATHLETIC PERFORMANCE training with 60+ minute sessions, you MUST include:
-- Complex multi-joint movements (squats, deadlifts, presses)
-- Power/explosive exercises (cleans, jumps, throws)
-- Speed/agility components
-- Sport-specific conditioning
-- Adequate volume to justify the time commitment
-
-**DURATION VALIDATION**: The total estimated time for all exercises (including rest periods) MUST reasonably fill the user's selected session duration. Calculate: (sets × reps × tempo) + (sets × rest time) + transition time between exercises.
-
-1.  **Expert Guidelines Integration**: Use the "EXPERT GUIDELINES FOR ${profile.primary_training_focus?.toUpperCase() || 'USER\'S GOAL'} - ${profile.experience_level?.toUpperCase() || 'USER\'S LEVEL'}" provided below as your FOUNDATION, but EXPAND upon them to meet the mandatory session requirements above. If the guidelines suggest only 3 exercises but the user needs 8-10 exercises for their session duration, ADD appropriate supplementary exercises that align with the same training principles.
-
-2.  **Adapt to User Specifics**: You MUST adapt the expert guidelines and any example plans within them to the user's specific "Available Equipment" (${onboarding.equipment.join(', ')}), "Training Frequency" (${onboarding.trainingFrequencyDays} days/week), and "Session Duration" (${onboarding.sessionDuration}). If the user's available equipment or preferred schedule differs significantly from an example in the guidelines, modify the exercises and structure to be appropriate and safe while still adhering to the core principles (e.g., target muscle groups, progression type) from the guidelines. For instance, if guidelines suggest barbell squats but user only has dumbbells, suggest dumbbell squats or goblet squats. If guidelines suggest 5 days but user selected 3, condense the plan logically.
-
-**Mandatory Injury/Limitation & Preference Handling**:
-Based on the \`USER GOALS & PREFERENCES -> Injuries/Limitations\` field (verbatim: '${onboarding.injuriesLimitations || 'None specified'}') and \`USER GOALS & PREFERENCES -> Exercise Preferences\` field (verbatim: '${onboarding.exercisePreferences || 'None specified'}'):
-- You MUST adapt exercise selection. IF specific injuries are mentioned (e.g., 'knee pain', 'shoulder impingement', 'lower back sensitivity'), AVOID exercises that typically aggravate these conditions.
-- SUGGEST suitable, safer alternatives for the target muscle group. For example, if 'knee pain' is mentioned, prefer Leg Press or Glute Bridges over Deep Barbell Squats or high-impact Plyometrics. If 'shoulder impingement' is mentioned, avoid direct Overhead Press and suggest Landmine Press or incline dumbbell press with neutral grip.
-- If specific exercises are listed as 'disliked' in \`exercisePreferences\`, DO NOT include them. Find appropriate substitutes.
-- If specific exercises are listed as 'liked' or 'preferred', PRIORITIZE their inclusion if they align with the user's goals and overall program structure.
-
-**Anchor Lift Requirement - MANDATORY:**
-For each non-rest day, you MUST designate the first exercise as the "Anchor Lift". This is the primary focus of the entire workout and the exercise that drives overall program progression.
-
-**Anchor Lift Specifications:**
-- **Position**: MUST be the first exercise after warm-up (Tier 1, Position 1)
-- **Exercise Type**: MUST be a major compound movement (Squat, Bench Press, Deadlift, Overhead Press, or close variations like Paused Squat, Incline Bench Press, Sumo Deadlift, etc.)
-- **Progression Priority**: The weekly progressionStrategy should be most clearly applied to this Anchor Lift
-- **Primary Goal**: The user's main objective is to progress on this lift over the course of the training program
-- **Equipment Priority**: Barbell > Dumbbell > Machine (maximum neural demand and skill development)
-- **Programming Focus**: All other exercises in the workout support and complement the Anchor Lift
-
-**Workout Structure and Tiered Exercise Selection:**
-Each workout MUST be structured logically using a three-tier hierarchy that optimizes neurological demands and training stimulus, with the Anchor Lift leading the session. Prioritize exercises as follows:
-
-1.  **Primary Compound Movements (1-2 exercises):** The FIRST exercise must be the designated Anchor Lift (see above). If a second Tier 1 exercise is included, it should complement the Anchor Lift. These are the most neurologically demanding and form the foundation of each workout. Use free weights (Barbell, Dumbbell) for these unless the user has specific injuries. Target lower rep ranges (5-10 reps) and a moderate RPE (RPE 7-8). Place these FIRST in each workout when nervous system freshness is highest.
-    - **Equipment Priority**: Barbell > Dumbbell > Machine (for maximum neural demand and movement skill development)
-    - **Examples**: Back squat, deadlift, bench press, overhead press, bent-over row
-    - **Rationale**: Builds foundational strength, movement patterns, and coordination while nervous system is fresh
-
-2.  **Secondary Movements (2-3 exercises):** These are the main hypertrophy work and should apply SFR principles for optimal muscle building. Prioritize stable variations (Machines, Cables, supported Dumbbell movements) that allow for high muscular tension with reduced stabilizer fatigue. Target moderate rep ranges (8-15 reps) and a higher RPE (RPE 8-9).
-    - **Equipment Priority**: Machine > Cable > Supported Dumbbell > Unsupported movements
-    - **Examples**: Leg press, machine chest press, cable rows, dumbbell shoulder press (seated), lat pulldown
-    - **Rationale**: Maximizes muscle tension and hypertrophy stimulus with optimal stability for muscle isolation
-
-3.  **Isolation/Finishing Movements (2-3 exercises):** These target smaller muscle groups and induce metabolic stress for complete muscle development. Use single-joint movements (Curls, Raises, Pushdowns) with high stability equipment. Target high rep ranges (12-25 reps) and push very close to failure (RPE 9-10).
-    - **Equipment Priority**: Cable > Machine > Dumbbell (for consistent tension and fatigue accumulation)
-    - **Examples**: Bicep curls, tricep pushdowns, lateral raises, leg curls, calf raises
-    - **Rationale**: Targets smaller muscle groups with metabolic stress, enhances muscle definition and addresses weak points
-
-**Exercise Selection Principles - Optimize Stimulus-to-Fatigue Ratio (SFR)**:
-- **For Hypertrophy/Muscle Gain Goals**: Apply the tiered structure above with emphasis on maximizing muscle tension and metabolic stress. Focus on the secondary and isolation tiers for primary hypertrophy stimulus.
-    - **Tier 1 (Primary Compound)**: Use as strength base but limit to 1-2 exercises to preserve energy for hypertrophy work
-    - **Tier 2 (Secondary)**: This is the PRIMARY hypertrophy driver - prioritize machine-based movements for optimal muscle isolation
-    - **Tier 3 (Isolation)**: Essential for complete muscle development and addressing smaller muscle groups
-    - **Examples**: Deadlift + Leg press + Leg curls + Calf raises for complete leg development
-- **For Strength/Powerlifting Goals**: Prioritize specificity to competition lifts in Tier 1, with supportive accessories in Tiers 2-3.
-    - **Tier 1 (Primary Compound)**: Competition lifts (squat, bench press, deadlift, overhead press) take priority
-    - **Tier 2 (Secondary)**: Competition variations and primary accessories that directly support main lifts
-    - **Tier 3 (Isolation)**: Targeted weak point training and injury prevention exercises
-    - **Examples**: Competition bench press + Close-grip bench press + Tricep pushdowns + Face pulls
-- **For General Fitness Goals**: Use all three tiers to create balanced movement pattern coverage and functional strength.
-    - **Tier 1 (Primary Compound)**: Cover all major movement patterns (squat, hinge, push, pull)
-    - **Tier 2 (Secondary)**: Reinforce movement patterns with variations and additional muscle group training
-    - **Tier 3 (Isolation)**: Address smaller muscle groups and imbalances for complete fitness
-    - **Examples**: Goblet squat + Dumbbell bench press + Bicep curls + Planks
-
-**Enhanced Substitution Logic**:
-- **Equipment Limitations**: When substituting due to equipment constraints, find alternatives that target the same muscle group with similar movement pattern and loading characteristics.
-    - **Barbell → Dumbbell**: Barbell squat → Dumbbell goblet squat or Bulgarian split squat
-    - **Barbell → Bodyweight**: Barbell row → Inverted row or pull-ups
-    - **Machine → Free Weight**: Leg press → Goblet squat or dumbbell lunges
-    - **Cable → Dumbbell**: Cable row → Dumbbell row or bent-over row
-- **Injury/Limitation Modifications**: When modifying for injuries, select exercises that avoid the problematic movement or joint position while maintaining muscle group training.
-    - **Knee Pain**: Barbell squat → Box squat (reduced range), leg press (supported), or hip thrust (knee-sparing)
-    - **Lower Back Issues**: Conventional deadlift → Trap bar deadlift, Romanian deadlift, or hip thrust
-    - **Shoulder Impingement**: Overhead press → Landmine press, incline dumbbell press with neutral grip, or seated dumbbell press
-    - **Wrist Pain**: Barbell exercises → Dumbbell alternatives with neutral grip or cable exercises
-- **Experience Level Modifications**: Adjust exercise complexity based on user experience and movement competency.
-    - **Beginner**: Machine versions → Dumbbell versions → Barbell versions as progression pathway
-    - **Intermediate/Advanced**: Include unilateral work, tempo variations, and advanced movement patterns
-    - **Movement Quality**: Always prioritize proper form and range of motion over load progression
-
-3.  **Structure & Content**:
-    *   Structure the program with 1-2 phases as appropriate for a 4-6 week duration and the user's goals, based on the expert guidelines.
-    *   **Implement Dynamic, Autoregulated Periodization based on Experience Level**:
-        *   **For Intermediate/Advanced Users (6+ months experience) - Implement a 4-Week Volume-Focused Mesocycle Model**:
-            *   **Week 1 (Volume Accumulation - MEV Start):** Start at Minimum Effective Volume (MEV) as specified in expert guidelines. Focus on adding reps within target rep ranges. Weight increases should be minimal. Target RPE 7-8 (2-3 Reps in Reserve) with emphasis on movement quality.
-            *   **Week 2 (Volume Accumulation - Set Addition):** For exercises where top of rep range was achieved in Week 1, ADD ONE SET. Continue progressing reps within target ranges for other exercises. Maintain RPE 7-8 with minimal weight increases.
-            *   **Week 3 (Final Volume Week - Reach MAV):** Complete the volume progression to Maximum Adaptive Volume (MAV). Add remaining sets needed to reach MAV but do not exceed Maximum Recoverable Volume (MRV). Focus on completing maximum productive volume before deload.
-            *   **Week 4 (Deload - Return to MEV):** Reduce total sets to approximately MEV levels (50-60% volume reduction from Week 3) and intensity to RPE 5-6 (4-5 Reps in Reserve) across ALL exercises. Prepare for next mesocycle with potential weight increases.
-        *   **For Beginner Users (<6 months experience) - Implement Volume-Focused Progression Model with Conservative Targets**:
-            *   **Primary Progression Method**: Add reps within target rep ranges first, then add sets when top of range is achieved consistently. Weight increases should be minimal during accumulation weeks.
-            *   **Rep Range Progression**: Focus on mastering rep ranges (e.g., 8-12 reps) before adding sets. Only increase weight when form quality remains excellent throughout entire rep range.
-            *   Target RPE 6-7 (3-4 Reps in Reserve) to prioritize technique development and movement pattern learning. Focus on movement quality and gradual volume adaptation over intensity.
-            *   Include technique-focused notes and form cues in every compound exercise. Build confidence and competency with volume before pursuing higher intensities.
-    *   **Volume Progression Framework**: Based on the volume landmarks (MEV/MAV/MRV) specified in the EXPERT GUIDELINES, structure the weekly sets per muscle group progression following the mesocycle progression strategy:
-        *   **Week 1**: Start at MEV (Minimum Effective Volume). Focus on adding reps within target rep ranges for all exercises. Minimal weight adjustments.
-        *   **Week 2**: For exercises where top rep range was achieved, ADD ONE SET per exercise. Continue rep progression for exercises not yet at top range. Progress towards MAV through set addition.
-        *   **Week 3**: Complete volume progression to MAV (Maximum Adaptive Volume). Add remaining sets needed to reach MAV but never exceed MRV. This is the final volume increase week.
-        *   **Week 4**: Return to MEV levels for deload (approximately 50-60% of Week 3 volume) and reduced intensity (RPE 5-6). Prepare for next mesocycle.
-        *   **CRITICAL**: Count sets per muscle group carefully. Each exercise contributes sets to its primary muscle groups. Progression is primarily through SET ADDITION, not weight increases during the accumulation phase. Ensure total weekly sets per muscle align with the specified MEV/MAV/MRV ranges from the expert guidelines.
-    *   **Mesocycle Progression Strategy (Overrides General Advice) - MANDATORY**: For each \`TrainingWeek\` and \`TrainingPhase\`, you MUST populate the \`progressionStrategy\` field with clear, actionable progression instructions following this specific mesocycle progression model, with PRIMARY focus on the Anchor Lift:
-        *   **Anchor Lift Progression Priority**: The progression strategy should ALWAYS emphasize the Anchor Lift as the primary focus. All progression guidance should be most clearly applied to this lift, with other exercises following secondary importance.
-        *   **For Weeks 1-3 (Accumulation Phase)**: The PRIMARY method of progression should be adding SETS, not weight. Follow this progression hierarchy, especially for the Anchor Lift:
-            *   **Step 1**: Add reps within the target rep range until the TOP of the range is achieved for all sets (prioritize Anchor Lift)
-            *   **Step 2**: Once top rep range is achieved for all sets, ADD ONE SET to that exercise the following week (Anchor Lift gets first priority)
-            *   **Step 3**: Weight increases should be MINIMAL during this phase (only when form breakdown occurs at target reps, especially for Anchor Lift)
-        *   **For Week 3 (Intensification/Final Volume Week)**: This is the final week to add volume with the goal to reach the user's MAV (Maximum Adaptive Volume)
-            *   Focus on completing the volume progression to MAV levels
-            *   Maintain RPE targets while achieving maximum productive volume
-            *   Prepare for deload by pushing volume to sustainable limits
-        *   **After Mesocycle Completion**: For the next training block, the primary progression method shifts to WEIGHT increases
-            *   Use the same set and rep scheme from the previous block's Week 1
-            *   Increase weight for the same volume structure established in the previous mesocycle
-            *   Return to rep/set progression within the new weight ranges
-        *   **TrainingWeek.progressionStrategy Examples (Anchor Lift Focus)**:
-            *   **Week 1**: "Anchor Lift baseline: add reps within range, minimal weight changes"
-            *   **Week 2**: "Add 1 set to Anchor Lift if top range achieved, continue rep progression"  
-            *   **Week 3**: "Complete Anchor Lift MAV progression, final volume increases"
-            *   **Week 4**: "Deload: Week 1 volume, RPE 5-6, prepare for next mesocycle"
-        *   **TrainingPhase.progressionStrategy**: Overall approach.
-            *   **Volume Phase**: "Set addition progression (MEV→MAV), minimal weight increases"
-            *   **Next Block**: "Same structure, increased weights from previous Week 1"
-            *   **Long-term**: "Alternating volume/weight focus for optimal development"
-    *   Implement progressive overload principles as described in the expert guidelines, but now systematically structured within the periodization and volume progression models above.
-    *   **Individualized Weak Point Targeting - MANDATORY**: Based on the user's strength ratios and profile analysis, you MUST incorporate targeted weak point training:
-        *   **Primary Weak Point Identified**: ${weakPointAnalysis.primaryWeakPoint}
-        *   **Weak Point Description**: ${weakPointAnalysis.weakPointDescription}
-        *   **Scientific Rationale**: ${weakPointAnalysis.rationale}
-        *   **IMPLEMENTATION REQUIREMENTS**:
-            *   **Dedicate 1-2 accessory exercise slots per relevant workout** to address this specific weak point
-            *   **Recommended Exercises**: Prioritize these specific exercises: ${weakPointAnalysis.recommendedAccessories.join(', ')}
-            *   **Training Integration**: Incorporate weak point exercises as targeted accessories, not as replacements for main compound lifts
-            *   **Progressive Emphasis**: Give weak point exercises higher priority than general accessory work
-            *   **Volume Considerations**: Weak point exercises should receive 2-4 sets per workout when included, prioritizing consistency over volume
-            *   **Educational Notes**: Include brief explanations in exercise notes about why these exercises address the identified weak point
-        *   **Example Implementation**: If posterior chain weakness is identified, include Romanian Deadlifts, Hip Thrusts, or Good Mornings as priority accessories on lower body and/or pull days
-    *   **Phasic Exercise Variation for Novel Stimulus - MANDATORY**: To prevent adaptive resistance and reduce overuse injury risk, you MUST introduce subtle exercise variations for accessory movements based on the user's training history:
-        *   **Previous Program Analysis**: ${phasicVariationAnalysis.rationale}
-        *   **Previously Used Exercises**: ${phasicVariationAnalysis.previousExercises.length > 0 ? phasicVariationAnalysis.previousExercises.join(', ') : 'None (first program)'}
-        *   **Suggested Exercise Variations**: ${phasicVariationAnalysis.suggestedVariations.length > 0 ? 
-            phasicVariationAnalysis.suggestedVariations.map(v => `${v.originalExercise} → ${v.variationExercise} (${v.rationale})`).join('; ') : 
-            'No specific variations required for first program'}
-        *   **IMPLEMENTATION REQUIREMENTS**:
-            *   **MAINTAIN Primary Compound Lifts**: Never vary the main compound movements (Squat, Bench Press, Deadlift, Overhead Press) as these provide movement specificity essential for strength development
-            *   **VARY Accessory Exercises Only**: Introduce variations for 1-2 accessory exercises per major muscle group (chest, back, shoulders, arms, legs) compared to previous programs
-            *   **Equivalent Muscle Group Targeting**: Ensure all variations target the same primary and secondary muscle groups as the original exercise to maintain program effectiveness
-            *   **Equipment Compatibility**: Only suggest variations that are compatible with the user's available equipment: ${onboarding.equipment.join(', ')}
-            *   **Novel Stimulus Explanation**: In the \`generalAdvice\` section, include 1-2 sentences explaining the benefits of exercise variation: "This program introduces strategic exercise variations for accessory movements to provide novel stimulus and prevent adaptive resistance while maintaining primary compound lifts for movement specificity."
-        *   **Variation Examples (if applicable)**:
-            *   Instead of "Dumbbell Bicep Curls" → use "Cable Curls" or "Preacher Curls"
-            *   Instead of "Leg Press" → use "Hack Squats" or "Bulgarian Split Squats"  
-            *   Instead of "Lat Pulldown" → use "Cable Row" or "T-Bar Row"
-            *   Instead of "Dumbbell Flyes" → use "Cable Flyes" or "Pec Deck"
-    *   **Exercise Ordering & Tiered Structure with Anchor Lift - MANDATORY**:
-        *   **CRITICAL**: Every workout MUST follow the three-tier structure defined above, with the Anchor Lift leading the session. Order exercises within each workout as follows:
-            *   **FIRST Position (Anchor Lift)**: The designated Anchor Lift MUST be the very first exercise after warm-up (Tier 1, Position 1) - this is the primary focus and progression driver
-            *   **Remaining Tier 1 Positions**: If a second Tier 1 exercise is included, it should complement the Anchor Lift - placed when nervous system is still fresh
-            *   **Middle Positions (Tier 2)**: 2-3 Secondary Movements - main hypertrophy work with optimal SFR, after compound movements but before isolation
-            *   **Final Positions (Tier 3)**: 2-3 Isolation/Finishing Movements - smaller muscle groups and metabolic stress, when fatigue is acceptable
-        *   **Exercise Ordering Rationale**: This Anchor Lift-focused tiered approach ensures optimal performance on the PRIMARY exercise that drives program progression, while maximizing training stimulus across all movement types.
-        *   **Warm-up Placement**: Place warm-up exercises BEFORE the Anchor Lift to prepare the nervous system and movement patterns specifically for the primary lift
-        *   **Cool-down Placement**: Place cool-down exercises AFTER Tier 3 exercises for recovery and flexibility
-        *   **Example Workout Structure**: Warm-up → Back Squat (Anchor Lift) → Romanian Deadlift (Tier 1) → Leg Press (Tier 2) → Walking Lunges (Tier 2) → Leg Curls (Tier 3) → Calf Raises (Tier 3) → Cool-down
-    *   **Exercise Selection & Naming Standards**:
-        *   Ensure exercise names are standard and recognizable. If an exercise from the guidelines is not in the provided TypeScript \`ExerciseDetail.name\` list, use a very common, standard alternative or break it down if it's a complex movement.
-        *   **CRITICAL**: Apply both the Tiered Structure AND Exercise Selection Principles above when choosing exercises. The tier determines ordering priority, while SFR principles determine the specific exercise selection within each tier.
-        *   When multiple exercise options exist for the same muscle group and tier, prioritize based on SFR hierarchy:
-            *   **Tier 1 (Primary Compound)**: Barbell > Dumbbell > Machine (neural demand priority)
-            *   **Tier 2 (Secondary)**: Machine > Cable > Supported Dumbbell (stability priority for hypertrophy)
-            *   **Tier 3 (Isolation)**: Cable > Machine > Dumbbell (consistent tension priority)
-        *   Include exercise variations that match the user's equipment availability and experience level while maintaining optimal SFR for each tier.
-    *   Include warm-up and cool-down for each training day. If guidelines are sparse on this, apply general best practices (e.g., 5-10 min light cardio and dynamic stretches for warm-up; 5-10 min static stretches for cool-down).
-    *   Set \`estimatedDurationMinutes\` for each WorkoutDay to align with the user's preferred session duration, adapting the number of exercises or sets from the guidelines if necessary.
-    *   For the \`notes\` field in each \`ExerciseDetail\`:
-        *   **Tier-Specific Guidance with Anchor Lift Priority - MANDATORY**: Include tier identification and rationale in exercise notes:
-            *   **Anchor Lift (First Exercise)**: ALWAYS identify as the primary focus. Examples: 'ANCHOR LIFT: Primary progression focus - perfect form and progressive overload priority' or 'Anchor Lift: Foundation of today\'s workout - maximize performance when fresh'
-            *   **Tier 1 (Primary Compound)**: Include form cues and emphasize neural demand. Examples: 'Tier 1: Foundation movement - focus on perfect form and controlled tempo' or 'Primary compound - perform when fresh for maximum strength gains'
-            *   **Tier 2 (Secondary)**: Emphasize muscle-building focus and stability benefits. Examples: 'Tier 2: Main hypertrophy driver - focus on muscle tension and stretch' or 'Secondary movement - prioritize muscle isolation over load'
-            *   **Tier 3 (Isolation)**: Emphasize metabolic stress and finishing effect. Examples: 'Tier 3: Metabolic finisher - push close to failure for muscle definition' or 'Isolation movement - focus on pump and muscle fatigue'
-        *   If the exercise is a major compound lift (e.g., Squat, Bench Press, Deadlift, Overhead Press), ALWAYS include 1-2 concise, critical form cues. Examples: For Squat: 'Keep chest up, drive knees out, descend to at least parallel.' For Deadlift: 'Maintain neutral spine, engage lats, push through the floor.'
-        *   If the user's \`Experience Level\` is 'Beginner (<6 months)', provide more detailed form cues or safety reminders for most exercises.
-        *   **SFR Optimization Notes**: Include brief explanations when exercise selection prioritizes stimulus-to-fatigue ratio:
-            *   For hypertrophy-focused exercises: 'Chosen for optimal muscle isolation and stretch' or 'Machine version for better stability and muscle focus'
-            *   For strength-focused exercises: 'Competition movement for maximum specificity' or 'Close variation to improve competition lift'
-            *   For general fitness exercises: 'Functional movement pattern training multiple muscle groups'
-        *   If an exercise was modified due to an injury/limitation, briefly note this and explain the SFR benefit (e.g., 'Modified for knee comfort while maintaining quad training')
-        *   If an exercise was substituted due to equipment limitations, note the substitution reason and maintained training effect (e.g., 'Dumbbell alternative maintaining same movement pattern').
-4.  **Output Format**:
-    *   Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.).
-    *   For rest days, set \`isRestDay: true\` and provide a minimal or empty exercises array.
-    *   Ensure ${onboarding.trainingFrequencyDays} training days and ${7 - onboarding.trainingFrequencyDays} rest days per week, distributing them reasonably (e.g., not all training days consecutively if possible, unless specified in guidelines).
-    *   Set \`generatedAt\` to the current ISO date string.
-    *   Include appropriate tags based on goals and focus.
-    *   For the \`generalAdvice\` field: Provide a brief (3-4 sentences) explanation of the program's overall structure, periodization approach, and how it aligns with the user's \`Primary Goal\`, \`Experience Level\`, and \`Available Equipment\`. **MUST include explanation of both the periodization model AND tiered exercise structure**:
-        *   **Anchor Lift and Tiered Structure Explanation**: ALWAYS include: "Each workout centers on an Anchor Lift (primary compound) with 3-tier structure: Tier 1 compounds when fresh, Tier 2 hypertrophy work, Tier 3 isolation finishers."
-        *   For Intermediate/Advanced: Explain the 4-week undulating periodization (MEV → MAV progression → intensification → deload) and RPE-based autoregulation with volume landmarks, PLUS tiered structure
-        *   For Beginners: Explain the linear progression approach and emphasis on technique development with conservative RPE targets, PLUS tiered structure
-        *   Example for Intermediate: 'Volume-focused 4-week mesocycle: Weeks 1-3 progress through set addition (MEV→MAV), Week 4 deloads. Each workout centers on Anchor Lift with tiered structure. Rep progression first, then set addition when range mastered.'
-        *   Example for Beginner: 'Conservative volume progression with Anchor Lift focus. RPE 6-7 targets, rep mastery before set addition, minimal weight increases during accumulation weeks.'
-5.  **Focus Field**: For the \`focus\` field in WorkoutDay objects, you MUST strictly use ONLY one of these exact predefined values from the TypeScript interface:
-    - "Upper Body" (for bench press, overhead press, upper body days)
-    - "Lower Body" (for squat, deadlift, leg-focused days)  
-    - "Push" (for pressing movements)
-    - "Pull" (for pulling movements)
-    - "Legs" (alternative to Lower Body)
-    - "Full Body" (for full body workouts)
-    - "Cardio"
-    - "Core"
-    - "Arms"
-    - "Back"
-    - "Chest"
-    - "Shoulders"
-    - "Glutes"
-    - "Recovery/Mobility"
-    - "Sport-Specific"
-    - "Rest Day"
-    - "Lower Body Endurance"
-    
-    **CRITICAL**: Do NOT use exercise names like "Squat", "Bench", "Deadlift" or "Overhead Press" as focus values. These are exercise names, not focus categories. For powerlifting programs:
-    - Squat day = "Lower Body"
-    - Bench day = "Upper Body" or "Push"
-    - Deadlift day = "Lower Body" or "Pull"
-    - Overhead Press day = "Upper Body" or "Push"
-    
-    If more specificity is needed, use the notes field of the WorkoutDay.
-6.  **Weight Prescription & Autoregulation**:
-    *   Utilize the "USER STRENGTH ESTIMATES" provided. The unit for these estimates is ${weightUnit}.
-    *   For core compound exercises (Squat, Bench Press, Deadlift, Overhead Press if applicable) where a 1RM/e1RM is provided by the user:
-        *   For sets in the 1-5 rep range (strength focus), suggest working weights typically between 80-95% of the user's 1RM/e1RM.
-        *   For sets in the 6-12 rep range (hypertrophy focus), suggest working weights typically between 65-80% of 1RM/e1RM.
-        *   For sets in the 12-15+ rep range (endurance focus), suggest working weights typically between 50-65% of 1RM/e1RM.
-        *   **CRITICAL**: Always include the target RPE in the \`rpe\` field and provide RPE/RIR guidance in the \`notes\` or \`weight\` field to enable autoregulation.
-    *   If the user's \`Experience Level\` is 'Beginner' or \`Values Determined By\` is 'Unsure / Just a guess', instruct the AI to be conservative. It should prioritize form and suggest starting at the lower end of percentage ranges or even with 'just the bar' for complex movements. Emphasize gradual weight increase.
-    *   **For exercises where a direct 1RM is not applicable or not provided by the user, you MUST provide RPE or RIR guidance for autoregulation**. This is CRUCIAL for intermediate/advanced users. Examples:
-        *   "Select a weight for 10 reps at RPE 8 (leaving 2 reps in the tank)"
-        *   "Challenging weight for 12 reps (RIR 1-2)"
-        *   "Moderate weight for 15 reps at RPE 7 (could do 3 more reps)"
-        *   "Heavy weight for 6 reps at RPE 9 (1 rep in reserve)"
-        *   For beginners: "Light-moderate weight for 10 reps at RPE 6-7 (focus on form)"
-    *   **RPE/RIR Education in Program Notes**: For users unfamiliar with RPE, include brief explanations:
-        *   "RPE 6-7: Moderate effort, could do 3-4 more reps"
-        *   "RPE 8: Hard effort, could do 2 more reps" 
-        *   "RPE 9: Very hard, could do 1 more rep"
-        *   "RIR = Reps in Reserve (how many more reps you could do)"
-    *   The output for the \`weight\` field in the \`ExerciseDetail\` JSON object should be a string. Examples: "100 ${weightUnit}", "45 ${weightUnit}", "Bodyweight", "Select weight for RPE 8 (2 RIR)", "Moderate weight for 12 reps at RPE 7". If a specific weight is given, ALWAYS include the unit (${weightUnit}).
-
-IMPORTANT: Return ONLY valid JSON matching the TrainingProgram interface. No additional text or markdown.
-`
-
-  return `You are an expert strength and conditioning coach tasked with creating a personalized training program. Generate a JSON object matching the following TypeScript interface structure:
+  return `You are an expert strength coach. Generate a JSON training program matching the TypeScript interface.
 
 ${typeDefinitions}
 
----
-USER DATA:
-${userDataSection}
-${strengthDataSection}
----
-EXPERT GUIDELINES FOR ${profile.primary_training_focus?.toUpperCase() || 'USER\'S GOAL'} - ${profile.experience_level?.toUpperCase() || 'USER\'S LEVEL'}:
+USER PROFILE:
+- Name: ${profile.name}
+- Age: ${profile.age}
+- Experience: ${profile.experience_level || 'Beginner'}
+- Goal: ${onboarding.primaryGoal}
+- Training Days: ${onboarding.trainingFrequencyDays} days/week
+- Session Length: ${onboarding.sessionDuration}
+- Equipment: ${onboarding.equipment.join(', ')}
+- Injuries: ${onboarding.injuriesLimitations || 'None'}
+
+STRENGTH ESTIMATES (${weightUnit}):
+- Squat: ${squat1RMEstimate || 'Not provided'}
+- Bench: ${benchPress1RMEstimate || 'Not provided'}
+- Deadlift: ${deadlift1RMEstimate || 'Not provided'}
+- OHP: ${overheadPress1RMEstimate || 'Not provided'}
+
+EXPERT GUIDELINES:
 ${expertGuidelines}
----
-PROGRAM GENERATION INSTRUCTIONS:
-${instructions}
-`
+
+REQUIREMENTS:
+1. Create a 4-6 week program with 1-2 phases
+2. Each workout should have 6-10 exercises total (including warm-up/cool-down)
+3. Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.)
+4. For rest days: set isRestDay: true, empty exercises array
+5. Include warm-up and cool-down exercises
+6. Set estimatedDurationMinutes to match user's session length
+7. Provide weight guidance using percentages of 1RM or RPE when possible
+8. Focus on compound movements first, then accessories
+9. Adapt exercises for available equipment and injuries
+10. Keep exercise notes concise (1-2 sentences max)
+
+Return ONLY valid JSON matching the TrainingProgram interface. No additional text.`
 }
 
 /**
@@ -948,7 +669,7 @@ async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: stri
 
     const parsedProgram = await callLLM(prompt, 'user', {
       response_format: { type: 'json_object' },
-      max_tokens: 16384, // Adjusted to model's maximum supported completion tokens
+      max_tokens: 4095, // Corrected for gpt-4o's maximum completion tokens
       model: 'gpt-4o', // Upgraded to more capable model for complex program generation
     })
 

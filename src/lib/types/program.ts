@@ -37,6 +37,10 @@ export type WorkoutFocus =
   | 'Sport-Specific'
   | 'Rest Day'
   | 'Lower Body Endurance'
+  | 'Squat'
+  | 'Bench'
+  | 'Deadlift'
+  | 'Overhead Press'
 
 /**
  * Individual exercise detail within a workout

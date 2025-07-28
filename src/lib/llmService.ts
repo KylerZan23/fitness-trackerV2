@@ -5,6 +5,8 @@
  * Provides a consistent interface and error handling for AI model calls
  */
 
+import fs from 'fs/promises'
+import path from 'path'
 import { getLLMConfig } from '@/lib/env'
 import { logger } from '@/lib/logging'
 
@@ -105,13 +107,25 @@ export async function callLLM(
       try {
         return JSON.parse(contentString)
       } catch (parseError) {
+        console.error('Failed to parse LLM JSON response. Full response body being saved to file.')
+        
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+          const filePath = path.join(process.cwd(), `.tmp/llm_parse_error_${timestamp}.json`)
+          await fs.mkdir(path.dirname(filePath), { recursive: true })
+          await fs.writeFile(filePath, contentString, 'utf8')
+          console.log(`Raw LLM response with parse error saved to: ${filePath}`)
+        } catch (fileError) {
+          console.error('Failed to save raw LLM response to file:', fileError)
+        }
+
         logger.error(
           'Failed to parse LLM JSON response',
           {
             operation: 'llmJsonParse',
             component: 'llmService',
             model: options.model,
-            rawContent: contentString.substring(0, 200),
+            rawContent: contentString.substring(0, 1000), // Log more for context
             parseError: (parseError as Error).message,
           },
           parseError as Error
@@ -119,7 +133,10 @@ export async function callLLM(
 
         // It's crucial to know what the LLM actually returned when JSON parsing fails
         throw new Error(
-          `LLM returned invalid JSON when JSON was expected. Raw content: ${contentString.substring(0, 200)}...`
+          `LLM returned invalid JSON when JSON was expected. Full response saved to server logs. Raw content start: ${contentString.substring(
+            0,
+            200
+          )}...`
         )
       }
     }
