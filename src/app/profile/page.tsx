@@ -13,6 +13,7 @@ import { PersonalRecordsSection } from '@/components/profile/PersonalRecordsSect
 import { ActivityFeed } from '@/components/profile/ActivityFeed'
 import { FollowersModal } from '@/components/profile/FollowersModal'
 import { Icon } from '@/components/ui/Icon'
+import { Button } from '@/components/ui/button'
 import { 
   getUserProfileData, 
   getUserWorkoutStats, 
@@ -23,6 +24,7 @@ import {
   type PersonalRecord,
   type ActivityItem
 } from '@/app/_actions/profileActions'
+import { createCustomerPortalSession } from '@/app/_actions/stripeActions'
 
 // Using imported types from profileActions
 
@@ -190,6 +192,19 @@ export default function ProfilePage() {
     }
   }
 
+  const handleManageSubscription = async () => {
+    try {
+      const result = await createCustomerPortalSession()
+      if (result.url) {
+        window.location.href = result.url
+      } else {
+        console.error(result.error)
+      }
+    } catch (error) {
+      console.error('Error managing subscription:', error)
+    }
+  }
+
   const sidebarProps = {
     userName: profile?.name || 'User',
     userEmail: profile?.email || '',
@@ -267,6 +282,20 @@ export default function ProfilePage() {
                 }
               }}
             />
+          </div>
+          
+          {/* Subscription Management */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Subscription Management</h3>
+            <p className="text-gray-600 mb-4">
+              Manage your subscription, update payment methods, and view billing history.
+            </p>
+            <Button 
+              onClick={handleManageSubscription}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Manage Subscription
+            </Button>
           </div>
           
           {/* Personal Records */}

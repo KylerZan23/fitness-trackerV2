@@ -99,6 +99,43 @@ export const BaseEnvironmentSchema = z.object({
 
   NEXT_PUBLIC_STRAVA_REDIRECT_URI: envUrl('NEXT_PUBLIC_STRAVA_REDIRECT_URI').optional(),
 
+  // Stripe Configuration
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: envApiKey('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 100)
+    .refine(key => key.startsWith('pk_'), {
+      message: 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY must start with pk_',
+    }),
+
+  STRIPE_SECRET_KEY: envApiKey('STRIPE_SECRET_KEY', 100)
+    .refine(key => key.startsWith('sk_'), {
+      message: 'STRIPE_SECRET_KEY must start with sk_',
+    }),
+
+  STRIPE_WEBHOOK_SECRET: envApiKey('STRIPE_WEBHOOK_SECRET', 50)
+    .refine(secret => secret.startsWith('whsec_'), {
+      message: 'STRIPE_WEBHOOK_SECRET must start with whsec_',
+    }),
+
+  STRIPE_PRICE_ID_MONTHLY: envStringRequired('STRIPE_PRICE_ID_MONTHLY')
+    .refine(priceId => priceId.startsWith('price_'), {
+      message: 'STRIPE_PRICE_ID_MONTHLY must start with price_',
+    }),
+
+  STRIPE_PRICE_ID_ANNUAL: envStringRequired('STRIPE_PRICE_ID_ANNUAL')
+    .refine(priceId => priceId.startsWith('price_'), {
+      message: 'STRIPE_PRICE_ID_ANNUAL must start with price_',
+    }),
+
+  // Public Stripe Price IDs (for client-side access)
+  NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: envStringRequired('NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY')
+    .refine(priceId => priceId.startsWith('price_'), {
+      message: 'NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY must start with price_',
+    }),
+
+  NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL: envStringRequired('NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL')
+    .refine(priceId => priceId.startsWith('price_'), {
+      message: 'NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL must start with price_',
+    }),
+
   // Observability Configuration (Optional)
 
   LOGTAIL_TOKEN: envApiKey('LOGTAIL_TOKEN', 32).optional(),
@@ -136,6 +173,13 @@ export const TestEnvironmentSchema = BaseEnvironmentSchema.extend({
   STRAVA_CLIENT_SECRET: z.string().optional(),
   NEXT_PUBLIC_STRAVA_REDIRECT_URI: z.string().optional(),
 
+  // Stripe integration not needed in tests
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_ID_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_ID_ANNUAL: z.string().optional(),
+
   // Ensure NODE_ENV is set correctly
   NODE_ENV: z.literal('test'),
 })
@@ -147,6 +191,9 @@ export const ClientEnvironmentSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: BaseEnvironmentSchema.shape.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   NEXT_PUBLIC_STRAVA_CLIENT_ID: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRAVA_CLIENT_ID,
   NEXT_PUBLIC_STRAVA_REDIRECT_URI: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRAVA_REDIRECT_URI,
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY,
+  NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL,
 })
 
 // Server-side environment schema (all variables)

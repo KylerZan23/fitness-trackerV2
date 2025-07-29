@@ -18,6 +18,9 @@ import {
 import { EXPERT_COACHES, type ExpertCoach } from '@/lib/coaches'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { createCheckoutSession } from '@/app/_actions/stripeActions'
+import { loadStripe } from '@stripe/stripe-js'
+import { getClientEnv } from '@/lib/env'
 
 // --- Main Component ---
 interface UserProfile {
@@ -158,59 +161,105 @@ const ExpertCoachesSection = () => (
 )
 
 // --- Pricing Section Component ---
-const PricingSection = () => (
-  <section className="py-16 bg-white">
-    <div className="container mx-auto px-4">
-      <div className="text-center mb-12">
-        <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900">Flexible Plans to Fit Your Journey</h2>
-        <p className="mt-4 text-lg text-gray-600">Start with a 7-day free trial. Cancel anytime.</p>
-      </div>
+const PricingSection = () => {
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubscribe = async (priceId: string) => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const { NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY } = getClientEnv()
+      const stripe = await loadStripe(NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Mock Tier 1: Free Trial */}
-        <Card className="p-6 text-center flex flex-col">
-          <h3 className="text-xl font-bold">Free Trial</h3>
-          <p className="text-muted-foreground mt-2">7 Days</p>
-          <ul className="text-left mt-4 space-y-2 flex-grow">
-            <li>✓ Full AI Programs</li>
-            <li>✓ AI Coach Access</li>
-            <li>✓ Basic Tracking</li>
-          </ul>
-          <Button className="mt-8 w-full" asChild><Link href="/signup">Start Free Trial</Link></Button>
-        </Card>
+      if (!stripe) {
+        throw new Error('Stripe failed to load')
+      }
+
+      const result = await createCheckoutSession(priceId)
+
+      if (result.sessionId && stripe) {
+        await stripe.redirectToCheckout({ sessionId: result.sessionId })
+      } else {
+        throw new Error(result.error || 'Failed to create checkout session')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.')
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <section className="py-16 bg-white">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900">Flexible Plans to Fit Your Journey</h2>
+          <p className="mt-4 text-lg text-gray-600">Start with a 7-day free trial. Cancel anytime.</p>
+        </div>
         
-        {/* Mock Tier 2: Monthly */}
-        <Card className="p-6 text-center flex flex-col">
-          <h3 className="text-xl font-bold">Monthly</h3>
-          <p className="text-brand-green text-3xl font-bold mt-2">$19.99<span className="text-lg text-muted-foreground">/month</span></p>
-          <ul className="text-left mt-4 space-y-2 flex-grow">
-            <li>✓ Full AI Programs</li>
-            <li>✓ AI Coach Access</li>
-            <li>✓ Advanced Analytics</li>
-            <li>✓ Community Access</li>
-            <li>✓ Priority Support</li>
-          </ul>
-          <Button className="mt-8 w-full" asChild><Link href="/signup">Subscribe Monthly</Link></Button>
-        </Card>
-        
-        {/* Mock Tier 3: Annual */}
-        <Card className="p-6 text-center border-2 border-brand-green flex flex-col">
-          <h3 className="text-xl font-bold">Annual</h3>
-          <p className="text-brand-green text-3xl font-bold mt-2">$119.99<span className="text-lg text-muted-foreground">/year</span></p>
-          <ul className="text-left mt-4 space-y-2 flex-grow">
-            <li>✓ Full AI Programs</li>
-            <li>✓ AI Coach Access</li>
-            <li>✓ Advanced Analytics</li>
-            <li>✓ Community Access</li>
-            <li>✓ Priority Support</li>
-            <li>✓ Exclusive Features</li>
-          </ul>
-          <Button className="mt-8 w-full" asChild><Link href="/signup">Save 50% Annually</Link></Button>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Mock Tier 1: Free Trial */}
+          <Card className="p-6 text-center flex flex-col">
+            <h3 className="text-xl font-bold">Free Trial</h3>
+            <p className="text-muted-foreground mt-2">7 Days</p>
+            <ul className="text-left mt-4 space-y-2 flex-grow">
+              <li>✓ Full AI Programs</li>
+              <li>✓ AI Coach Access</li>
+              <li>✓ Basic Tracking</li>
+            </ul>
+            <Button className="mt-8 w-full" asChild><Link href="/signup">Start Free Trial</Link></Button>
+          </Card>
+          
+          {/* Mock Tier 2: Monthly */}
+          <Card className="p-6 text-center flex flex-col">
+            <h3 className="text-xl font-bold">Monthly</h3>
+            <p className="text-brand-green text-3xl font-bold mt-2">$9.99<span className="text-lg text-muted-foreground">/month</span></p>
+            <ul className="text-left mt-4 space-y-2 flex-grow">
+              <li>✓ Full AI Programs</li>
+              <li>✓ AI Coach Access</li>
+              <li>✓ Advanced Analytics</li>
+              <li>✓ Community Access</li>
+              <li>✓ Priority Support</li>
+            </ul>
+            <Button 
+              className="mt-8 w-full" 
+              onClick={() => handleSubscribe(getClientEnv().NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY)} 
+              disabled={isLoading}
+            >
+              {isLoading ? 'Processing...' : 'Subscribe Monthly'}
+            </Button>
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          </Card>
+          
+          {/* Mock Tier 3: Annual */}
+          <Card className="p-6 text-center border-2 border-brand-green flex flex-col">
+            <h3 className="text-xl font-bold">Annual</h3>
+            <p className="text-brand-green text-3xl font-bold mt-2">$39.99<span className="text-lg text-muted-foreground">/year</span></p>
+            <ul className="text-left mt-4 space-y-2 flex-grow">
+              <li>✓ Full AI Programs</li>
+              <li>✓ AI Coach Access</li>
+              <li>✓ Advanced Analytics</li>
+              <li>✓ Community Access</li>
+              <li>✓ Priority Support</li>
+              <li>✓ Exclusive Features</li>
+            </ul>
+            <Button 
+              className="mt-8 w-full" 
+              onClick={() => handleSubscribe(getClientEnv().NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL)} 
+              disabled={isLoading}
+            >
+              {isLoading ? 'Processing...' : 'Save 67% Annually'}
+            </Button>
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          </Card>
+        </div>
       </div>
-    </div>
-  </section>
-)
+    </section>
+  )
+}
 
 // --- Header Component ---
 const Header = ({ isAuthenticated, profile, onSignOut }: { isAuthenticated: boolean; profile: UserProfile | null; onSignOut: () => void }) => (

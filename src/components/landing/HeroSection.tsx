@@ -21,10 +21,6 @@ export function HeroSection() {
             <Button size="lg" asChild className="w-full sm:w-auto">
               <Link href="/signup">Get Started</Link>
             </Button>
-            <Button size="lg" variant="outline" className="w-full sm:w-auto flex items-center gap-2">
-              <Play className="w-4 h-4" />
-              Watch Demo
-            </Button>
           </div>
           <p className="mt-4 text-sm text-gray-500">
             First week free. No credit card required.
