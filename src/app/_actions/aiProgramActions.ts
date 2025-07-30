@@ -8,6 +8,7 @@ import { type OnboardingData } from '@/lib/types/onboarding'
 import { type FullOnboardingAnswers } from './onboardingActions'
 import { callLLM } from '@/lib/llmService'
 import { mapGoalToTrainingFocus } from '@/lib/utils/goalToFocusMapping'
+import { hasActiveSubscription } from '@/lib/permissions'
 import {
   type TrainingProgram,
   type TrainingPhase,
@@ -1113,7 +1114,7 @@ async function callEnhancedLLMAPI(
       }
     } catch (error: any) {
       lastError = error.message || 'Unknown error'
-      console.log(`❌ Attempt ${attempts} threw error: ${lastError}`)
+      console.error(`ERROR in callEnhancedLLMAPI attempt ${attempts}:`, error)
     }
   }
 
@@ -1362,7 +1363,7 @@ export async function generateTrainingProgram(
         if (saveError.code === '22P02' || saveError.message?.includes('volume_landmarks')) {
           console.log('🔄 Retrying without enhanced columns (migration may not be applied)...')
           const fallbackData = {
-            user_id: user.id,
+            user_id: userId,
             program_details: validatedProgram,
             ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
             onboarding_data_snapshot: onboardingData,
@@ -1395,6 +1396,13 @@ export async function generateTrainingProgram(
       if (!onboardingData) {
         return { error: 'Onboarding data is required for new program generation.', success: false }
       }
+
+      // ADD PERMISSION CHECK HERE
+      const hasAccess = await hasActiveSubscription(user.id);
+      if (!hasAccess) {
+        return { success: false, error: 'You need a premium subscription to generate a new program.' };
+      }
+      // END PERMISSION CHECK
 
       console.log('Generating training program for user:', user.id)
 
@@ -1552,7 +1560,7 @@ export async function generateTrainingProgram(
       return { program: validatedProgram, success: true }
     }
   } catch (error) {
-    console.error('Unexpected error in generateTrainingProgram:', error)
+    console.error('ERROR in generateTrainingProgram:', error)
     return { success: false, error: 'An unexpected error occurred while generating your program. Please try again.' }
   }
 }
@@ -1601,7 +1609,7 @@ export async function getCurrentTrainingProgram(
 
     return { program }
   } catch (error) {
-    console.error('Unexpected error in getCurrentTrainingProgram:', error)
+    console.error('ERROR in getCurrentTrainingProgram:', error)
     return { error: 'An unexpected error occurred. Please try again.' }
   }
 }
@@ -1661,7 +1669,7 @@ export async function fetchActiveProgramAction(): Promise<{
 
     return { program, completedDays }
   } catch (error) {
-    console.error('Error in fetchActiveProgramAction:', error)
+    console.error('ERROR in fetchActiveProgramAction:', error)
     return {
       program: null,
       completedDays: [],
@@ -1834,7 +1842,7 @@ export async function adaptNextWeek(
     }
 
   } catch (error) {
-    console.error('Error in adaptNextWeek:', error)
+    console.error('ERROR in adaptNextWeek:', error)
     return {
       success: false,
       error: 'An unexpected error occurred while adapting your program'
@@ -1883,7 +1891,7 @@ async function createCommunityFeedEventServer(
     console.log(`Community feed event created successfully: ${eventType}`)
     return true
   } catch (error) {
-    console.error('Error in createCommunityFeedEventServer:', error)
+    console.error('ERROR in createCommunityFeedEventServer:', error)
     return false
   }
 }
@@ -2027,7 +2035,7 @@ export async function checkAndRegisterPB(
     return { isPB: false }
 
   } catch (error) {
-    console.error('Error checking for personal best:', error)
+    console.error('ERROR in checkAndRegisterPB:', error)
     return { isPB: false }
   }
 }
@@ -2131,10 +2139,7 @@ export async function getDailyAdaptedWorkout(
       adaptedWorkout: adaptedWorkout,
     }
   } catch (error) {
-    console.error(
-      'Error in getDailyAdaptedWorkout:',
-      error instanceof Error ? error.message : String(error)
-    )
+    console.error('ERROR in getDailyAdaptedWorkout:', error)
     return {
       success: false,
       error: 'An unexpected error occurred while adapting your workout.',
@@ -2497,7 +2502,7 @@ async function analyzePhasicVariationOpportunities(
     };
     
   } catch (error) {
-    console.error('Error analyzing phasic variation opportunities:', error);
+    console.error('ERROR in analyzePhasicVariationOpportunities:', error);
     return {
       previousExercises: [],
       suggestedVariations: [],

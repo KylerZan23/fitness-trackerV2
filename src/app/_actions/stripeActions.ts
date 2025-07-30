@@ -57,7 +57,7 @@ export async function createCheckoutSession(priceId: string) {
 
     return { sessionId: session.id };
   } catch (e) {
-    console.error(e);
+    console.error('ERROR in createCheckoutSession:', e);
     return { error: 'Failed to create checkout session.' };
   }
 }

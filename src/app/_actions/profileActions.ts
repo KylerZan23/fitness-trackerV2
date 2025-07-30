@@ -155,7 +155,7 @@ export async function getUserProfileData(): Promise<{ success: boolean; data?: P
 
     return { success: true, data: enhancedProfile }
   } catch (error) {
-    console.error('Error fetching user profile data:', error)
+    console.error('ERROR in getUserProfileData:', error)
     return { success: false, error: 'An unexpected error occurred while loading your profile' }
   }
 }
@@ -243,7 +243,7 @@ export async function getUserWorkoutStats(): Promise<{ success: boolean; data?: 
 
     return { success: true, data: stats }
   } catch (error) {
-    console.error('Error calculating workout stats:', error)
+    console.error('ERROR in getUserWorkoutStats:', error)
     return { success: false, error: 'Failed to calculate workout statistics' }
   }
 }
@@ -325,7 +325,7 @@ export async function getUserPersonalRecords(weightUnit: 'kg' | 'lbs' = 'kg'): P
 
     return { success: true, data: records }
   } catch (error) {
-    console.error('Error fetching personal records:', error)
+    console.error('ERROR in getUserPersonalRecords:', error)
     return { success: false, error: 'Failed to load personal records' }
   }
 }
@@ -374,7 +374,7 @@ async function calculateMonthlyProgress(
     const progress = currentE1RM - bestOldE1RM
     return Math.round(progress * 10) / 10 // Round to 1 decimal place
   } catch (error) {
-    console.error('Error calculating monthly progress:', error)
+    console.error('ERROR in calculateMonthlyProgress:', error)
     return 0
   }
 }
@@ -443,7 +443,7 @@ export async function getUserActivityFeed(limit: number = 10): Promise<{ success
 
     return { success: true, data: activities.slice(0, limit) }
   } catch (error) {
-    console.error('Error fetching activity feed:', error)
+    console.error('ERROR in getUserActivityFeed:', error)
     return { success: false, error: 'Failed to load activity feed' }
   }
 }
@@ -491,7 +491,7 @@ export async function updateProfileBasicInfo(data: {
     return { success: true }
 
   } catch (error) {
-    console.error('Error updating profile:', error)
+    console.error('ERROR in updateProfileBasicInfo:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
@@ -522,7 +522,7 @@ export async function updateProfilePicture(pictureUrl: string): Promise<{ succes
     return { success: true }
 
   } catch (error) {
-    console.error('Error updating profile picture:', error)
+    console.error('ERROR in updateProfilePicture:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
@@ -621,7 +621,7 @@ export async function updatePersonalRecord(data: {
     return { success: true }
 
   } catch (error) {
-    console.error('Error updating personal record:', error)
+    console.error('ERROR in updatePersonalRecord:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
@@ -694,7 +694,7 @@ export async function deletePersonalRecord(exerciseName: string): Promise<{ succ
     return { success: true }
 
   } catch (error) {
-    console.error('Error deleting personal record:', error)
+    console.error('ERROR in deletePersonalRecord:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
@@ -755,7 +755,7 @@ function mapFeedEventToActivity(event: any): ActivityItem | null {
         return null
     }
   } catch (error) {
-    console.error('Error mapping feed event:', error)
+    console.error('ERROR in mapFeedEventToActivity:', error)
     return null
   }
 } 

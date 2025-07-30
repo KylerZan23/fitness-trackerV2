@@ -68,7 +68,7 @@ export async function followUser(targetUserId: string): Promise<{ success: boole
 
     return { success: true }
   } catch (error) {
-    console.error('Error following user:', error)
+    console.error('ERROR in followUser:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
@@ -104,7 +104,7 @@ export async function unfollowUser(targetUserId: string): Promise<{ success: boo
 
     return { success: true }
   } catch (error) {
-    console.error('Error unfollowing user:', error)
+    console.error('ERROR in unfollowUser:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
@@ -153,7 +153,7 @@ export async function getFollowStatus(targetUserId: string): Promise<{ success: 
       data: { isFollowing, isFollowedBy, isMutual }
     }
   } catch (error) {
-    console.error('Error getting follow status:', error)
+    console.error('ERROR in getFollowStatus:', error)
     return { success: false, error: 'Failed to get follow status' }
   }
 }
@@ -200,7 +200,7 @@ export async function getFollowers(targetUserId: string, limit: number = 50): Pr
 
     return { success: true, data: followerProfiles }
   } catch (error) {
-    console.error('Error getting followers:', error)
+    console.error('ERROR in getFollowers:', error)
     return { success: false, error: 'Failed to load followers' }
   }
 }
@@ -247,7 +247,7 @@ export async function getFollowing(targetUserId: string, limit: number = 50): Pr
 
     return { success: true, data: followingProfiles }
   } catch (error) {
-    console.error('Error getting following:', error)
+    console.error('ERROR in getFollowing:', error)
     return { success: false, error: 'Failed to load following' }
   }
 }
@@ -313,7 +313,7 @@ export async function getMutualFollows(targetUserId: string, limit: number = 10)
 
     return { success: true, data: mutualProfiles }
   } catch (error) {
-    console.error('Error getting mutual follows:', error)
+    console.error('ERROR in getMutualFollows:', error)
     return { success: false, error: 'Failed to load mutual follows' }
   }
 }
@@ -355,7 +355,7 @@ export async function searchUsers(query: string, limit: number = 20): Promise<{ 
 
     return { success: true, data: userProfiles }
   } catch (error) {
-    console.error('Error searching users:', error)
+    console.error('ERROR in searchUsers:', error)
     return { success: false, error: 'Failed to search users' }
   }
 } 

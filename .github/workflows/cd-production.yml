@@ -50,6 +50,21 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Validate Environment Variables
+        run: yarn validate:env
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_PROD }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY_PROD }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PRICE_ID_MONTHLY: ${{ secrets.STRIPE_PRICE_ID_MONTHLY }}
+          STRIPE_PRICE_ID_ANNUAL: ${{ secrets.STRIPE_PRICE_ID_ANNUAL }}
+          NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: ${{ secrets.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY }}
+          NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL: ${{ secrets.NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL }}
+
       - name: Run comprehensive validation
         run: |
           echo "🔍 Running final validation before production..."
@@ -166,6 +181,21 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+
+      - name: Validate Environment Variables
+        run: yarn validate:env
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_PROD }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY_PROD }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PRICE_ID_MONTHLY: ${{ secrets.STRIPE_PRICE_ID_MONTHLY }}
+          STRIPE_PRICE_ID_ANNUAL: ${{ secrets.STRIPE_PRICE_ID_ANNUAL }}
+          NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: ${{ secrets.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY }}
+          NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL: ${{ secrets.NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL }}
 
       - name: Wait for deployment propagation
         run: |

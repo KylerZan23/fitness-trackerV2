@@ -180,7 +180,7 @@ async function getProgramAdherenceData(
       lastLoggedWorkoutVsPlan
     }
   } catch (error) {
-    console.error('Error in getProgramAdherenceData:', error)
+    console.error('ERROR in getProgramAdherenceData:', error)
     return null
   }
 }
@@ -474,7 +474,7 @@ Return ONLY the JSON object, no additional text.`
     return weeklyReview
 
   } catch (error) {
-    console.error('Error in getAIWeeklyReview:', error)
+    console.error('ERROR in getAIWeeklyReview:', error)
     return { error: 'An unexpected error occurred while generating your weekly review.' }
   }
 }
@@ -574,7 +574,7 @@ Return ONLY the JSON object, no additional text.`
     return followUpResponse
 
   } catch (error) {
-    console.error('Error in getAIWeeklyReviewFollowUp:', error)
+    console.error('ERROR in getAIWeeklyReviewFollowUp:', error)
     return { error: 'An unexpected error occurred while answering your question.' }
   }
 }
@@ -974,12 +974,12 @@ Now, generate the recommendation based on all the above data and instructions.
 
       return { ...advice, cacheKey } // Return the newly fetched advice with cache key
     } catch (error: any) {
-      console.error('getAICoachRecommendation: Error during LLM call or processing', error)
+      console.error('ERROR in getAICoachRecommendation (LLM call):', error)
       return { error: 'Unable to generate recommendations at this time. Please try again later.' }
     }
 
   } catch (error: any) {
-    console.error('getAICoachRecommendation: Unexpected error in main function', error)
+    console.error('ERROR in getAICoachRecommendation (main):', error)
     return { error: 'An unexpected error occurred. Please try again later.' }
   }
 }

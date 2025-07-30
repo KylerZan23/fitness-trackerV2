@@ -39,7 +39,7 @@ export async function finalizeOnboardingAndGenerateProgram(
     // Directly pass formData to saveOnboardingData
     return await saveOnboardingData(formData)
   } catch (error) {
-    console.error('Error in finalizeOnboardingAndGenerateProgram:', error)
+    console.error('ERROR in finalizeOnboardingAndGenerateProgram:', error)
     return { success: false, error: 'An unexpected error occurred while completing onboarding. Please try again.' }
   }
 }
@@ -144,7 +144,7 @@ export async function saveOnboardingData(
         }
       }
     } catch (programError) {
-      console.error('Error during program generation:', programError)
+      console.error('ERROR in saveOnboardingData (program generation):', programError)
       // Don't fail the onboarding if program generation fails
       return {
         success: true,
@@ -153,7 +153,7 @@ export async function saveOnboardingData(
       }
     }
   } catch (error) {
-    console.error('Unexpected error in saveOnboardingData:', error)
+    console.error('ERROR in saveOnboardingData:', error)
     return {
       success: false,
       error: 'An unexpected error occurred while saving your data. Please try again.',
@@ -194,7 +194,7 @@ export async function checkOnboardingStatus(): Promise<{ completed: boolean } | 
 
     return { completed: profile?.onboarding_completed || false }
   } catch (error) {
-    console.error('Unexpected error in checkOnboardingStatus:', error)
+    console.error('ERROR in checkOnboardingStatus:', error)
     return { success: false, error: 'An unexpected error occurred. Please try again.' }
   }
 }

@@ -76,8 +76,8 @@
     "uuid": "^11.1.0"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "yarn validate:env && next dev",
+    "build": "yarn validate:env && next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",

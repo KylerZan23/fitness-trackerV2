@@ -131,7 +131,7 @@ export async function toggleActivityLike(
       likes_count: likesCount?.length || 0 
     }
   } catch (error) {
-    console.error('Error toggling activity like:', error)
+    console.error('ERROR in toggleActivityLike:', error)
     return { success: false, liked: false, likes_count: 0, error: 'An unexpected error occurred' }
   }
 }
@@ -203,7 +203,7 @@ export async function addActivityComment(
 
     return { success: true, comment }
   } catch (error) {
-    console.error('Error adding activity comment:', error)
+    console.error('ERROR in addActivityComment:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
@@ -278,7 +278,7 @@ export async function getActivityComments(
 
     return { success: true, comments }
   } catch (error) {
-    console.error('Error getting activity comments:', error)
+    console.error('ERROR in getActivityComments:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
@@ -346,7 +346,7 @@ export async function updateActivityComment(
 
     return { success: true, comment }
   } catch (error) {
-    console.error('Error updating activity comment:', error)
+    console.error('ERROR in updateActivityComment:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
@@ -384,7 +384,7 @@ export async function deleteActivityComment(
     revalidatePath('/community')
     return { success: true }
   } catch (error) {
-    console.error('Error deleting activity comment:', error)
+    console.error('ERROR in deleteActivityComment:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
@@ -471,7 +471,7 @@ export async function getActivitiesSocialData(
 
     return { success: true, data: socialData }
   } catch (error) {
-    console.error('Error getting activities social data:', error)
+    console.error('ERROR in getActivitiesSocialData:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 } 

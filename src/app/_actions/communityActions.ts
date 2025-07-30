@@ -952,7 +952,7 @@ export async function getFollowedUsersActivities(limit: number = 20): Promise<{
 
     return { success: true, data: limitedActivities }
   } catch (error) {
-    console.error('Error fetching followed users activities:', error)
+    console.error('ERROR in getFollowedUsersActivities:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
