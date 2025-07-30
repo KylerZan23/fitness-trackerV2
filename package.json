@@ -92,6 +92,7 @@
     "test:e2e:report": "playwright show-report",
     "test:all": "yarn test && yarn test:e2e",
     "create-test-user": "ts-node scripts/create-test-user.ts",
-    "test:rls": "node scripts/test-rls-policies.js"
+    "test:rls": "node scripts/test-rls-policies.js",
+    "validate:env": "tsx scripts/validate-env.ts"
   }
 }
