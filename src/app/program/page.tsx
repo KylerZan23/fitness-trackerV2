@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { Loader2, Calendar, Target, Clock, TrendingUp, Play, BarChart3, Settings, HelpCircle, ChevronUp, BookOpen, Activity, Info, Star, MessageSquare, ChevronRight, Eye } from 'lucide-react'
+import { Loader2, Calendar, Target, Clock, TrendingUp, Play, BarChart3, Settings, HelpCircle, ChevronUp, BookOpen, Activity, Info, Star, MessageSquare, ChevronRight, Eye, Brain, Lightbulb } from 'lucide-react'
 import { ProgramPhaseDisplay } from '@/components/program/ProgramPhaseDisplay'
 import { WeeklyCheckInModal } from '@/components/program/WeeklyCheckInModal'
 import { DailyReadinessModal } from '@/components/program/DailyReadinessModal'
@@ -628,6 +628,18 @@ function ProgramPageContent() {
       }}
     >
       <div className="space-y-6 sm:space-y-8">
+        {programData.coachIntro && (
+          <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl font-semibold text-gray-900">
+                <Brain className="w-6 h-6 mr-3 text-blue-600" />A Message from Neural
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-700">{programData.coachIntro}</p>
+            </CardContent>
+          </Card>
+        )}
         {todaysWorkout ? (
           todaysWorkout.isRestDay ? (
             <div className="relative bg-gradient-to-br from-green-50 via-white to-emerald-50 rounded-2xl p-8 lg:p-10 overflow-hidden border border-green-200 shadow-xl">

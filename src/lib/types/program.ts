@@ -124,6 +124,9 @@ export interface TrainingWeek {
 
   /** Progression strategy for this week - how to progress from previous week */
   progressionStrategy?: string
+
+  /** NEW: A specific tip from Neural for the week. */
+  coachTip?: string
 }
 
 /**
@@ -170,6 +173,9 @@ export interface TrainingProgram {
 
   /** Optional general advice and guidelines */
   generalAdvice?: string
+
+  /** NEW: A personalized introduction from Neural. */
+  coachIntro?: string
 
   /** When the program was generated */
   generatedAt: Date | string

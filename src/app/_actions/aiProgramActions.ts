@@ -57,6 +57,7 @@ import {
   RECOMPOSITION_LEAN_MASS_FAT_LOSS_BEGINNER_GUIDELINES,
   RECOMPOSITION_LEAN_MASS_FAT_LOSS_INTERMEDIATE_GUIDELINES,
   RECOMPOSITION_LEAN_MASS_FAT_LOSS_ADVANCED_GUIDELINES,
+  NEURAL_COACHING_CUES,
 } from '@/lib/llmProgramContent'
 
 /**
@@ -120,6 +121,7 @@ const TrainingWeekSchema = z.object({
   weekInPhase: z.number().optional(),
   weeklyGoals: z.array(z.string()).optional(),
   progressionStrategy: z.string().optional(),
+  coachTip: z.string().optional(),
 })
 
 const TrainingPhaseSchema = z.object({
@@ -138,6 +140,7 @@ const TrainingProgramSchema = z.object({
   durationWeeksTotal: z.number(),
   phases: z.array(TrainingPhaseSchema),
   generalAdvice: z.string().optional(),
+  coachIntro: z.string().optional(),
   generatedAt: z.union([z.date(), z.string()]),
   aiModelUsed: z.string().optional(),
   difficultyLevel: z.enum(['Beginner', 'Intermediate', 'Advanced']).optional(),
@@ -222,6 +225,7 @@ interface TrainingWeek {
   weekInPhase?: number;
   weeklyGoals?: string[];
   progressionStrategy?: string; // How to progress from previous week. e.g., 'Add 2.5kg to all compound lifts', 'Add 1 set to all accessory exercises', 'Maintain weights but increase RPE to 8-9'
+  coachTip?: string; // NEW: A specific tip from Neural for the week.
 }
 
 interface TrainingPhase {
@@ -240,6 +244,7 @@ interface TrainingProgram {
   durationWeeksTotal: number;
   phases: TrainingPhase[];
   generalAdvice?: string;
+  coachIntro?: string; // NEW: A personalized introduction from Neural.
   generatedAt: string; // ISO date string
   aiModelUsed?: string;
   difficultyLevel?: "Beginner" | "Intermediate" | "Advanced";
@@ -602,7 +607,19 @@ async function constructLLMPrompt(profile: UserProfileForGeneration): Promise<st
   // Get expert guidelines based on user's training focus and experience level
   const expertGuidelines = getExpertGuidelines(profile.primary_training_focus, profile.experience_level)
 
-  return `You are an expert strength coach. Generate a JSON training program matching the TypeScript interface.
+  const prompt = `You are Neural, an elite, science-based lifting coach AI. Your persona is similar to experts like Jeff Nippard and Dr. Mike Israetel. You are knowledgeable, encouraging, and meticulous. Your entire output MUST be a single, valid JSON object that adheres to the TrainingProgram TypeScript interface provided below.
+
+You will craft a world-class, hyper-personalized training program based on the user's profile and your deep understanding of exercise science. Your coaching philosophy is built on the following evidence-based principles which you must apply:
+- Dynamic Autoregulated Periodization (ADR-039)
+- Scientific Volume Landmarks (MEV/MAV/MRV) (ADR-040)
+- Stimulus-to-Fatigue Ratio (SFR) Optimization (ADR-041)
+- Individualized Weak Point Targeting (ADR-043)
+- Tiered Exercise Selection within each workout (ADR-046)
+- A Mandatory Anchor Lift for focus on non-rest days (ADR-048)
+- Phasic Exercise Variation to prevent accommodation (ADR-045)
+- A clear Mesocycle Progression Strategy (ADR-047)
+
+Now, analyze the user's data and the EXPERT GUIDELINES provided to build their program.
 
 ${typeDefinitions}
 
@@ -625,6 +642,9 @@ STRENGTH ESTIMATES (${weightUnit}):
 EXPERT GUIDELINES:
 ${expertGuidelines}
 
+NEURAL'S COACHING CUES (Use these for exercise notes):
+${NEURAL_COACHING_CUES}
+
 REQUIREMENTS:
 1. Create a 4-6 week program with 1-2 phases
 2. Each workout should have 6-10 exercises total (including warm-up/cool-down)
@@ -636,8 +656,15 @@ REQUIREMENTS:
 8. Focus on compound movements first, then accessories
 9. Adapt exercises for available equipment and injuries
 10. Keep exercise notes concise (1-2 sentences max)
+11. **Write in Neural's Voice**:
+    - \`coachIntro\` (NEW): Write a short, personalized intro message directly to the user. Use their name. Example: "Hey [User Name], it's Neural. I've designed this program to help you crush your goal of [User Goal]. Let's get to work."
+    - \`TrainingWeek.coachTip\` (NEW): For each week, provide a single, powerful tip related to that week's training focus (e.g., volume, intensification, deload).
+    - \`description\`: Write a 1-2 sentence, encouraging summary of the program's purpose.
+    - \`generalAdvice\`: Write this as a personal note from you (Neural) to the user. Start with "Here's the game plan...". Explain the 'why' behind the program structure, referencing the periodization model and volume strategy you've chosen for them based on their experience level. Keep it concise, educational, and motivational.
+    - \`ExerciseDetail.notes\`: For key lifts or unique exercises, provide a concise (1 sentence) form cue or rationale from your coaching perspective. Example: "Focus on controlling the eccentric for maximum hypertrophy." or "ANCHOR LIFT: This is our main progression focus for the day."
 
 Return ONLY valid JSON matching the TrainingProgram interface. No additional text.`
+  return prompt
 }
 
 /**

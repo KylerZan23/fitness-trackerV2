@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, Target } from 'lucide-react'
+import { Calendar, Target, Lightbulb } from 'lucide-react'
 
 interface ProgramWeekDisplayProps {
   week: TrainingWeek
@@ -82,6 +82,17 @@ export function ProgramWeekDisplay({
                   {goal}
                 </Badge>
               ))}
+            </div>
+          </div>
+        )}
+
+        {week.coachTip && (
+          <div className="mt-3 p-3 bg-indigo-50 rounded-md border border-indigo-200">
+            <div className="flex items-start space-x-2">
+              <Lightbulb className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-gray-800">
+                <strong>Neural's Tip:</strong> {week.coachTip}
+              </p>
             </div>
           </div>
         )}

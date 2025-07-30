@@ -35,7 +35,7 @@ OPTIONS
 
 export const MUSCLE_GAIN_INTERMEDIATE_GUIDELINES = `
 PRINCIPLES
-• 2×/muscle frequency edges out 1× (volume equal). 
+• My approach for you is hitting each muscle group twice a week; the science shows this is superior for growth when volume is equated.
 • Volume landmarks: Start at MEV (10-12 sets/muscle/week), progress towards MAV (18-22 sets/muscle/week) over the training block. Do not exceed MRV (24 sets/muscle/week).
 • Load mix: 6–12 main, 12–20 metabolite work. RPE 7‑9.
 • Rest — Compounds **90–180 s**; Isolation **60–90 s** (shorter only if adding sets).
@@ -56,7 +56,7 @@ OPTIONS
 
 export const MUSCLE_GAIN_ADVANCED_GUIDELINES = `
 PRINCIPLES
-• ≥2×/wk frequency best for growth (2024 meta‑reg).
+• My approach for you is hitting each muscle group at least twice a week. The 2024 meta-regression research confirms this is best for growth.
 • Volume landmarks: Start at MEV (12-15 sets/muscle/week), progress towards MAV (20-25 sets/muscle/week) over the training block. Experienced users can approach MRV (26-28 sets/muscle/week) but monitor recovery closely.
 • Include mechanical tension (5–8 reps), hypertrophy zone (8–12), metabolite (15‑20).
 • Intensity techniques ≤10 % volume.
@@ -780,4 +780,15 @@ PROGRESSION
 
 OPTIONS
 • Contest prep: add posing, tanning. Photo shoots: peak timing with carb cycling.
+`;
+
+export const NEURAL_COACHING_CUES = `
+- **Squat**: "Drive through your mid-foot and keep your chest up."
+- **Bench Press**: "Maintain a stable arch and drive your feet into the floor."
+- **Deadlift**: "Keep the bar close to your body and maintain a neutral spine."
+- **Overhead Press**: "Brace your core and glutes to create a stable base."
+- **Rows**: "Initiate the pull with your back, not your arms; squeeze your shoulder blades."
+- **RDLs**: "Think of pushing your hips back, keeping a soft bend in the knees."
+- **Hypertrophy Focus**: "Control the eccentric (lowering) phase for 2-3 seconds."
+- **Strength Focus**: "Focus on explosive, powerful concentric (lifting) phases."
 `;
