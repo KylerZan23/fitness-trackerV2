@@ -42,19 +42,32 @@ jobs:
           NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: ${{ secrets.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY }}
           NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL: ${{ secrets.NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL }}
 
-      - name: Run all CI checks
-        run: |
-          echo "🔍 Running linting..."
-          yarn lint
+      - name: Validate Environment Variables
+        run: yarn validate:env
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_STAGING }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY_STAGING }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY_STAGING }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_PRICE_ID_MONTHLY: ${{ secrets.STRIPE_PRICE_ID_MONTHLY }}
+          STRIPE_PRICE_ID_ANNUAL: ${{ secrets.STRIPE_PRICE_ID_ANNUAL }}
+          NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: ${{ secrets.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY }}
+          NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL: ${{ secrets.NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL }}
 
-          echo "🎨 Checking formatting..."
-          yarn format:check
+      - name: Run linting
+        run: yarn lint
 
-          echo "🧪 Running unit tests..."
-          yarn test:coverage
+      - name: Checking formatting
+        run: yarn format:check
 
-          echo "🏗️ Building application..."
-          yarn build
+      - name: Running unit tests
+        run: yarn test:coverage
+
+      - name: Building application
+        run: yarn build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_STAGING }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY_STAGING }}
