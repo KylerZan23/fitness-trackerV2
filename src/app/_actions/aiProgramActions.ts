@@ -208,49 +208,22 @@ interface User {
  */
 function getTypeScriptInterfaceDefinitions(): string {
   return `
-// TypeScript interfaces for the training program structure:
+// TrainingProgram interface - output must be valid JSON matching this structure:
 
-enum DayOfWeek {
-  MONDAY = 1,
-  TUESDAY = 2,
-  WEDNESDAY = 3,
-  THURSDAY = 4,
-  FRIDAY = 5,
-  SATURDAY = 6,
-  SUNDAY = 7,
-}
-
-interface ExerciseDetail {
-  name: string;
-  sets: number;
-  reps: string | number; // Can be "8-12" or just 10
-  rest: string; // e.g., "60-90 seconds"
-  tempo?: string; // e.g., "3-1-2-1"
-  rpe?: number; // 1-10 scale
-  notes?: string;
-  weight?: string;
-  category?: "Compound" | "Isolation" | "Cardio" | "Mobility" | "Core" | "Warm-up" | "Cool-down" | "Power";
-}
-
-interface WorkoutDay {
-  dayOfWeek: DayOfWeek; // 1-7 (Monday=1)
-  focus?: "Upper Body" | "Lower Body" | "Push" | "Pull" | "Legs" | "Full Body" | "Cardio" | "Core" | "Arms" | "Back" | "Chest" | "Shoulders" | "Glutes" | "Recovery/Mobility" | "Sport-Specific" | "Rest Day" | "Lower Body Endurance" | "Squat" | "Bench" | "Deadlift" | "Overhead Press"; // MUST use one of these exact values
-  exercises: ExerciseDetail[];
-  warmUp?: ExerciseDetail[];
-  coolDown?: ExerciseDetail[];
-  notes?: string;
-  estimatedDurationMinutes?: number;
-  isRestDay?: boolean;
-}
-
-interface TrainingWeek {
-  weekNumber: number;
-  days: WorkoutDay[];
-  notes?: string;
-  weekInPhase?: number;
-  weeklyGoals?: string[];
-  progressionStrategy?: string; // How to progress from previous week. e.g., 'Add 2.5kg to all compound lifts', 'Add 1 set to all accessory exercises', 'Maintain weights but increase RPE to 8-9'
-  coachTip?: string; // NEW: A specific tip from Neural for the week.
+interface TrainingProgram {
+  programName: string;
+  description: string;
+  durationWeeksTotal: number;
+  phases: TrainingPhase[];
+  generalAdvice?: string;
+  coachIntro?: string;
+  generatedAt: string; // ISO date string
+  aiModelUsed?: string;
+  difficultyLevel?: "Beginner" | "Intermediate" | "Advanced";
+  trainingFrequency?: number;
+  requiredEquipment?: string[];
+  tags?: string[];
+  version?: string;
 }
 
 interface TrainingPhase {
@@ -260,23 +233,40 @@ interface TrainingPhase {
   notes?: string;
   objectives?: string[];
   phaseNumber?: number;
-  progressionStrategy?: string; // Overall progression approach for this phase. e.g., 'Linear weight increases each week', 'Volume accumulation then intensification', 'Autoregulated RPE progression'
+  progressionStrategy?: string;
 }
 
-interface TrainingProgram {
-  programName: string;
-  description: string;
-  durationWeeksTotal: number;
-  phases: TrainingPhase[];
-  generalAdvice?: string;
-  coachIntro?: string; // NEW: A personalized introduction from Neural.
-  generatedAt: string; // ISO date string
-  aiModelUsed?: string;
-  difficultyLevel?: "Beginner" | "Intermediate" | "Advanced";
-  trainingFrequency?: number;
-  requiredEquipment?: string[];
-  tags?: string[];
-  version?: string;
+interface TrainingWeek {
+  weekNumber: number;
+  days: WorkoutDay[];
+  notes?: string;
+  weekInPhase?: number;
+  weeklyGoals?: string[];
+  progressionStrategy?: string;
+  coachTip?: string;
+}
+
+interface WorkoutDay {
+  dayOfWeek: number; // 1-7 (Monday=1)
+  focus?: "Upper Body" | "Lower Body" | "Push" | "Pull" | "Legs" | "Full Body" | "Cardio" | "Core" | "Arms" | "Back" | "Chest" | "Shoulders" | "Glutes" | "Recovery/Mobility" | "Sport-Specific" | "Rest Day" | "Lower Body Endurance" | "Squat" | "Bench" | "Deadlift" | "Overhead Press";
+  exercises: ExerciseDetail[];
+  warmUp?: ExerciseDetail[];
+  coolDown?: ExerciseDetail[];
+  notes?: string;
+  estimatedDurationMinutes?: number;
+  isRestDay?: boolean;
+}
+
+interface ExerciseDetail {
+  name: string;
+  sets: number;
+  reps: string | number;
+  rest: string;
+  tempo?: string;
+  rpe?: number;
+  notes?: string;
+  weight?: string;
+  category?: "Compound" | "Isolation" | "Cardio" | "Mobility" | "Core" | "Warm-up" | "Cool-down" | "Power";
 }
 `
 }
@@ -937,16 +927,12 @@ REQUIREMENTS:
   const prompt = `You are Neural, an elite exercise scientist and evidence-based coach AI. Your expertise rivals that of Dr. Mike Israetel, Dr. Eric Helms, Jeff Nippard, and the world's leading exercise science researchers. You are meticulous, scientifically-grounded, and obsessed with optimizing training for each individual. Your entire output MUST be a single, valid JSON object that adheres to the TrainingProgram TypeScript interface provided below.
 
 You will craft a world-class, hyper-personalized training program based on comprehensive scientific analysis of the user's profile. Your program generation is guided by cutting-edge exercise science research and evidence-based methodologies.
+
+${typeDefinitions}
+
 ${scientificFramework}
 ${userAnalysisDepth}
 ${requirementsDetail}
-
-═══════════════════════════════════════════════════════════════════════════════
-                                SCIENTIFIC FRAMEWORK
-═══════════════════════════════════════════════════════════════════════════════
-
-VOLUME FRAMEWORK GUIDELINES:
-${VOLUME_FRAMEWORK_GUIDELINES}
 
 AUTOREGULATION GUIDELINES:
 ${AUTOREGULATION_GUIDELINES}
@@ -1168,7 +1154,7 @@ async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: stri
 
     const parsedProgram = await callLLM(prompt, 'user', {
       response_format: { type: 'json_object' },
-      max_tokens: 4095, // Corrected for gpt-4o's maximum completion tokens
+      max_tokens: 8192, // Increased for complex program generation
       model: 'gpt-4o', // Upgraded to more capable model for complex program generation
     })
 
@@ -1326,35 +1312,77 @@ export async function generateTrainingProgram(
 
       // Enhanced database storage with scientific analysis
       console.log('💾 Saving enhanced program data to database...')
+      
+      // Prepare data with fallback for schema compatibility
+      const insertData: any = {
+        user_id: userId,
+        program_details: validatedProgram,
+        ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
+        onboarding_data_snapshot: profile.onboarding_responses,
+        // Enhanced scientific data with fallback handling
+        weak_point_analysis: processingResult.weakPointAnalysis,
+        periodization_model: processingResult.periodizationModel,
+        generation_metadata: {
+          attempts: attempts,
+          finalComplexity: finalComplexity,
+          validationNotes: validationNotes,
+          processingTimestamp: new Date().toISOString(),
+          enhancedUserProfile: {
+            trainingAge: processingResult.enhancedProfile.volumeParameters.trainingAge,
+            recoveryCapacity: processingResult.enhancedProfile.volumeParameters.recoveryCapacity,
+            stressLevel: processingResult.enhancedProfile.volumeParameters.stressLevel,
+            volumeTolerance: processingResult.enhancedProfile.volumeParameters.volumeTolerance,
+          }
+        }
+      }
+
+      // Handle volume_landmarks with schema compatibility
+      if (processingResult.volumeLandmarks) {
+        // Try JSONB format first (new schema), fallback to array format (old schema)
+        try {
+          insertData.volume_landmarks = processingResult.volumeLandmarks
+        } catch (e) {
+          // Fallback: convert to array format for old schema
+          insertData.volume_landmarks = Object.keys(processingResult.volumeLandmarks)
+        }
+      }
+
+      // TEMPORARY: If migration hasn't been run, omit problematic columns
+      // Remove this section once the migration is applied
       const { data: savedProgram, error: saveError } = await supabase
         .from('training_programs')
-        .insert({
-          user_id: userId,
-          program_details: validatedProgram,
-          ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
-          onboarding_data_snapshot: profile.onboarding_responses,
-          // Enhanced scientific data
-          volume_landmarks: processingResult.volumeLandmarks,
-          weak_point_analysis: processingResult.weakPointAnalysis,
-          periodization_model: processingResult.periodizationModel,
-          generation_metadata: {
-            attempts: attempts,
-            finalComplexity: finalComplexity,
-            validationNotes: validationNotes,
-            processingTimestamp: new Date().toISOString(),
-            enhancedUserProfile: {
-              trainingAge: processingResult.enhancedProfile.volumeParameters.trainingAge,
-              recoveryCapacity: processingResult.enhancedProfile.volumeParameters.recoveryCapacity,
-              stressLevel: processingResult.enhancedProfile.volumeParameters.stressLevel,
-              volumeTolerance: processingResult.enhancedProfile.volumeParameters.volumeTolerance,
-            }
-          }
-        })
+        .insert(insertData)
         .select()
         .single()
 
       if (saveError) {
         console.error('Error saving training program:', saveError)
+        
+        // If it's a schema error, try without the new columns
+        if (saveError.code === '22P02' || saveError.message?.includes('volume_landmarks')) {
+          console.log('🔄 Retrying without enhanced columns (migration may not be applied)...')
+          const fallbackData = {
+            user_id: user.id,
+            program_details: validatedProgram,
+            ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
+            onboarding_data_snapshot: onboardingData,
+          }
+          
+          const { data: fallbackProgram, error: fallbackError } = await supabase
+            .from('training_programs')
+            .insert(fallbackData)
+            .select()
+            .single()
+            
+          if (fallbackError) {
+            console.error('Fallback save also failed:', fallbackError)
+            return { error: 'Failed to save your training program. Please try again.', success: false }
+          }
+          
+          console.log('✅ Program saved successfully with fallback schema!')
+          return { program: validatedProgram, success: true }
+        }
+        
         return { error: 'Failed to save your training program. Please try again.', success: false }
       }
 
@@ -1445,35 +1473,77 @@ export async function generateTrainingProgram(
 
       // Enhanced database storage
       console.log('💾 Saving enhanced program data to database...')
+      
+      // Prepare data with fallback for schema compatibility
+      const insertData: any = {
+        user_id: user.id,
+        program_details: validatedProgram,
+        ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
+        onboarding_data_snapshot: onboardingData,
+        // Enhanced scientific data with fallback handling
+        weak_point_analysis: processingResult.weakPointAnalysis,
+        periodization_model: processingResult.periodizationModel,
+        generation_metadata: {
+          attempts: attempts,
+          finalComplexity: finalComplexity,
+          validationNotes: validationNotes,
+          processingTimestamp: new Date().toISOString(),
+          enhancedUserProfile: {
+            trainingAge: processingResult.enhancedProfile.volumeParameters.trainingAge,
+            recoveryCapacity: processingResult.enhancedProfile.volumeParameters.recoveryCapacity,
+            stressLevel: processingResult.enhancedProfile.volumeParameters.stressLevel,
+            volumeTolerance: processingResult.enhancedProfile.volumeParameters.volumeTolerance,
+          }
+        }
+      }
+
+      // Handle volume_landmarks with schema compatibility
+      if (processingResult.volumeLandmarks) {
+        // Try JSONB format first (new schema), fallback to array format (old schema)
+        try {
+          insertData.volume_landmarks = processingResult.volumeLandmarks
+        } catch (e) {
+          // Fallback: convert to array format for old schema
+          insertData.volume_landmarks = Object.keys(processingResult.volumeLandmarks)
+        }
+      }
+
+      // TEMPORARY: If migration hasn't been run, omit problematic columns
+      // Remove this section once the migration is applied
       const { data: savedProgram, error: saveError } = await supabase
         .from('training_programs')
-        .insert({
-          user_id: user.id,
-          program_details: validatedProgram,
-          ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
-          onboarding_data_snapshot: onboardingData,
-          // Enhanced scientific data
-          volume_landmarks: processingResult.volumeLandmarks,
-          weak_point_analysis: processingResult.weakPointAnalysis,
-          periodization_model: processingResult.periodizationModel,
-          generation_metadata: {
-            attempts: attempts,
-            finalComplexity: finalComplexity,
-            validationNotes: validationNotes,
-            processingTimestamp: new Date().toISOString(),
-            enhancedUserProfile: {
-              trainingAge: processingResult.enhancedProfile.volumeParameters.trainingAge,
-              recoveryCapacity: processingResult.enhancedProfile.volumeParameters.recoveryCapacity,
-              stressLevel: processingResult.enhancedProfile.volumeParameters.stressLevel,
-              volumeTolerance: processingResult.enhancedProfile.volumeParameters.volumeTolerance,
-            }
-          }
-        })
+        .insert(insertData)
         .select()
         .single()
 
       if (saveError) {
         console.error('Error saving training program:', saveError)
+        
+        // If it's a schema error, try without the new columns
+        if (saveError.code === '22P02' || saveError.message?.includes('volume_landmarks')) {
+          console.log('🔄 Retrying without enhanced columns (migration may not be applied)...')
+          const fallbackData = {
+            user_id: user.id,
+            program_details: validatedProgram,
+            ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
+            onboarding_data_snapshot: onboardingData,
+          }
+          
+          const { data: fallbackProgram, error: fallbackError } = await supabase
+            .from('training_programs')
+            .insert(fallbackData)
+            .select()
+            .single()
+            
+          if (fallbackError) {
+            console.error('Fallback save also failed:', fallbackError)
+            return { error: 'Failed to save your training program. Please try again.', success: false }
+          }
+          
+          console.log('✅ Program saved successfully with fallback schema!')
+          return { program: validatedProgram, success: true }
+        }
+        
         return { error: 'Failed to save your training program. Please try again.', success: false }
       }
 
