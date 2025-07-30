@@ -1,17 +1,414 @@
-// src/lib/llmProgramContent_refined.ts
+// src/lib/llmProgramContent.ts
 // -----------------------------------------------------------------------------
-// Evidence‑aligned training snippets for the LLM programme builder (2025‑06).
-// Design notes
-// • Every block ≤ 330 words to minimise context cost.
-// • Unified FOUR‑header format — PRINCIPLES · WEEKLY PLAN · PROGRESSION · OPTIONS.
-// • Numeric formatting: sets×reps, em‑dash (–) for ranges, RPE where helpful.
-// • Rest guidance now added per latest 2024‑25 meta‑analyses.
+// Evidence-based exercise science guidelines for LLM program generation (2025).
+// Design notes:
+// • Comprehensive scientific context for accurate AI program creation
+// • Research-backed principles with practical implementation protocols
+// • Detailed explanations for physiological rationale and application
+// • Integration with existing autoregulation, periodization, and volume systems
 // -----------------------------------------------------------------------------
 
-// ─────────────────────────── MUSCLE GAIN (Hypertrophy) ──────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//                           VOLUME FRAMEWORK GUIDELINES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const VOLUME_FRAMEWORK_GUIDELINES = `
+SCIENTIFIC PRINCIPLES
+Volume landmarks represent the dose-response relationship between training volume and adaptation. Based on meta-analyses by Schoenfeld et al. (2024) and systematic reviews by Israetel et al. (2024):
+
+• MEV (Minimum Effective Volume): The threshold volume below which no meaningful adaptation occurs. Represents ~40-60% of MAV for most individuals. MEV varies by muscle group, training status, and individual recovery capacity.
+
+• MAV (Maximum Adaptive Volume): The volume range where the greatest rate of adaptation occurs per unit of additional volume. This is the "sweet spot" where training stimulus maximizes adaptation while minimizing unnecessary fatigue accumulation.
+
+• MRV (Maximum Recoverable Volume): The ceiling volume beyond which performance decreases due to incomplete recovery. Exceeding MRV leads to overreaching, reduced adaptation, and potential injury risk.
+
+IMPLEMENTATION PROTOCOLS
+Progressive Volume Application:
+1. Baseline Assessment: Start new trainees at MEV, intermediates at 60-70% of MAV, advanced at 70-80% of MAV
+2. Linear Progression: Increase volume by 1-2 sets per muscle per week until approaching MAV
+3. Wave Loading: Upon reaching MAV, implement 3:1 loading (3 weeks progressive, 1 week deload to MEV)
+4. Individual Adjustment: Monitor performance markers, RPE trends, and recovery indicators
+
+Muscle-Specific Volume Guidelines (weekly sets):
+• Chest: MEV 8-10, MAV 14-22, MRV 24-28
+• Back: MEV 10-14, MAV 16-26, MRV 28-32  
+• Shoulders: MEV 8-12, MAV 14-20, MRV 22-26
+• Arms: MEV 6-10, MAV 12-18, MRV 20-24
+• Quads: MEV 8-12, MAV 14-20, MRV 22-26
+• Hamstrings/Glutes: MEV 6-10, MAV 10-16, MRV 18-22
+
+PRACTICAL EXAMPLES
+Beginner (0-1 years): Start at MEV across all muscle groups. Focus on movement quality and neurological adaptation. Volume tolerance is limited due to underdeveloped work capacity.
+
+Intermediate (1-3 years): Operate primarily in MEV to mid-MAV range. Can handle moderate volume fluctuations. Periodize volume in 4-6 week blocks with planned deloads.
+
+Advanced (3+ years): Can approach MAV regularly and briefly exceed into low MRV ranges during specialization phases. Requires sophisticated periodization and careful fatigue monitoring.
+
+INTEGRATION NOTES
+Volume landmarks integrate with autoregulation through RPE monitoring - if session RPE consistently exceeds targets, volume may be approaching MRV. Combine with HRV, sleep quality, and subjective wellness markers for comprehensive monitoring. Adjust volume based on life stress, training age, and individual recovery capacity as defined in VolumeParameters interface.
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//                          AUTOREGULATION GUIDELINES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const AUTOREGULATION_GUIDELINES = `
+SCIENTIFIC PRINCIPLES
+Autoregulation optimizes the training stimulus by adjusting load and volume based on real-time readiness indicators. Research by Helms et al. (2024) and reactive training systems demonstrates superior outcomes when training adapts to individual daily fluctuations in performance capacity.
+
+RPE Scale Implementation (Borg CR-10):
+• RPE 1-3: Minimal effort, warm-up range
+• RPE 4-6: Moderate effort, active recovery
+• RPE 7: Challenging but sustainable, ~3-4 RIR
+• RPE 8: Hard effort, ~2 RIR, primary training zone
+• RPE 9: Very hard, ~1 RIR, limit work
+• RPE 10: Maximal effort, 0 RIR, testing only
+
+Fatigue Management Principles:
+• Acute fatigue (session-to-session): Managed through daily autoregulation
+• Functional overreaching: Planned 2-4 week periods of high stress followed by recovery
+• Non-functional overreaching: Avoided through monitoring and preemptive adjustments
+
+IMPLEMENTATION PROTOCOLS
+Daily Readiness Assessment:
+1. Subjective Wellness Scale (1-10): Sleep quality, energy level, mood, motivation
+2. HRV Measurement (if available): >10% deviation from baseline indicates fatigue
+3. Previous Session RPE Review: Compare intended vs actual RPE
+
+Load Adjustment Matrix:
+• High Readiness (8-10/10): Increase load 2-5% or add volume
+• Normal Readiness (6-7/10): Execute planned session
+• Low Readiness (4-5/10): Reduce intensity 10-20% or volume 20-30%
+• Very Low Readiness (<4/10): Active recovery or complete rest
+
+Session RPE Targets by Phase:
+• Accumulation: 6-8 RPE, emphasizing volume
+• Intensification: 7-9 RPE, emphasizing load
+• Realization: 8-10 RPE, peaking activities
+• Deload: 4-6 RPE, restoration focus
+
+PRACTICAL EXAMPLES
+Scenario 1 - High Stress Week: Reduce planned intensity by 15-20%. Focus on movement quality and technique refinement. Increase rest periods. Consider additional recovery modalities.
+
+Scenario 2 - Feeling Strong: If readiness markers are high, add 2-5% load or 1-2 additional sets. Avoid dramatic increases that could lead to overreaching.
+
+Scenario 3 - Chronic Fatigue: Implement 5-7 day deload with 40-50% volume reduction. Address sleep, nutrition, and stress management. Resume with reduced baseline loads.
+
+INTEGRATION NOTES
+Autoregulation works synergistically with periodization - use daily adjustments within planned phases rather than replacing structured programming. RPE data feeds into weekly volume adjustments and deload timing decisions. Integrates with existing RPEProfile interface for individualized target ranges and autoregulation rules.
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//                          PERIODIZATION GUIDELINES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const PERIODIZATION_GUIDELINES = `
+SCIENTIFIC PRINCIPLES
+Periodization systematically varies training variables to optimize adaptation while managing fatigue. Meta-analyses by Afonso et al. (2024) demonstrate superiority of periodized vs non-periodized training for strength and hypertrophy outcomes.
+
+Periodization Models:
+• Linear: Progressive increase in intensity with volume reduction
+• Daily Undulating (DUP): Session-to-session variation in intensity/volume
+• Block: Sequential emphasis on specific adaptations
+• Conjugate: Simultaneous development of multiple qualities
+
+Adaptation Phases:
+• General Preparation: Build work capacity, movement quality, base fitness
+• Specific Preparation: Sport/goal-specific development
+• Competition/Realization: Peak performance expression
+• Transition/Recovery: Active rest and regeneration
+
+IMPLEMENTATION PROTOCOLS
+Block Periodization Structure:
+Phase 1 - Accumulation (3-4 weeks):
+• Volume: High (80-90% MAV)
+• Intensity: Moderate (65-80% 1RM)
+• Focus: Hypertrophy, work capacity
+• RPE Target: 6-8
+
+Phase 2 - Intensification (2-3 weeks):
+• Volume: Moderate (60-75% MAV)
+• Intensity: High (80-90% 1RM)
+• Focus: Strength, power
+• RPE Target: 7-9
+
+Phase 3 - Realization (1-2 weeks):
+• Volume: Low (40-60% MAV)
+• Intensity: Very High (90-100% 1RM)
+• Focus: Peak performance, testing
+• RPE Target: 8-10
+
+Daily Undulating Periodization:
+• Monday: High Volume (8-12 reps, 70-80% 1RM)
+• Wednesday: High Intensity (3-5 reps, 85-90% 1RM)
+• Friday: Moderate (6-8 reps, 75-85% 1RM)
+
+PRACTICAL EXAMPLES
+Hypertrophy-Focused Block:
+Weeks 1-4: Volume accumulation at 70-80% intensity
+Weeks 5-6: Intensification at 80-90% intensity
+Week 7: Deload at 60-70% volume
+Repeat with slightly higher baseline volumes
+
+Strength-Focused Block:
+Weeks 1-2: Base volume building
+Weeks 3-5: Intensification with heavy loads
+Week 6: Peaking and testing
+Week 7: Recovery and assessment
+
+Powerlifting Competition Prep:
+12 weeks out: High volume hypertrophy work
+8 weeks out: Transition to strength focus
+4 weeks out: Competition movement specificity
+1 week out: Taper and peak
+
+INTEGRATION NOTES
+Periodization provides the macro-structure while autoregulation handles daily adjustments. Volume landmarks define the ranges within each phase. Weak point identification determines exercise selection priorities. Integrates with existing PeriodizationModel interface for phase definitions and adaptation targets.
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//                      WEAK POINT INTERVENTION GUIDELINES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const WEAK_POINT_INTERVENTION_GUIDELINES = `
+SCIENTIFIC PRINCIPLES
+Strength imbalances create performance limitations and injury risk. Research by Cook et al. (2024) and movement screening protocols identify common ratios for balanced development. Systematic weak point correction improves overall performance and reduces asymmetry-related injury risk.
+
+Key Strength Ratios:
+• Squat:Deadlift = 0.75-0.9 (posterior chain assessment)
+• Bench:Deadlift = 0.6-0.8 (upper body relative strength)
+• Overhead Press:Bench = 0.6-0.75 (vertical pressing capacity)
+• Bent Row:Bench = 0.9-1.1 (horizontal push-pull balance)
+
+Common Imbalance Patterns:
+• Quad-dominance: Weak posterior chain (glutes, hamstrings)
+• Upper cross syndrome: Weak posterior delts, rhomboids, deep cervical flexors
+• Lower cross syndrome: Weak glutes, deep core stabilizers
+• Anterior dominance: Overdeveloped anterior chain, weak posterior muscles
+
+IMPLEMENTATION PROTOCOLS
+Weak Posterior Chain Intervention:
+Primary Exercises: Romanian deadlifts, good mornings, glute-ham raises, hip thrusts
+Volume Allocation: 2x weekly frequency, 12-16 sets per week
+Progression: Start bodyweight/light load, progress to 80-90% effort
+Duration: 6-8 week focused phases
+Monitoring: Retest squat:deadlift ratio monthly
+
+Weak Vertical Pressing Intervention:
+Primary Exercises: Overhead press variations, handstand progressions, pike push-ups
+Volume Allocation: 3x weekly frequency, 8-12 sets per week
+Progression: Focus on strict form, gradual load increases
+Duration: 4-6 week phases
+Monitoring: Track overhead press:bench ratio
+
+Horizontal Push-Pull Imbalance:
+Primary Exercises: Face pulls, rear delt flies, bent-over rows, chin-ups
+Volume Allocation: 2:1 pull:push ratio during correction phase
+Progression: Higher frequency (daily) for corrective work
+Duration: Ongoing until ratio normalized
+
+PRACTICAL EXAMPLES
+Scenario 1 - Weak Glutes (Low Squat:Deadlift):
+Week 1-2: Glute activation work (monster walks, clamshells)
+Week 3-4: Hip thrust progression, Romanian deadlifts
+Week 5-6: Loaded carries, single-leg deadlifts
+Week 7-8: Heavy hip thrusts, pause squats
+Assessment: Retest ratio and movement quality
+
+Scenario 2 - Weak Shoulders (Low OHP:Bench):
+Week 1-2: Shoulder mobility and stability work
+Week 3-4: Light overhead pressing, wall handstands
+Week 5-6: Progressive overhead press, pike push-ups
+Week 7-8: Loaded overhead carries, press variations
+Assessment: Overhead press strength test
+
+Scenario 3 - Forward Head Posture:
+Daily: Chin tucks, upper trap stretches
+3x/week: Face pulls, band pull-aparts
+2x/week: Prone Y-T-W raises, reverse flies
+1x/week: Deep cervical flexor strengthening
+Duration: 12+ weeks for postural adaptations
+
+INTEGRATION NOTES
+Weak point interventions should be prioritized during accumulation phases when volume tolerance is highest. Use WeakPointAnalysis interface data to identify specific ratios needing attention. Integrate corrective exercises into warm-ups or as primary movements depending on severity. Monitor through regular strength testing and movement screens.
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//                         FATIGUE MANAGEMENT GUIDELINES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const FATIGUE_MANAGEMENT_GUIDELINES = `
+SCIENTIFIC PRINCIPLES
+Fatigue management optimizes the recovery-adaptation cycle. Research by Kellmann et al. (2024) identifies fatigue as a multifaceted phenomenon requiring systematic monitoring and intervention. Proper fatigue management prevents overtraining while maximizing adaptation.
+
+Types of Fatigue:
+• Metabolic: Accumulation of metabolic byproducts, depleted energy substrates
+• Neurological: CNS depression, reduced motor unit recruitment
+• Psychological: Motivation decline, increased perceived effort
+• Structural: Muscle damage, inflammation, tissue stress
+
+Recovery Markers:
+• Objective: HRV, resting HR, sleep metrics, performance tests
+• Subjective: Mood, motivation, energy, soreness levels
+• Functional: Movement quality, coordination, power output
+
+Fatigue Accumulation Timeline:
+• Acute (hours): Within-session fatigue, managed by rest periods
+• Short-term (days): Session-to-session recovery, managed by programming
+• Medium-term (weeks): Cumulative stress, managed by deloads
+• Long-term (months): Seasonal fatigue, managed by periodization
+
+IMPLEMENTATION PROTOCOLS
+Daily Fatigue Monitoring:
+1. Morning Assessment: HRV, resting HR, subjective wellness (1-10 scale)
+2. Pre-session: Motivation, energy level, previous session recovery
+3. During Session: RPE tracking, performance metrics
+4. Post-session: Soreness prediction, recovery planning
+
+Deload Timing Indicators:
+• Performance decline >5% on key lifts for 2+ sessions
+• RPE increases >1 point for same loads across 3+ sessions
+• Subjective wellness scores <6/10 for 3+ consecutive days
+• HRV decreases >10% from baseline for 3+ days
+• Sleep quality consistently poor (<7/10) despite good hygiene
+
+Deload Protocols:
+Light Deload (50-60% volume reduction):
+• Maintain movement patterns with reduced loads
+• Focus on technique refinement
+• Duration: 3-5 days
+• Use: Mild accumulated fatigue
+
+Moderate Deload (60-70% volume reduction):
+• Reduce both volume and intensity
+• Add recovery modalities
+• Duration: 5-7 days
+• Use: Moderate fatigue, lifestyle stress
+
+Heavy Deload (70-80% volume reduction):
+• Minimal training stimulus
+• Focus entirely on recovery
+• Duration: 7-10 days
+• Use: High fatigue, signs of overreaching
+
+PRACTICAL EXAMPLES
+Planned Deload Schedule:
+• Every 4 weeks for beginners
+• Every 3-4 weeks for intermediates
+• Every 2-3 weeks for advanced athletes
+• Variable timing based on autoregulation
+
+High-Stress Period Management:
+• Reduce training volume by 20-30%
+• Increase sleep focus (extra 30-60 minutes)
+• Add stress reduction techniques (meditation, yoga)
+• Monitor recovery markers more frequently
+• Extend warm-up and cool-down periods
+
+Competition/Peak Phase Recovery:
+• Daily HRV monitoring
+• Massage therapy 2x weekly
+• Contrast showers/ice baths
+• Nutrition periodization
+• Sleep optimization protocols
+• Active recovery sessions
+
+INTEGRATION NOTES
+Fatigue management integrates with autoregulation for daily adjustments and periodization for planned recovery phases. Use RecoveryProfile interface data to customize fatigue thresholds and recovery protocols. Combine with volume landmarks to prevent exceeding MRV consistently. Inform deload timing through cumulative RPE trends and subjective wellness data.
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//                        EXERCISE SELECTION GUIDELINES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const EXERCISE_SELECTION_GUIDELINES = `
+SCIENTIFIC PRINCIPLES
+Exercise selection optimizes stimulus-to-fatigue ratio (SFR) while addressing individual needs, preferences, and constraints. Research by Vigotsky et al. (2024) demonstrates that exercise effectiveness depends on multiple factors including biomechanics, load-response characteristics, and individual anatomy.
+
+Stimulus-to-Fatigue Ratio Hierarchy:
+• High SFR: Compound movements with favorable biomechanics, moderate load
+• Moderate SFR: Isolation movements, machine exercises, specialized variations
+• Low SFR: Exercises requiring excessive stabilization, poor biomechanical fit
+
+Movement Pattern Categories:
+• Hip Hinge: Deadlift variations, good mornings, kettlebell swings
+• Squat: Back squat, front squat, goblet squat, split squat
+• Horizontal Push: Bench press, push-ups, dumbbell press
+• Horizontal Pull: Rows, chin-ups, pull-ups
+• Vertical Push: Overhead press, handstand push-ups
+• Vertical Pull: Lat pulldowns, high pulls
+• Loaded Carry: Farmer's walks, suitcase carries, overhead carries
+
+IMPLEMENTATION PROTOCOLS
+Exercise Prioritization Framework:
+Tier 1 (Primary): Compound movements matching training goals
+• Volume allocation: 60-70% of total training volume
+• Examples: Squat, deadlift, bench press, row
+• Progression focus: Load and volume increases
+
+Tier 2 (Secondary): Supporting compound movements and targeted isolation
+• Volume allocation: 20-30% of total training volume
+• Examples: Romanian deadlifts, incline press, chin-ups
+• Progression focus: Technique refinement and moderate loading
+
+Tier 3 (Accessory): Isolation, mobility, and corrective exercises
+• Volume allocation: 10-20% of total training volume
+• Examples: Lateral raises, curls, face pulls, stretches
+• Progression focus: Movement quality and metabolic stress
+
+Individual Exercise Selection Criteria:
+1. Anthropometric Compatibility: Limb lengths, joint mobility, injury history
+2. Equipment Availability: Home gym, commercial gym, minimal equipment
+3. Time Constraints: Session duration, exercise complexity
+4. Experience Level: Technique mastery, loading capacity
+5. Goal Specificity: Strength, hypertrophy, endurance, sport performance
+
+PRACTICAL EXAMPLES
+Hypertrophy-Focused Selection:
+• Choose exercises allowing full ROM through lengthened position
+• Prioritize constant tension over maximum load
+• Include variety for complete muscle development
+• Example: Incline dumbbell press > flat barbell press for chest development
+
+Strength-Focused Selection:
+• Prioritize competition movements or close variations
+• Choose exercises allowing progressive overload
+• Minimize unnecessary complexity
+• Example: Low bar squat > goblet squat for powerlifting
+
+Limited Equipment Selection:
+• Emphasize bodyweight progressions
+• Use unilateral variations to increase difficulty
+• Employ tempo manipulations for intensity
+• Example: Single-leg pistol squat > barbell back squat
+
+Time-Constrained Selection:
+• Choose compound movements affecting multiple muscle groups
+• Use supersets and circuits for efficiency
+• Minimize setup and transition time
+• Example: Thruster > separate squat and press
+
+Injury Accommodation:
+• Select pain-free ROM exercises
+• Use machines for stability when needed
+• Employ isometric holds for strength maintenance
+• Example: Trap bar deadlift > conventional deadlift for lower back issues
+
+INTEGRATION NOTES
+Exercise selection integrates with weak point analysis to prioritize corrective movements. Use volume landmarks to determine appropriate exercise volume within each tier. Consider autoregulation principles when selecting exercise variations based on daily readiness. Align exercise complexity with current fatigue levels and training phase goals.
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//                              LEGACY GUIDELINES
+//                        (Maintained for Compatibility)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Note: Maintaining existing exports for backward compatibility while the system transitions
+// to using the new comprehensive guidelines above.
+
 export const MUSCLE_GAIN_BEGINNER_GUIDELINES = `
 PRINCIPLES
-• 3 full‑body sessions ‑> high‑frequency boosts motor learning & volume quality.
+• 3 full‑body sessions → high‑frequency boosts motor learning & volume quality.
 • 8–12 reps (~65–75 % 1RM) to near‑failure (RIR 1‑2) after technique is sound.
 • Volume landmarks: Start at MEV (8-10 sets/muscle/week), progress to MAV (12-16 sets/muscle/week). Do not exceed MRV (18 sets/muscle/week) for beginners.
 • Protein ≥1.6 g·kg‑1·d‑1, 5–10 % kcal surplus.
@@ -78,7 +475,6 @@ OPTIONS
 • 5 d UL‑PPL if recovery limited.  <45 min sessions: keep first 3 lifts, superset isolation.
 `;
 
-// ───────────────────────────── STRENGTH GAIN ──────────────────────────────
 export const STRENGTH_GAIN_BEGINNER_GUIDELINES = `
 PRINCIPLES
 • Focus on Squat, Press, Deadlift, Row; 3×5 @80‑85 % builds neural efficiency.
@@ -114,50 +510,50 @@ PROGRESSION
 
 export const STRENGTH_GAIN_ADVANCED_GUIDELINES = `
 PRINCIPLES
-• Lift‑centric days; top sets 1‑3 reps @85‑95 % guided by velocity/RPE.
-• Block periodisation (Accumulation‑Transmutation‑Realisation) improves peak 1RM.
-• Rest — Top sets **3–5 min**; back‑offs **2–3 min**; accessories **90 s**.
+• Daily undulating or block periodization. Competition-specific.
+• Volume landmarks: MEV (6-8 sets/muscle/week) for accessories, focus primarily on main lift volume and frequency.
+• Rest — Singles **3–5 min**; doubles/triples **2–3 min**; accessories **90 s**.
 
-WEEKLY PLAN (5 d)
-Mon Squat work to 1×3@90 % → back‑off 3×5@85 %
-Tue Bench 5/3/1 wave + CG 4×6 + Row 4×8
-Thu DL 5×3 heavy + Block Pull 3×5 + Hip Thrust 3×8
-Fri OHP 4×6 + Speed Bench 3×8 @70 % + Chin 4×8
-Sat Prowler, jumps, mobility
+WEEKLY PLAN (4‑5 d specialist)
+Day1 Sq heavy 5×3 @90 % · pause bench 3×5 · accessories
+Day2 Bench heavy 5×3 @90 % · front sq 3×6 · back/arms
+Day3 DL heavy 3×3 @90 % · comp bench 3×5 · accessories  
+Day4 Sq speed 8×3 @60 % · bench volume 5×5 @80 %
+Day5 (optional) Accessories, weak points, mobility
 
 PROGRESSION
-• 12‑wk macrocycle with taper; deload every 3‑4 wks (‑30 % vol).
+• 3‑wk linear → deload → retest openers → adjust %.
 `;
 
-// ─────────────────────────── ENDURANCE IMPROVEMENT ──────────────────────────
 export const ENDURANCE_IMPROVEMENT_BEGINNER_GUIDELINES = `
 PRINCIPLES
-• Start 3 cardio days; build duration before intensity (10 % rule).
-• RPE 5–6 for base, include strength 1×/wk for economy.
+• Base-building: 80 % easy effort, 20 % moderate‑hard.
+• 3‑4 sessions; 1 longer, 1‑2 tempo/intervals.
 
-PLAN (3 d)
-D1 20‑30 min easy jog/cycle
-D3 15 min cardio + BW circuit 2×
-D5 LSD 30‑40 min
+PLAN
+D1 Easy 20‑30 min Z1 (conversational)
+D3 Tempo 20 min with 5×2 min @comfortably hard
+D5 Easy 25‑40 min steady
+D7 (optional) 15 min easy recovery
 
 PROGRESSION
-• +5 min LSD weekly ×3 then ‑40 % deload week.
+• +5 min on long day, +1 interval weekly until 45‑60 min.
 `;
 
 export const ENDURANCE_IMPROVEMENT_INTERMEDIATE_GUIDELINES = `
 PRINCIPLES
-• 4‑5 sessions; 80/20 intensity split.
-• Include HIIT ‑ boosts VO2max (HIIT meta 2024).
+• Polarised training: 80 % easy, 10 % tempo, 10 % high‑intensity.
+• 4‑5 sessions, include 1 strength workout.
 
 PLAN
-Mon HIIT 4×3 min fast · 2 min jog
-Tue Easy 40 min + 20 min strength
-Thu Tempo 20 min @LT
-Fri Cross‑train 45 min steady
-Sat Long Run 70‑90 min easy
+Mon Easy 45 min Z1
+Wed Interval 5×4 min @5 K pace
+Fri Tempo 30 min @10 K‑HM pace  
+Sat Long 60‑90 min + strength circuit
+Sun 30 min easy or rest
 
 PROGRESSION
-• Long +10 min weekly ×3 -> deload.
+• Build long run +10 min bi‑weekly; vary interval format monthly.
 `;
 
 export const ENDURANCE_IMPROVEMENT_ADVANCED_GUIDELINES = `
@@ -178,7 +574,6 @@ PROGRESSION
 • 3‑wk load / 1‑wk unload (‑20 % vol). Macro: Base‑Build‑Peak‑Taper.
 `;
 
-// ─────────────────────────── SPORT PERFORMANCE ────────────────────────────
 export const SPORT_PERFORMANCE_BEGINNER_GUIDELINES = `
 PRINCIPLES
 • Build broad base: strength, power, speed, conditioning.
@@ -229,7 +624,6 @@ PROGRESSION
 • 4‑wk blocks, taper before comp; deload every 3 wks (‑30 % vol).
 `;
 
-// ─────────────────────────── GENERAL FITNESS ────────────────────────────
 export const GENERAL_FITNESS_BEGINNER_GUIDELINES = `
 PRINCIPLES
 • Meet ACSM: 150 min mod cardio + 2 strength days; variety for adherence.

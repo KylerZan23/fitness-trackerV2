@@ -18,6 +18,14 @@ import {
   type WorkoutFocus,
 } from '@/lib/types/program'
 import {
+  // Enhanced Science-Based Guidelines
+  VOLUME_FRAMEWORK_GUIDELINES,
+  AUTOREGULATION_GUIDELINES,
+  PERIODIZATION_GUIDELINES,
+  WEAK_POINT_INTERVENTION_GUIDELINES,
+  FATIGUE_MANAGEMENT_GUIDELINES,
+  EXERCISE_SELECTION_GUIDELINES,
+  // Legacy Guidelines (maintained for compatibility)
   MUSCLE_GAIN_BEGINNER_GUIDELINES,
   MUSCLE_GAIN_INTERMEDIATE_GUIDELINES,
   MUSCLE_GAIN_ADVANCED_GUIDELINES,
@@ -59,6 +67,23 @@ import {
   RECOMPOSITION_LEAN_MASS_FAT_LOSS_ADVANCED_GUIDELINES,
   NEURAL_COACHING_CUES,
 } from '@/lib/llmProgramContent'
+
+// Enhanced Data Analysis Modules
+import { generateEnhancedUserProfile } from '@/lib/dataInference'
+import { calculateAllMuscleLandmarks, calculateIndividualVolumeLandmarks } from '@/lib/volumeCalculations'
+import { calculateAdaptiveLoad, determineDeloadNeed, analyzeRPETrend } from '@/lib/autoregulation'
+import { enhancedWeakPointAnalysis, type StrengthProfile } from '@/lib/weakPointAnalysis'
+import { ENHANCED_PERIODIZATION_MODELS, generatePhaseProgression } from '@/lib/periodization'
+import { type EnhancedUserData, type UserData } from '@/lib/types/program'
+import { 
+  ENHANCED_PROGRAM_VALIDATION,
+  validateEnhancedProgram,
+  validateVolumeCompliance,
+  validateRPETargets,
+  validateWeakPointAddressing,
+  type EnhancedTrainingProgram,
+  type ValidationResult
+} from '@/lib/validation/enhancedProgramSchema'
 
 /**
  * Zod schemas for validating LLM-generated training program data
@@ -586,85 +611,532 @@ function analyzeWeakPoints(input: WeakPointAnalysisInput): WeakPointAnalysisResu
 }
 
 /**
- * Construct the detailed LLM prompt for program generation
+ * Helper function to select appropriate periodization model based on experience and goals
  */
-async function constructLLMPrompt(profile: UserProfileForGeneration): Promise<string> {
-  const onboarding = profile.onboarding_responses
+function selectPeriodizationModel(experienceLevel: string, primaryGoal: string): string {
+  // Strength-focused goals benefit from strength-focused periodization
+  if (primaryGoal.includes('Strength Gain') || primaryGoal.includes('Powerlifting')) {
+    return 'Strength-Focused Block Periodization'
+  }
+  
+  // Hypertrophy goals benefit from hypertrophy-focused models
+  if (primaryGoal.includes('Muscle Gain') || primaryGoal.includes('Hypertrophy')) {
+    return 'Hypertrophy-Focused Block Periodization'
+  }
+  
+  // General fitness uses simpler linear models
+  if (primaryGoal.includes('General Fitness') || experienceLevel === 'Beginner') {
+    return 'Linear Progression Model'
+  }
+  
+  // Default to balanced approach
+  return 'Balanced Block Periodization'
+}
 
+/**
+ * Helper function to generate autoregulation notes based on user profile
+ */
+function generateAutoregulationNotes(rpeProfile: any, recoveryProfile: any): string {
+  return `RPE Target Ranges:
+- Accumulation Phase: 6-8 RPE (emphasizing volume)
+- Intensification Phase: 7-9 RPE (emphasizing load)
+- Realization Phase: 8-10 RPE (peaking activities)
+- Deload Phase: 4-6 RPE (restoration focus)
+
+Daily Adjustments:
+- High readiness days: Add 2-5% load or 1-2 sets
+- Normal readiness: Execute planned session
+- Low readiness: Reduce intensity 10-20% or volume 20-30%
+- Very low readiness: Active recovery or complete rest
+
+Recovery Capacity: ${recoveryProfile.recoveryRate}/2.0 (1.0 = average)
+Fatigue Threshold: ${recoveryProfile.fatigueThreshold}/10`
+}
+
+/**
+ * Enhanced User Data Processing Pipeline
+ * Processes onboarding data through scientific analysis modules to generate
+ * comprehensive user profiling with volume landmarks, weak point analysis,
+ * and autoregulation protocols.
+ */
+interface EnhancedProcessingResult {
+  enhancedProfile: EnhancedUserData
+  volumeLandmarks: Record<string, any>
+  weakPointAnalysis: any | null
+  periodizationModel: string
+  autoregulationNotes: string
+  identifiedWeakPoints: string[]
+}
+
+async function processEnhancedUserData(
+  profile: UserProfileForGeneration
+): Promise<EnhancedProcessingResult> {
+  const onboarding = profile.onboarding_responses
+  
   if (!onboarding) {
     throw new Error('User has not completed onboarding')
   }
 
-  // Extract strength data
-  const squat1RMEstimate = onboarding.squat1RMEstimate
-  const benchPress1RMEstimate = onboarding.benchPress1RMEstimate
-  const deadlift1RMEstimate = onboarding.deadlift1RMEstimate
-  const overheadPress1RMEstimate = onboarding.overheadPress1RMEstimate
-  const weightUnit = profile.weight_unit || 'kg'
+  console.log('🔬 Starting enhanced user data processing...')
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //                            ENHANCED USER DATA GENERATION
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Convert profile to UserData format for enhanced analysis
+  const baseUserData: UserData = {
+    id: 'temp-id',
+    name: profile.name || 'User',
+    email: 'user@example.com',
+    age: profile.age,
+    height_cm: 175, // Default - consider enhancing with actual data
+    weight_kg: 75, // Default - consider enhancing with actual data
+    experience_level: profile.experience_level || 'Beginner',
+    weight_unit: (profile.weight_unit as 'kg' | 'lbs') || 'kg',
+    fitness_goals: onboarding.primaryGoal,
+    trainingFrequencyDays: onboarding.trainingFrequencyDays,
+    sessionDuration: onboarding.sessionDuration,
+    equipment: onboarding.equipment,
+    injuriesLimitations: onboarding.injuriesLimitations,
+    squat1RMEstimate: onboarding.squat1RMEstimate,
+    benchPress1RMEstimate: onboarding.benchPress1RMEstimate,
+    deadlift1RMEstimate: onboarding.deadlift1RMEstimate,
+    overheadPress1RMEstimate: onboarding.overheadPress1RMEstimate
+  }
+
+  // Generate comprehensive enhanced user profile
+  console.log('📊 Generating enhanced user profile with scientific analysis...')
+  const enhancedProfile: EnhancedUserData = generateEnhancedUserProfile(baseUserData)
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //                            SCIENTIFIC ANALYSIS
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Calculate individualized volume landmarks
+  console.log('📏 Calculating individualized volume landmarks...')
+  const volumeLandmarks = calculateAllMuscleLandmarks(enhancedProfile.volumeParameters)
+  console.log('✅ Volume landmarks calculated:', Object.keys(volumeLandmarks))
+
+  // Perform weak point analysis if strength data is available
+  let weakPointAnalysis = null
+  let identifiedWeakPoints: string[] = []
+  
+  if (onboarding.squat1RMEstimate && onboarding.benchPress1RMEstimate && 
+      onboarding.deadlift1RMEstimate && onboarding.overheadPress1RMEstimate) {
+    console.log('💪 Performing strength ratio analysis...')
+    const strengthProfile: StrengthProfile = {
+      squat1RM: onboarding.squat1RMEstimate,
+      bench1RM: onboarding.benchPress1RMEstimate,
+      deadlift1RM: onboarding.deadlift1RMEstimate,
+      overheadPress1RM: onboarding.overheadPress1RMEstimate
+    }
+    weakPointAnalysis = enhancedWeakPointAnalysis(strengthProfile)
+    identifiedWeakPoints = weakPointAnalysis.primaryWeakPoints || []
+    console.log('✅ Weak point analysis completed:', identifiedWeakPoints)
+  } else {
+    console.log('⚠️ Insufficient strength data for weak point analysis')
+  }
+
+  // Select appropriate periodization model based on experience and goals
+  console.log('🎯 Selecting optimal periodization model...')
+  const periodizationModel = selectPeriodizationModel(
+    enhancedProfile.experience_level || 'Beginner', 
+    onboarding.primaryGoal
+  )
+  console.log('✅ Periodization model selected:', periodizationModel)
+
+  // Generate autoregulation recommendations
+  console.log('⚙️ Generating autoregulation protocols...')
+  const autoregulationNotes = generateAutoregulationNotes(
+    enhancedProfile.rpeProfile, 
+    enhancedProfile.recoveryProfile
+  )
+
+  console.log('🎉 Enhanced user data processing completed successfully!')
+
+  return {
+    enhancedProfile,
+    volumeLandmarks,
+    weakPointAnalysis,
+    periodizationModel,
+    autoregulationNotes,
+    identifiedWeakPoints
+  }
+}
+
+/**
+ * ENHANCED SCIENCE-BASED PROMPT CONSTRUCTION (2025/01)
+ * Construct the detailed LLM prompt for program generation
+ */
+async function constructEnhancedLLMPrompt(
+  profile: UserProfileForGeneration,
+  processingResult: EnhancedProcessingResult,
+  complexity: 'full' | 'simplified' | 'basic' = 'full'
+): Promise<string> {
+  const { 
+    enhancedProfile, 
+    volumeLandmarks, 
+    weakPointAnalysis, 
+    periodizationModel, 
+    autoregulationNotes 
+  } = processingResult
+  
+  const onboarding = profile.onboarding_responses
+  if (!onboarding) {
+    throw new Error('User has not completed onboarding')
+  }
+
+  console.log(`🔨 Constructing ${complexity} complexity LLM prompt...`)
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  //                            PROMPT CONSTRUCTION
+  // ═══════════════════════════════════════════════════════════════════════════════
 
   const typeDefinitions = getTypeScriptInterfaceDefinitions()
-  
-  // Get expert guidelines based on user's training focus and experience level
-  const expertGuidelines = getExpertGuidelines(profile.primary_training_focus, profile.experience_level)
+  const weightUnit = profile.weight_unit || 'kg'
 
-  const prompt = `You are Neural, an elite, science-based lifting coach AI. Your persona is similar to experts like Jeff Nippard and Dr. Mike Israetel. You are knowledgeable, encouraging, and meticulous. Your entire output MUST be a single, valid JSON object that adheres to the TrainingProgram TypeScript interface provided below.
+  // Adjust prompt complexity based on retry attempts
+  let scientificFramework = ''
+  let userAnalysisDepth = ''
+  let requirementsDetail = ''
 
-You will craft a world-class, hyper-personalized training program based on the user's profile and your deep understanding of exercise science. Your coaching philosophy is built on the following evidence-based principles which you must apply:
-- Dynamic Autoregulated Periodization (ADR-039)
-- Scientific Volume Landmarks (MEV/MAV/MRV) (ADR-040)
-- Stimulus-to-Fatigue Ratio (SFR) Optimization (ADR-041)
-- Individualized Weak Point Targeting (ADR-043)
-- Tiered Exercise Selection within each workout (ADR-046)
-- A Mandatory Anchor Lift for focus on non-rest days (ADR-048)
-- Phasic Exercise Variation to prevent accommodation (ADR-045)
-- A clear Mesocycle Progression Strategy (ADR-047)
+  if (complexity === 'full') {
+    scientificFramework = `
+═══════════════════════════════════════════════════════════════════════════════
+                                SCIENTIFIC FRAMEWORK
+═══════════════════════════════════════════════════════════════════════════════
 
-Now, analyze the user's data and the EXPERT GUIDELINES provided to build their program.
+VOLUME FRAMEWORK GUIDELINES:
+${VOLUME_FRAMEWORK_GUIDELINES}
+
+AUTOREGULATION GUIDELINES:
+${AUTOREGULATION_GUIDELINES}
+
+PERIODIZATION GUIDELINES:
+${PERIODIZATION_GUIDELINES}
+
+WEAK POINT INTERVENTION GUIDELINES:
+${WEAK_POINT_INTERVENTION_GUIDELINES}
+
+FATIGUE MANAGEMENT GUIDELINES:
+${FATIGUE_MANAGEMENT_GUIDELINES}
+
+EXERCISE SELECTION GUIDELINES:
+${EXERCISE_SELECTION_GUIDELINES}`
+
+    userAnalysisDepth = `
+═══════════════════════════════════════════════════════════════════════════════
+                                USER ANALYSIS
+═══════════════════════════════════════════════════════════════════════════════
+
+ENHANCED USER PROFILE:
+- Name: ${profile.name}
+- Age: ${profile.age}
+- Experience Level: ${profile.experience_level || 'Beginner'}
+- Training Age (Inferred): ${enhancedProfile.volumeParameters.trainingAge} years
+- Recovery Capacity (Inferred): ${enhancedProfile.volumeParameters.recoveryCapacity}/10
+- Stress Level (Inferred): ${enhancedProfile.volumeParameters.stressLevel}/10
+- Volume Tolerance: ${enhancedProfile.volumeParameters.volumeTolerance}x
+
+TRAINING PARAMETERS:
+- Primary Goal: ${onboarding.primaryGoal}
+- Training Frequency: ${onboarding.trainingFrequencyDays} days/week
+- Session Duration: ${onboarding.sessionDuration}
+- Equipment: ${onboarding.equipment.join(', ')}
+- Injuries/Limitations: ${onboarding.injuriesLimitations || 'None'}
+
+INDIVIDUALIZED VOLUME LANDMARKS (weekly sets):
+${Object.entries(volumeLandmarks).map(([muscle, landmarks]) => 
+  `- ${muscle.charAt(0).toUpperCase() + muscle.slice(1)}: MEV ${landmarks.MEV}, MAV ${landmarks.MAV}, MRV ${landmarks.MRV}`
+).join('\n')}
+
+STRENGTH PROFILE (${weightUnit}):
+- Squat 1RM: ${onboarding.squat1RMEstimate || 'Not provided'}
+- Bench Press 1RM: ${onboarding.benchPress1RMEstimate || 'Not provided'}
+- Deadlift 1RM: ${onboarding.deadlift1RMEstimate || 'Not provided'}
+- Overhead Press 1RM: ${onboarding.overheadPress1RMEstimate || 'Not provided'}
+
+${weakPointAnalysis ? `
+WEAK POINT ANALYSIS:
+${weakPointAnalysis.issues.length > 0 ? 
+  `Identified Issues:\n${weakPointAnalysis.issues.map((issue: any) => 
+    `- ${issue.ratioName}: ${issue.yourRatio.toFixed(2)} (minimum: ${issue.standardMinimum}) - ${issue.severity} priority`
+  ).join('\n')}\n\nPrimary Weak Points: ${weakPointAnalysis.primaryWeakPoints.join(', ')}\n\nRecommended Corrective Exercises: ${weakPointAnalysis.correctionExercises.join(', ')}`
+  : 'No significant strength imbalances detected - excellent balanced development!'
+}` : 'Weak point analysis unavailable - insufficient strength data provided'}
+
+SELECTED PERIODIZATION MODEL: ${periodizationModel}
+
+AUTOREGULATION PROTOCOLS:
+${autoregulationNotes}`
+
+    requirementsDetail = `
+═══════════════════════════════════════════════════════════════════════════════
+                              PROGRAM REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+MANDATORY EVIDENCE-BASED CONSTRAINTS:
+
+1. **Volume Landmark Compliance**: STRICTLY respect the user's individualized volume landmarks. Start programs at MEV and progress toward MAV. NEVER exceed MRV without explicit deload planning.
+
+2. **Periodization Integration**: Apply the selected periodization model (${periodizationModel}) with appropriate phase progression and fatigue management.
+
+3. **Weak Point Prioritization**: ${weakPointAnalysis && weakPointAnalysis.issues && weakPointAnalysis.issues.length > 0 ? 
+  `Address identified weak points: ${weakPointAnalysis.primaryWeakPoints.join(', ')}. Include corrective exercises: ${weakPointAnalysis.correctionExercises.slice(0, 3).join(', ')}` : 
+  'Maintain balanced development across all movement patterns'}
+
+4. **Autoregulation Implementation**: Include RPE targets aligned with training phases. Provide load adjustment guidance based on readiness markers.
+
+5. **Exercise Selection Hierarchy**: Follow three-tier system (Primary Compounds → Secondary Compounds → Isolation) with appropriate stimulus-to-fatigue ratios.
+
+6. **Mandatory Anchor Lifts**: Every non-rest day MUST have a designated anchor lift as the first exercise - a major compound movement receiving primary progression focus.`
+  } else if (complexity === 'simplified') {
+    scientificFramework = `
+SCIENTIFIC PRINCIPLES:
+- Respect individual volume landmarks: MEV/MAV/MRV
+- Apply autoregulation with RPE 6-9 targets
+- Use evidence-based periodization
+- Address identified weak points
+- Follow three-tier exercise selection`
+
+    userAnalysisDepth = `
+USER PROFILE:
+- Name: ${profile.name}, Age: ${profile.age}, Experience: ${profile.experience_level || 'Beginner'}
+- Goal: ${onboarding.primaryGoal}
+- Training: ${onboarding.trainingFrequencyDays} days/week, ${onboarding.sessionDuration}
+- Equipment: ${onboarding.equipment.join(', ')}
+- Periodization: ${periodizationModel}
+${weakPointAnalysis && weakPointAnalysis.primaryWeakPoints.length > 0 ? 
+  `- Weak Points: ${weakPointAnalysis.primaryWeakPoints.join(', ')}` : ''}
+
+VOLUME GUIDELINES (weekly sets):
+${Object.entries(volumeLandmarks).map(([muscle, landmarks]) => 
+  `${muscle}: MEV ${landmarks.MEV}, MAV ${landmarks.MAV}, MRV ${landmarks.MRV}`
+).join(' | ')}`
+
+    requirementsDetail = `
+REQUIREMENTS:
+1. Respect volume landmarks (start at MEV, progress to MAV, never exceed MRV)
+2. Include anchor lifts as first exercise on training days
+3. Use appropriate RPE targets (6-8 RPE typically)
+${weakPointAnalysis && weakPointAnalysis.primaryWeakPoints.length > 0 ? 
+  `4. Address weak points: ${weakPointAnalysis.primaryWeakPoints.join(', ')}` : ''}`
+  } else { // basic
+    scientificFramework = ''
+    userAnalysisDepth = `
+USER: ${profile.name}, ${profile.experience_level || 'Beginner'}, Goal: ${onboarding.primaryGoal}
+Training: ${onboarding.trainingFrequencyDays} days/week, Equipment: ${onboarding.equipment.join(', ')}`
+
+    requirementsDetail = `
+REQUIREMENTS:
+1. Create balanced program for ${onboarding.primaryGoal}
+2. Use available equipment: ${onboarding.equipment.join(', ')}
+3. Include compound movements first`
+  }
+
+  const prompt = `You are Neural, an elite exercise scientist and evidence-based coach AI. Your expertise rivals that of Dr. Mike Israetel, Dr. Eric Helms, Jeff Nippard, and the world's leading exercise science researchers. You are meticulous, scientifically-grounded, and obsessed with optimizing training for each individual. Your entire output MUST be a single, valid JSON object that adheres to the TrainingProgram TypeScript interface provided below.
+
+You will craft a world-class, hyper-personalized training program based on comprehensive scientific analysis of the user's profile. Your program generation is guided by cutting-edge exercise science research and evidence-based methodologies.
+${scientificFramework}
+${userAnalysisDepth}
+${requirementsDetail}
+
+═══════════════════════════════════════════════════════════════════════════════
+                                SCIENTIFIC FRAMEWORK
+═══════════════════════════════════════════════════════════════════════════════
+
+VOLUME FRAMEWORK GUIDELINES:
+${VOLUME_FRAMEWORK_GUIDELINES}
+
+AUTOREGULATION GUIDELINES:
+${AUTOREGULATION_GUIDELINES}
+
+PERIODIZATION GUIDELINES:
+${PERIODIZATION_GUIDELINES}
+
+WEAK POINT INTERVENTION GUIDELINES:
+${WEAK_POINT_INTERVENTION_GUIDELINES}
+
+FATIGUE MANAGEMENT GUIDELINES:
+${FATIGUE_MANAGEMENT_GUIDELINES}
+
+EXERCISE SELECTION GUIDELINES:
+${EXERCISE_SELECTION_GUIDELINES}
+
+═══════════════════════════════════════════════════════════════════════════════
+                                USER ANALYSIS
+═══════════════════════════════════════════════════════════════════════════════
+
+ENHANCED USER PROFILE:
+- Name: ${profile.name}
+- Age: ${profile.age}
+- Experience Level: ${profile.experience_level || 'Beginner'}
+- Training Age (Inferred): ${enhancedProfile.volumeParameters.trainingAge} years
+- Recovery Capacity (Inferred): ${enhancedProfile.volumeParameters.recoveryCapacity}/10
+- Stress Level (Inferred): ${enhancedProfile.volumeParameters.stressLevel}/10
+- Volume Tolerance: ${enhancedProfile.volumeParameters.volumeTolerance}x
+
+TRAINING PARAMETERS:
+- Primary Goal: ${onboarding.primaryGoal}
+- Training Frequency: ${onboarding.trainingFrequencyDays} days/week
+- Session Duration: ${onboarding.sessionDuration}
+- Equipment: ${onboarding.equipment.join(', ')}
+- Injuries/Limitations: ${onboarding.injuriesLimitations || 'None'}
+
+INDIVIDUALIZED VOLUME LANDMARKS (weekly sets):
+${Object.entries(volumeLandmarks).map(([muscle, landmarks]) => 
+  `- ${muscle.charAt(0).toUpperCase() + muscle.slice(1)}: MEV ${landmarks.MEV}, MAV ${landmarks.MAV}, MRV ${landmarks.MRV}`
+).join('\n')}
+
+STRENGTH PROFILE (${weightUnit}):
+- Squat 1RM: ${onboarding.squat1RMEstimate || 'Not provided'}
+- Bench Press 1RM: ${onboarding.benchPress1RMEstimate || 'Not provided'}
+- Deadlift 1RM: ${onboarding.deadlift1RMEstimate || 'Not provided'}
+- Overhead Press 1RM: ${onboarding.overheadPress1RMEstimate || 'Not provided'}
+
+${weakPointAnalysis ? `
+WEAK POINT ANALYSIS:
+${weakPointAnalysis.issues.length > 0 ? 
+  `Identified Issues:\n${weakPointAnalysis.issues.map((issue: any) => 
+    `- ${issue.ratioName}: ${issue.yourRatio.toFixed(2)} (minimum: ${issue.standardMinimum}) - ${issue.severity} priority`
+  ).join('\n')}\n\nPrimary Weak Points: ${weakPointAnalysis.primaryWeakPoints.join(', ')}\n\nRecommended Corrective Exercises: ${weakPointAnalysis.correctionExercises.join(', ')}`
+  : 'No significant strength imbalances detected - excellent balanced development!'
+}` : 'Weak point analysis unavailable - insufficient strength data provided'}
+
+SELECTED PERIODIZATION MODEL: ${periodizationModel}
+
+AUTOREGULATION PROTOCOLS:
+${autoregulationNotes}
+
+═══════════════════════════════════════════════════════════════════════════════
+                              PROGRAM REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+MANDATORY EVIDENCE-BASED CONSTRAINTS:
+
+1. **Volume Landmark Compliance**: STRICTLY respect the user's individualized volume landmarks. Start programs at MEV and progress toward MAV. NEVER exceed MRV without explicit deload planning.
+
+2. **Periodization Integration**: Apply the selected periodization model (${periodizationModel}) with appropriate phase progression and fatigue management.
+
+3. **Weak Point Prioritization**: ${weakPointAnalysis && weakPointAnalysis.issues && weakPointAnalysis.issues.length > 0 ? 
+  `Address identified weak points: ${weakPointAnalysis.primaryWeakPoints.join(', ')}. Include corrective exercises: ${weakPointAnalysis.correctionExercises.slice(0, 3).join(', ')}` : 
+  'Maintain balanced development across all movement patterns'}
+
+4. **Autoregulation Implementation**: Include RPE targets aligned with training phases. Provide load adjustment guidance based on readiness markers.
+
+5. **Exercise Selection Hierarchy**: Follow three-tier system (Primary Compounds → Secondary Compounds → Isolation) with appropriate stimulus-to-fatigue ratios.
+
+6. **Mandatory Anchor Lifts**: Every non-rest day MUST have a designated anchor lift as the first exercise - a major compound movement receiving primary progression focus.
+
+TECHNICAL REQUIREMENTS:
+- Create a ${getDurationBasedOnGoals(onboarding)}-week program with appropriate phases
+- Each workout should have 6-10 exercises (including warm-up/cool-down)
+- Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.)
+- For rest days: set isRestDay: true, empty exercises array
+- Set estimatedDurationMinutes to match user's session length preference
+- Provide weight guidance using percentages of 1RM, RPE, or load progression when possible
+- Adapt all exercises for available equipment and injury considerations
+
+═══════════════════════════════════════════════════════════════════════════════
+                                OUTPUT STRUCTURE
+═══════════════════════════════════════════════════════════════════════════════
 
 ${typeDefinitions}
 
-USER PROFILE:
-- Name: ${profile.name}
-- Age: ${profile.age}
-- Experience: ${profile.experience_level || 'Beginner'}
-- Goal: ${onboarding.primaryGoal}
-- Training Days: ${onboarding.trainingFrequencyDays} days/week
-- Session Length: ${onboarding.sessionDuration}
-- Equipment: ${onboarding.equipment.join(', ')}
-- Injuries: ${onboarding.injuriesLimitations || 'None'}
+NEURAL'S COACHING VOICE REQUIREMENTS:
+- **coachIntro**: Write a personalized, motivational introduction directly to ${profile.name}. Reference their specific goal (${onboarding.primaryGoal}) and the science-based approach you've designed for them.
+- **description**: Provide a compelling 1-2 sentence summary highlighting the evidence-based nature of the program.
+- **generalAdvice**: Start with "Here's the game plan..." and explain the scientific rationale behind your program structure, referencing volume landmarks, periodization, and weak point strategies.
+- **TrainingWeek.coachTip**: For each week, provide specific guidance related to that week's training focus (volume accumulation, intensification, deload, etc.).
+- **ExerciseDetail.notes**: For anchor lifts and key exercises, provide concise form cues or scientific rationale. Mark anchor lifts clearly.
 
-STRENGTH ESTIMATES (${weightUnit}):
-- Squat: ${squat1RMEstimate || 'Not provided'}
-- Bench: ${benchPress1RMEstimate || 'Not provided'}
-- Deadlift: ${deadlift1RMEstimate || 'Not provided'}
-- OHP: ${overheadPress1RMEstimate || 'Not provided'}
-
-EXPERT GUIDELINES:
-${expertGuidelines}
-
-NEURAL'S COACHING CUES (Use these for exercise notes):
+NEURAL'S COACHING CUES (integrate appropriately):
 ${NEURAL_COACHING_CUES}
 
-REQUIREMENTS:
-1. Create a 4-6 week program with 1-2 phases
-2. Each workout should have 6-10 exercises total (including warm-up/cool-down)
-3. Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.)
-4. For rest days: set isRestDay: true, empty exercises array
-5. Include warm-up and cool-down exercises
-6. Set estimatedDurationMinutes to match user's session length
-7. Provide weight guidance using percentages of 1RM or RPE when possible
-8. Focus on compound movements first, then accessories
-9. Adapt exercises for available equipment and injuries
-10. Keep exercise notes concise (1-2 sentences max)
-11. **Write in Neural's Voice**:
-    - \`coachIntro\` (NEW): Write a short, personalized intro message directly to the user. Use their name. Example: "Hey [User Name], it's Neural. I've designed this program to help you crush your goal of [User Goal]. Let's get to work."
-    - \`TrainingWeek.coachTip\` (NEW): For each week, provide a single, powerful tip related to that week's training focus (e.g., volume, intensification, deload).
-    - \`description\`: Write a 1-2 sentence, encouraging summary of the program's purpose.
-    - \`generalAdvice\`: Write this as a personal note from you (Neural) to the user. Start with "Here's the game plan...". Explain the 'why' behind the program structure, referencing the periodization model and volume strategy you've chosen for them based on their experience level. Keep it concise, educational, and motivational.
-    - \`ExerciseDetail.notes\`: For key lifts or unique exercises, provide a concise (1 sentence) form cue or rationale from your coaching perspective. Example: "Focus on controlling the eccentric for maximum hypertrophy." or "ANCHOR LIFT: This is our main progression focus for the day."
+TECHNICAL REQUIREMENTS:
+- Create a ${getDurationBasedOnGoals(onboarding)}-week program with appropriate phases
+- Each workout should have 6-10 exercises (including warm-up/cool-down)
+- Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.)
+- For rest days: set isRestDay: true, empty exercises array
+- Set estimatedDurationMinutes to match user's session length preference
+- Provide weight guidance using percentages of 1RM, RPE, or load progression when possible
+- Adapt all exercises for available equipment and injury considerations
+
+═══════════════════════════════════════════════════════════════════════════════
+                                OUTPUT STRUCTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+${typeDefinitions}
+
+NEURAL'S COACHING VOICE REQUIREMENTS:
+- **coachIntro**: Write a personalized, motivational introduction directly to ${profile.name}. Reference their specific goal (${onboarding.primaryGoal}) and the science-based approach you've designed for them.
+- **description**: Provide a compelling 1-2 sentence summary highlighting the evidence-based nature of the program.
+- **generalAdvice**: Start with "Here's the game plan..." and explain the scientific rationale behind your program structure, referencing volume landmarks, periodization, and weak point strategies.
+- **TrainingWeek.coachTip**: For each week, provide specific guidance related to that week's training focus (volume accumulation, intensification, deload, etc.).
+- **ExerciseDetail.notes**: For anchor lifts and key exercises, provide concise form cues or scientific rationale. Mark anchor lifts clearly.
+
+NEURAL'S COACHING CUES (integrate appropriately):
+${NEURAL_COACHING_CUES}
 
 Return ONLY valid JSON matching the TrainingProgram interface. No additional text.`
+
+  console.log(`✅ ${complexity} complexity LLM prompt constructed (${prompt.length} characters)`)
   return prompt
+}
+
+/**
+ * Enhanced LLM API call with retry logic and progressive simplification
+ */
+async function callEnhancedLLMAPI(
+  profile: UserProfileForGeneration,
+  processingResult: EnhancedProcessingResult
+): Promise<{ program?: any; error?: string; attempts?: number; finalComplexity?: string }> {
+  const complexityLevels: Array<'full' | 'simplified' | 'basic'> = ['full', 'simplified', 'basic']
+  let attempts = 0
+  let lastError = ''
+
+  console.log('🚀 Starting enhanced LLM API call with retry logic...')
+
+  for (const complexity of complexityLevels) {
+    attempts++
+    console.log(`📝 Attempt ${attempts}: Using ${complexity} complexity prompt`)
+
+    try {
+      // Construct prompt with current complexity level
+      const prompt = await constructEnhancedLLMPrompt(profile, processingResult, complexity)
+      
+      // Log prompt effectiveness metrics
+      console.log(`📊 Prompt metrics - Length: ${prompt.length} chars, Complexity: ${complexity}`)
+
+      // Call LLM API
+      const result = await callLLMAPI(prompt)
+      
+      if (result.error) {
+        lastError = result.error
+        console.log(`❌ Attempt ${attempts} failed: ${result.error}`)
+        continue
+      }
+
+      if (result.program) {
+        console.log(`✅ Success on attempt ${attempts} with ${complexity} complexity!`)
+        return { 
+          program: result.program, 
+          attempts, 
+          finalComplexity: complexity 
+        }
+      }
+    } catch (error: any) {
+      lastError = error.message || 'Unknown error'
+      console.log(`❌ Attempt ${attempts} threw error: ${lastError}`)
+    }
+  }
+
+  console.log(`🚫 All ${attempts} attempts failed. Final error: ${lastError}`)
+  return { 
+    error: `Failed to generate program after ${attempts} attempts. Last error: ${lastError}`,
+    attempts,
+    finalComplexity: 'basic'
+  }
 }
 
 /**
@@ -787,14 +1259,22 @@ export async function generateTrainingProgram(
         onboarding_responses: profile.onboarding_responses,
       }
 
-      // Continue with program generation using the fetched data
-      const prompt = await constructLLMPrompt(userProfileForGeneration)
-      const { program: llmResponse, error: llmError } = await callLLMAPI(prompt)
+      // Continue with enhanced program generation
+      console.log('🎯 Starting enhanced program generation pipeline...')
+      const processingResult = await processEnhancedUserData(userProfileForGeneration)
+      
+      // Use enhanced LLM call with retry logic
+      const { program: llmResponse, error: llmError, attempts, finalComplexity } = await callEnhancedLLMAPI(
+        userProfileForGeneration, 
+        processingResult
+      )
 
       if (llmError) {
-        console.error('LLM API error:', llmError)
+        console.error(`LLM API error after ${attempts} attempts:`, llmError)
         return { error: 'Unable to generate your training program at this time. Please try again later.', success: false }
       }
+
+      console.log(`🎉 Program generated successfully using ${finalComplexity} complexity in ${attempts} attempts`)
 
       // Add generatedAt and aiModelUsed if not provided by LLM
       const programData = {
@@ -803,16 +1283,49 @@ export async function generateTrainingProgram(
         aiModelUsed: llmResponse.aiModelUsed || 'gpt-4o',
       }
 
-      // Validate the LLM response
-      const validationResult = TrainingProgramSchema.safeParse(programData)
-      if (!validationResult.success) {
-        console.error('LLM response validation failed:', validationResult.error)
-        return { error: 'The generated program has validation errors. Please try again.', success: false }
+      // Enhanced validation process
+      console.log('🔍 Starting enhanced validation process...')
+      
+      // First try enhanced validation, fallback to basic if needed
+      let validatedProgram: TrainingProgram
+      let validationNotes: string[] = []
+      
+      try {
+        const enhancedValidation = validateEnhancedProgram(
+          programData,
+          processingResult.volumeLandmarks,
+          processingResult.identifiedWeakPoints
+        )
+        
+        if (enhancedValidation.isValid) {
+          console.log('✅ Enhanced validation passed!')
+          // Parse with enhanced schema
+          const enhancedResult = ENHANCED_PROGRAM_VALIDATION.safeParse(programData)
+          if (enhancedResult.success) {
+            validatedProgram = enhancedResult.data as unknown as TrainingProgram
+            validationNotes.push('Enhanced scientific validation passed')
+          } else {
+            throw new Error('Enhanced schema parse failed')
+          }
+        } else {
+          console.log('⚠️ Enhanced validation failed, trying basic validation...')
+          validationNotes.push(`Enhanced validation failed: ${enhancedValidation.violations.join(', ')}`)
+          throw new Error('Enhanced validation failed')
+        }
+      } catch (enhancedError) {
+        console.log('📋 Falling back to basic validation...')
+        // Fallback to basic validation
+        const basicValidation = TrainingProgramSchema.safeParse(programData)
+        if (!basicValidation.success) {
+          console.error('Both enhanced and basic validation failed:', basicValidation.error)
+          return { error: 'The generated program has validation errors. Please try again.', success: false }
+        }
+        validatedProgram = basicValidation.data as unknown as TrainingProgram
+        validationNotes.push('Used basic validation due to enhanced validation failure')
       }
 
-      const validatedProgram = validationResult.data as unknown as TrainingProgram
-
-      // Save to database
+      // Enhanced database storage with scientific analysis
+      console.log('💾 Saving enhanced program data to database...')
       const { data: savedProgram, error: saveError } = await supabase
         .from('training_programs')
         .insert({
@@ -820,6 +1333,22 @@ export async function generateTrainingProgram(
           program_details: validatedProgram,
           ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
           onboarding_data_snapshot: profile.onboarding_responses,
+          // Enhanced scientific data
+          volume_landmarks: processingResult.volumeLandmarks,
+          weak_point_analysis: processingResult.weakPointAnalysis,
+          periodization_model: processingResult.periodizationModel,
+          generation_metadata: {
+            attempts: attempts,
+            finalComplexity: finalComplexity,
+            validationNotes: validationNotes,
+            processingTimestamp: new Date().toISOString(),
+            enhancedUserProfile: {
+              trainingAge: processingResult.enhancedProfile.volumeParameters.trainingAge,
+              recoveryCapacity: processingResult.enhancedProfile.volumeParameters.recoveryCapacity,
+              stressLevel: processingResult.enhancedProfile.volumeParameters.stressLevel,
+              volumeTolerance: processingResult.enhancedProfile.volumeParameters.volumeTolerance,
+            }
+          }
         })
         .select()
         .single()
@@ -829,7 +1358,8 @@ export async function generateTrainingProgram(
         return { error: 'Failed to save your training program. Please try again.', success: false }
       }
 
-      console.log('Training program generated and saved successfully')
+      console.log('🎊 Enhanced training program generated and saved successfully!')
+      console.log(`📈 Generation summary: ${attempts} attempts, ${finalComplexity} complexity, ${validationNotes.length} validation notes`)
       return { program: validatedProgram, success: true }
     } else {
       // New signature: generateTrainingProgram(user, onboardingData)
@@ -851,16 +1381,22 @@ export async function generateTrainingProgram(
         onboarding_responses: onboardingData,
       }
 
-      // Step 2: Construct the LLM prompt
-      const prompt = await constructLLMPrompt(userProfileForGeneration)
-
-      // Step 3: Call the LLM API
-      const { program: llmResponse, error: llmError } = await callLLMAPI(prompt)
+      // Step 2: Enhanced processing and program generation
+      console.log('🎯 Starting enhanced program generation pipeline for new user...')
+      const processingResult = await processEnhancedUserData(userProfileForGeneration)
+      
+      // Step 3: Use enhanced LLM call with retry logic
+      const { program: llmResponse, error: llmError, attempts, finalComplexity } = await callEnhancedLLMAPI(
+        userProfileForGeneration, 
+        processingResult
+      )
 
       if (llmError) {
-        console.error('LLM API error:', llmError)
+        console.error(`LLM API error after ${attempts} attempts:`, llmError)
         return { error: 'Unable to generate your training program at this time. Please try again later.', success: false }
       }
+
+      console.log(`🎉 Program generated successfully using ${finalComplexity} complexity in ${attempts} attempts`)
 
       // Add generatedAt and aiModelUsed if not provided by LLM
       const programData = {
@@ -869,16 +1405,46 @@ export async function generateTrainingProgram(
         aiModelUsed: llmResponse.aiModelUsed || 'gpt-4o',
       }
 
-      // Validate the LLM response
-      const validationResult = TrainingProgramSchema.safeParse(programData)
-      if (!validationResult.success) {
-        console.error('LLM response validation failed:', validationResult.error)
-        return { error: 'The generated program has validation errors. Please try again.', success: false }
+      // Enhanced validation process
+      console.log('🔍 Starting enhanced validation process...')
+      
+      let validatedProgram: TrainingProgram
+      let validationNotes: string[] = []
+      
+      try {
+        const enhancedValidation = validateEnhancedProgram(
+          programData,
+          processingResult.volumeLandmarks,
+          processingResult.identifiedWeakPoints
+        )
+        
+        if (enhancedValidation.isValid) {
+          console.log('✅ Enhanced validation passed!')
+          const enhancedResult = ENHANCED_PROGRAM_VALIDATION.safeParse(programData)
+          if (enhancedResult.success) {
+            validatedProgram = enhancedResult.data as unknown as TrainingProgram
+            validationNotes.push('Enhanced scientific validation passed')
+          } else {
+            throw new Error('Enhanced schema parse failed')
+          }
+        } else {
+          console.log('⚠️ Enhanced validation failed, trying basic validation...')
+          validationNotes.push(`Enhanced validation failed: ${enhancedValidation.violations.join(', ')}`)
+          throw new Error('Enhanced validation failed')
+        }
+      } catch (enhancedError) {
+        console.log('📋 Falling back to basic validation...')
+        const basicValidation = TrainingProgramSchema.safeParse(programData)
+        if (!basicValidation.success) {
+          console.error('Both enhanced and basic validation failed:', basicValidation.error)
+          return { error: 'The generated program has validation errors. Please try again.', success: false }
+        }
+        validatedProgram = basicValidation.data as unknown as TrainingProgram
+        validationNotes.push('Used basic validation due to enhanced validation failure')
       }
 
-      const validatedProgram = validationResult.data as unknown as TrainingProgram
-
-      // Save to database
+      // Enhanced database storage
+      console.log('💾 Saving enhanced program data to database...')
       const { data: savedProgram, error: saveError } = await supabase
         .from('training_programs')
         .insert({
@@ -886,6 +1452,22 @@ export async function generateTrainingProgram(
           program_details: validatedProgram,
           ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
           onboarding_data_snapshot: onboardingData,
+          // Enhanced scientific data
+          volume_landmarks: processingResult.volumeLandmarks,
+          weak_point_analysis: processingResult.weakPointAnalysis,
+          periodization_model: processingResult.periodizationModel,
+          generation_metadata: {
+            attempts: attempts,
+            finalComplexity: finalComplexity,
+            validationNotes: validationNotes,
+            processingTimestamp: new Date().toISOString(),
+            enhancedUserProfile: {
+              trainingAge: processingResult.enhancedProfile.volumeParameters.trainingAge,
+              recoveryCapacity: processingResult.enhancedProfile.volumeParameters.recoveryCapacity,
+              stressLevel: processingResult.enhancedProfile.volumeParameters.stressLevel,
+              volumeTolerance: processingResult.enhancedProfile.volumeParameters.volumeTolerance,
+            }
+          }
         })
         .select()
         .single()
@@ -895,7 +1477,8 @@ export async function generateTrainingProgram(
         return { error: 'Failed to save your training program. Please try again.', success: false }
       }
 
-      console.log('Training program generated and saved successfully')
+      console.log('🎊 Enhanced training program generated and saved successfully!')
+      console.log(`📈 Generation summary: ${attempts} attempts, ${finalComplexity} complexity, ${validationNotes.length} validation notes`)
       return { program: validatedProgram, success: true }
     }
   } catch (error) {

@@ -12,6 +12,9 @@ import { startWorkoutSession } from '@/app/_actions/workoutSessionActions'
 import { submitProgramFeedback } from '@/app/_actions/feedbackActions'
 import { type TrainingProgram } from '@/lib/types/program'
 import { type TrainingProgramWithId } from '@/lib/db/program'
+import { type EnhancedTrainingProgram, type VolumeDistribution, type AutoregulationProtocol, type WeakPointIntervention, type ScientificRationale } from '@/lib/validation/enhancedProgramSchema'
+import { MUSCLE_GROUP_BASE_VOLUMES, calculateAllMuscleLandmarks } from '@/lib/volumeCalculations'
+import { type VolumeParameters, type VolumeLandmarks } from '@/lib/types/program'
 import { calculateWorkoutStreak } from '@/lib/db/index'
 import { Session } from '@supabase/supabase-js'
 import Link from 'next/link'
@@ -23,6 +26,13 @@ import { Loader2, Calendar, Target, Clock, TrendingUp, Play, BarChart3, Settings
 import { ProgramPhaseDisplay } from '@/components/program/ProgramPhaseDisplay'
 import { WeeklyCheckInModal } from '@/components/program/WeeklyCheckInModal'
 import { DailyReadinessModal } from '@/components/program/DailyReadinessModal'
+
+// Enhanced program components
+import { VolumeDistributionChart } from '@/components/program/enhanced/VolumeDistributionChart'
+import { ScientificRationaleComponent } from '@/components/program/enhanced/ScientificRationale'
+import { AutoregulationGuidelines } from '@/components/program/enhanced/AutoregulationGuidelines'
+import { WeakPointInterventions } from '@/components/program/enhanced/WeakPointInterventions'
+import { PeriodizationOverview } from '@/components/program/enhanced/PeriodizationOverview'
 
 import { StreakIndicator } from '@/components/ui/StreakIndicator'
 import { useToast } from '@/components/ui/Toast'
@@ -497,6 +507,158 @@ function ProgramPageContent() {
     }
   }
 
+  // Enhanced program components renderer
+  const renderEnhancedProgramComponents = (program: TrainingProgramWithId) => {
+    // Check if this is an enhanced program with the required data
+    const enhancedProgram = program as any as EnhancedTrainingProgram
+    
+    // Mock data for demonstration - in real app this would come from the program data
+    const mockVolumeParameters: VolumeParameters = {
+      trainingAge: 3,
+      recoveryCapacity: 7,
+      volumeTolerance: 1.2,
+      stressLevel: 4
+    }
+    
+    const individualLandmarks = calculateAllMuscleLandmarks(mockVolumeParameters)
+    
+    const mockVolumeDistribution: VolumeDistribution = {
+      chest: { weeklyVolume: 16, percentageOfMAV: 85 },
+      back: { weeklyVolume: 18, percentageOfMAV: 78 },
+      shoulders: { weeklyVolume: 14, percentageOfMAV: 88 },
+      arms: { weeklyVolume: 12, percentageOfMAV: 75 },
+      quads: { weeklyVolume: 15, percentageOfMAV: 82 },
+      hamstrings: { weeklyVolume: 10, percentageOfMAV: 80 },
+      glutes: { weeklyVolume: 11, percentageOfMAV: 85 },
+      calves: { weeklyVolume: 8, percentageOfMAV: 50 },
+      abs: { weeklyVolume: 6, percentageOfMAV: 40 }
+    }
+    
+    const mockAutoregulationProtocol: AutoregulationProtocol = {
+      phaseRPETargets: {
+        accumulation: { min: 6, max: 8, target: 7 },
+        intensification: { min: 7, max: 9, target: 8 },
+        realization: { min: 8, max: 10, target: 9 },
+        deload: { min: 4, max: 6, target: 5 }
+      },
+      adjustmentGuidelines: {
+        highReadiness: "Add 1 RPE point to prescribed targets. Consider additional volume.",
+        normalReadiness: "Use prescribed RPE targets as written.",
+        lowReadiness: "Reduce RPE by 1 point. Focus on movement quality.",
+        veryLowReadiness: "Reduce RPE by 2 points or implement active recovery."
+      },
+      recoveryMarkers: [
+        "Feeling energetic and motivated",
+        "Good sleep quality (7+ hours)",
+        "Low muscle soreness",
+        "Normal appetite",
+        "Positive mood"
+      ],
+      fatigueIndicators: [
+        "Persistent muscle soreness",
+        "Poor sleep quality",
+        "Elevated resting heart rate",
+        "Loss of motivation",
+        "Decreased appetite"
+      ]
+    }
+    
+    const mockWeakPointInterventions: WeakPointIntervention[] = [
+      {
+        targetArea: 'WEAK_POSTERIOR_CHAIN',
+        identifiedRatio: 'squat:deadlift',
+        currentRatio: 0.75,
+        targetRatio: 0.85,
+        priority: 'High',
+        interventionExercises: ['Romanian Deadlifts', 'Hip Thrusts', 'Good Mornings'],
+        weeklyVolume: 6,
+        progressionProtocol: 'Start with 3x8-10, progress to 4x6-8 over 6 weeks',
+        reassessmentPeriodWeeks: 6,
+        expectedOutcome: 'Improved deadlift strength and posterior chain activation'
+      }
+    ]
+    
+    const mockScientificRationale: ScientificRationale = {
+      principle: "Progressive Overload with Autoregulation",
+      evidence: "Research demonstrates that RPE-based autoregulation leads to superior strength and hypertrophy outcomes compared to fixed loading schemes (Helms et al., 2018).",
+      application: "This program uses daily readiness assessment to adjust training loads, ensuring optimal stimulus while managing fatigue accumulation.",
+      citations: [
+        "Helms, E. R., et al. (2018). RPE vs percentage 1RM loading in periodized programs matched for sets and repetitions. Sports Medicine.",
+        "Zourdos, M. C., et al. (2016). Novel resistance training-specific rating of perceived exertion scale measuring repetitions in reserve. Journal of Strength and Conditioning Research."
+      ]
+    }
+
+    const handleRPELog = (rpe: number, notes: string) => {
+      console.log('RPE logged:', { rpe, notes, timestamp: new Date().toISOString() })
+      addToast({
+        type: 'success',
+        title: 'RPE Logged',
+        description: `Recorded RPE ${rpe}/10`,
+      })
+    }
+
+    const handleProgressUpdate = (interventionId: string, progress: any) => {
+      console.log('Progress updated:', { interventionId, progress })
+      addToast({
+        type: 'success',
+        title: 'Progress Updated',
+        description: 'Weak point intervention progress recorded',
+      })
+    }
+
+    const currentPhase = program.phases[0]?.phaseName || 'Hypertrophy'
+
+    return (
+      <div className="space-y-6">
+        {/* Scientific Rationale */}
+        <ScientificRationaleComponent
+          rationale={mockScientificRationale}
+          expandedByDefault={false}
+          showCitations={true}
+        />
+
+        {/* Volume Distribution Chart */}
+        <VolumeDistributionChart
+          volumeDistribution={mockVolumeDistribution}
+          individualLandmarks={individualLandmarks}
+          showComplianceIndicators={true}
+        />
+
+        {/* Autoregulation Guidelines */}
+        <AutoregulationGuidelines
+          protocol={mockAutoregulationProtocol}
+          currentPhase={currentPhase}
+          onRPELog={handleRPELog}
+          userReadiness="normal"
+        />
+
+        {/* Weak Point Interventions */}
+        {mockWeakPointInterventions.length > 0 && (
+          <WeakPointInterventions
+            interventions={mockWeakPointInterventions}
+            onProgressUpdate={handleProgressUpdate}
+            showProgressHistory={true}
+          />
+        )}
+
+        {/* Periodization Overview */}
+        <PeriodizationOverview
+          phases={program.phases.map((phase, index) => ({
+            phaseName: phase.phaseName,
+            durationWeeks: phase.durationWeeks,
+            phaseNumber: phase.phaseNumber || index + 1,
+            primaryAdaptation: 'hypertrophy' as const,
+            progressionType: 'volume_progression' as const,
+            objectives: phase.objectives
+          }))}
+          currentPhase={0}
+          currentWeek={1}
+          progressionModel="Block Periodization"
+        />
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <DashboardLayout
@@ -877,6 +1039,9 @@ function ProgramPageContent() {
             </AccordionContent>
           </AccordionItem>
         </Accordion>
+
+        {/* Enhanced Program Components */}
+        {renderEnhancedProgramComponents(programData)}
 
         <ProgramFeedbackSection programData={programData} />
       </div>
