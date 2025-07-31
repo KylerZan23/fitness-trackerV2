@@ -73,11 +73,14 @@ export const BaseEnvironmentSchema = z.object({
     }),
 
   // AI/LLM Configuration
-  LLM_API_KEY: envApiKey('LLM_API_KEY').refine(
-    key => key.startsWith('sk-') || key.startsWith('ak-'),
-    {
-      message: 'LLM_API_KEY must be a valid OpenAI or Anthropic API key',
-    }
+  LLM_API_KEY: z.preprocess(
+    () => process.env.LLM_API_KEY || process.env.LLM_API_KEY_STAGING,
+    envApiKey('LLM_API_KEY').refine(
+      key => key.startsWith('sk-') || key.startsWith('ak-'),
+      {
+        message: 'LLM_API_KEY must be a valid OpenAI or Anthropic API key',
+      }
+    )
   ),
 
   LLM_API_ENDPOINT: envUrl('LLM_API_ENDPOINT').default(
