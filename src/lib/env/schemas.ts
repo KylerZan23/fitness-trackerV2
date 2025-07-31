@@ -148,9 +148,6 @@ export const BaseEnvironmentSchema = z.object({
 export const DevelopmentEnvironmentSchema = BaseEnvironmentSchema.extend({
   // In development, service role key is optional but recommended
   SUPABASE_SERVICE_ROLE_KEY: BaseEnvironmentSchema.shape.SUPABASE_SERVICE_ROLE_KEY,
-
-  // LLM API key is optional in development (can be mocked)
-  LLM_API_KEY: BaseEnvironmentSchema.shape.LLM_API_KEY.optional(),
 })
 
 // Production environment schema
