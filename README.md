@@ -4,7 +4,32 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 
 ## Recent Updates
 
-### Enhanced Program Validation Schema (Latest)
+### Landing Page Computer Mockup Enhancement (Latest)
+✅ **Desktop-Optimized Program Interface Showcase**
+- **Computer Display Mockup**: Replaced mobile phone mockup with laptop/desktop display
+  - Realistic browser window simulation with macOS-style traffic light controls
+  - Proper URL bar showing "neurallift.com/program" for authenticity
+  - 680x420px desktop aspect ratio with modern laptop bezel design
+  - Hover scale effect replacing mobile rotation animation
+- **Desktop-Optimized Content**: Enhanced program page preview with desktop-appropriate sizing
+  - Scaled-up typography (text-sm/text-base vs text-xs) for desktop readability
+  - Improved spacing and padding for desktop viewing experience
+  - Coach message card with AI branding and personalized welcome message
+  - Enhanced today's session card with detailed workout information
+  - Three-column stats grid showing streak, progress, and program duration
+  - Comprehensive program overview with visual progress indicators
+- **Browser-Style Interface**: Professional browser window simulation
+  - Traffic light controls (red, yellow, green) for macOS authenticity
+  - Realistic address bar with site URL display
+  - Window control buttons (minimize, maximize, close)
+  - NeuralLift app header with branding and navigation elements
+- **Improved User Experience**: Better demonstration of actual desktop application
+  - Shows realistic desktop workout tracking interface
+  - Demonstrates professional, polished application design
+  - Builds user confidence in product quality and sophistication
+  - Provides accurate preview of actual user experience
+
+### Enhanced Program Validation Schema
 ✅ **Comprehensive Scientific Validation for AI-Generated Programs**
 - **Volume Landmark Compliance**: Automated validation ensuring no muscle group exceeds calculated MRV
   - Individual volume landmark enforcement with specific violation messages

@@ -82,14 +82,7 @@ export function Testimonials() {
           ))}
         </div>
 
-        {/* Bottom CTA */}
-        <div className="text-center mt-16">
-          <p className="text-gray-600 mb-4">Ready to join thousands of satisfied users?</p>
-          <div className="inline-flex items-center gap-2 text-brand-purple font-medium">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            4.8/5 average rating from 2,000+ reviews
-          </div>
-        </div>
+
       </div>
     </section>
   )
