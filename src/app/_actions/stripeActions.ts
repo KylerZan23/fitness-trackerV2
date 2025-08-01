@@ -15,6 +15,14 @@ export async function createCheckoutSession(priceId: string) {
   }
 
   const { STRIPE_SECRET_KEY } = getServerEnv();
+
+  // --- FIX IS HERE ---
+  if (!STRIPE_SECRET_KEY) {
+    console.error('Stripe secret key is not configured.');
+    return { error: 'Payment processing is not configured on the server.' };
+  }
+  // --- END FIX ---
+
   const stripe = new Stripe(STRIPE_SECRET_KEY, {
     apiVersion: '2024-04-10',
   });
@@ -81,6 +89,14 @@ export async function createCustomerPortalSession() {
   }
 
   const { STRIPE_SECRET_KEY } = getServerEnv();
+  
+  // --- FIX IS HERE ---
+  if (!STRIPE_SECRET_KEY) {
+    console.error('Stripe secret key is not configured.');
+    return { error: 'Payment processing is not configured on the server.' };
+  }
+  // --- END FIX ---
+
   const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' });
 
   const portalSession = await stripe.billingPortal.sessions.create({
