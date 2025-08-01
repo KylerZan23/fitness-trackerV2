@@ -66,11 +66,6 @@ function formatValidationError(error: ZodError): { details: string[]; suggestion
         suggestions.push('Get your OpenAI API key from: https://platform.openai.com/api-keys')
         suggestions.push('Alternative: Use Anthropic API key from: https://console.anthropic.com/')
         break
-      case 'NEXT_PUBLIC_STRAVA_CLIENT_ID':
-      case 'STRAVA_CLIENT_SECRET':
-        suggestions.push('Create a Strava app at: https://www.strava.com/settings/api')
-        suggestions.push('Strava integration is optional - you can skip this if not needed')
-        break
     }
   }
 
@@ -217,7 +212,7 @@ export function validateEnvironmentOrThrow(): ValidatedEnvironment {
 /**
  * Check if a specific feature is available based on environment configuration
  */
-export function isFeatureAvailable(feature: 'ai' | 'strava'): boolean {
+export function isFeatureAvailable(feature: 'ai'): boolean {
   const result = validateEnvironment()
 
   if (!result.success) {
@@ -229,8 +224,6 @@ export function isFeatureAvailable(feature: 'ai' | 'strava'): boolean {
   switch (feature) {
     case 'ai':
       return !!env.LLM_API_KEY
-    case 'strava':
-      return !!(env.NEXT_PUBLIC_STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET)
     default:
       return false
   }

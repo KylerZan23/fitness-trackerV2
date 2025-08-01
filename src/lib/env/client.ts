@@ -28,24 +28,6 @@ export function getClientEnv(): ClientEnvironment {
 }
 
 /**
- * Check if a client-side feature is available
- */
-export function isClientFeatureAvailable(feature: 'strava'): boolean {
-  try {
-    const env = getClientEnv()
-
-    switch (feature) {
-      case 'strava':
-        return !!(env.NEXT_PUBLIC_STRAVA_CLIENT_ID && env.NEXT_PUBLIC_STRAVA_REDIRECT_URI)
-      default:
-        return false
-    }
-  } catch {
-    return false
-  }
-}
-
-/**
  * Get Supabase configuration for client-side usage
  */
 export function getSupabaseConfig() {
@@ -54,22 +36,6 @@ export function getSupabaseConfig() {
   return {
     url: env.NEXT_PUBLIC_SUPABASE_URL,
     anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  }
-}
-
-/**
- * Get Strava configuration for client-side usage
- */
-export function getStravaConfig() {
-  const env = getClientEnv()
-
-  if (!isClientFeatureAvailable('strava')) {
-    throw new Error('Strava integration is not configured')
-  }
-
-  return {
-    clientId: env.NEXT_PUBLIC_STRAVA_CLIENT_ID!,
-    redirectUri: env.NEXT_PUBLIC_STRAVA_REDIRECT_URI!,
   }
 }
 

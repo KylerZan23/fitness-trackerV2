@@ -18,11 +18,6 @@ export type MockProfile = {
   experience_level: string | null
   weight_unit: string | null
   onboarding_responses: Record<string, any> | null
-  strava_connected?: boolean
-  strava_refresh_token?: string | null
-  strava_access_token?: string | null
-  strava_token_expires_at?: string | null
-  strava_athlete_id?: string | null
 }
 
 export type MockWorkoutGroup = {
@@ -70,11 +65,6 @@ export const createMockProfile = (overrides: Partial<MockProfile> = {}): MockPro
   experience_level: null,
   weight_unit: null,
   onboarding_responses: null,
-  strava_connected: false,
-  strava_refresh_token: null,
-  strava_access_token: null,
-  strava_token_expires_at: null,
-  strava_athlete_id: null,
   ...overrides,
 })
 
@@ -443,4 +433,4 @@ export const expectConsistentResults = <T>(results: T[], compareFn?: (a: T, b: T
       expect(result).toEqual(firstResult)
     })
   }
-} 
+}

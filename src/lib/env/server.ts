@@ -46,23 +46,6 @@ export function getLLMConfig() {
 }
 
 /**
- * Get Strava configuration for server-side usage
- */
-export function getStravaServerConfig() {
-  const env = getServerEnv()
-
-  if (!isFeatureAvailable('strava')) {
-    throw new Error('Strava integration is not configured')
-  }
-
-  return {
-    clientId: env.NEXT_PUBLIC_STRAVA_CLIENT_ID!,
-    clientSecret: env.STRAVA_CLIENT_SECRET!,
-    redirectUri: env.NEXT_PUBLIC_STRAVA_REDIRECT_URI!,
-  }
-}
-
-/**
  * Get database connection configuration
  */
 export function getDatabaseConfig() {
@@ -78,15 +61,13 @@ export function getDatabaseConfig() {
 /**
  * Check if a specific server-side feature is available
  */
-export function isServerFeatureAvailable(feature: 'ai' | 'strava' | 'database'): boolean {
+export function isServerFeatureAvailable(feature: 'ai' | 'database'): boolean {
   try {
     const env = getServerEnv()
 
     switch (feature) {
       case 'ai':
         return !!env.LLM_API_KEY
-      case 'strava':
-        return !!(env.NEXT_PUBLIC_STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET)
       case 'database':
         return !!(env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
       default:
@@ -115,7 +96,7 @@ export function getEnvironmentConfig() {
 /**
  * Validate that required services are available for the current operation
  */
-export function requireServices(services: Array<'ai' | 'strava' | 'database'>): void {
+export function requireServices(services: Array<'ai' | 'database'>): void {
   const missingServices = services.filter(service => !isServerFeatureAvailable(service))
 
   if (missingServices.length > 0) {
@@ -129,22 +110,18 @@ export function requireServices(services: Array<'ai' | 'strava' | 'database'>): 
 /**
  * Get service configuration with validation
  */
-export function getServiceConfig<T extends 'supabase' | 'llm' | 'strava'>(
+export function getServiceConfig<T extends 'supabase' | 'llm'>(
   service: T
 ): T extends 'supabase'
   ? ReturnType<typeof getSupabaseServerConfig>
   : T extends 'llm'
     ? ReturnType<typeof getLLMConfig>
-    : T extends 'strava'
-      ? ReturnType<typeof getStravaServerConfig>
-      : never {
+    : never {
   switch (service) {
     case 'supabase':
       return getSupabaseServerConfig() as any
     case 'llm':
       return getLLMConfig() as any
-    case 'strava':
-      return getStravaServerConfig() as any
     default:
       throw new Error(`Unknown service: ${service}`)
   }

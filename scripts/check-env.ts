@@ -41,28 +41,6 @@ if (anonKey) {
   console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY: NOT FOUND')
 }
 
-// Check STRAVA variables
-const stravaClientId: string = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID || ''
-if (stravaClientId) {
-  console.log(`NEXT_PUBLIC_STRAVA_CLIENT_ID: ${stravaClientId}`)
-} else {
-  console.log('NEXT_PUBLIC_STRAVA_CLIENT_ID: NOT FOUND')
-}
 
-const stravaClientSecret: string = process.env.STRAVA_CLIENT_SECRET || ''
-if (stravaClientSecret) {
-  const firstChars = stravaClientSecret.substring(0, 10)
-  const lastChars = stravaClientSecret.substring(stravaClientSecret.length - 5)
-  console.log(`STRAVA_CLIENT_SECRET: ${firstChars}...${lastChars} (length: ${stravaClientSecret.length})`)
-} else {
-  console.log('STRAVA_CLIENT_SECRET: NOT FOUND')
-}
-
-const stravaRedirectUri: string = process.env.NEXT_PUBLIC_STRAVA_REDIRECT_URI || ''
-if (stravaRedirectUri) {
-  console.log(`NEXT_PUBLIC_STRAVA_REDIRECT_URI: ${stravaRedirectUri}`)
-} else {
-  console.log('NEXT_PUBLIC_STRAVA_REDIRECT_URI: NOT FOUND')
-}
 
 console.log('\nEnvironment check complete.') 

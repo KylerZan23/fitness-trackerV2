@@ -23,9 +23,8 @@ export type {
 export type EnvironmentType = 'development' | 'production' | 'test'
 
 // Feature availability types
-export type ClientFeature = 'strava'
-export type ServerFeature = 'ai' | 'strava' | 'database'
-export type ServiceName = 'supabase' | 'llm' | 'strava'
+export type ServerFeature = 'ai' | 'database'
+export type ServiceName = 'supabase' | 'llm'
 
 // Configuration types
 export interface SupabaseConfig {
@@ -37,12 +36,6 @@ export interface SupabaseConfig {
 export interface LLMConfig {
   apiKey: string
   endpoint: string
-}
-
-export interface StravaConfig {
-  clientId: string
-  clientSecret?: string
-  redirectUri: string
 }
 
 export interface EnvironmentConfig {
@@ -67,9 +60,6 @@ export type OptionalEnvVars =
   | 'SUPABASE_SERVICE_ROLE_KEY'
   | 'LLM_API_KEY'
   | 'LLM_API_ENDPOINT'
-  | 'NEXT_PUBLIC_STRAVA_CLIENT_ID'
-  | 'STRAVA_CLIENT_SECRET'
-  | 'NEXT_PUBLIC_STRAVA_REDIRECT_URI'
 
 export type AllEnvVars = RequiredEnvVars | OptionalEnvVars
 

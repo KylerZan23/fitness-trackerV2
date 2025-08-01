@@ -75,7 +75,6 @@ interface UserProfile {
   age: number | null
   fitness_goals: string | null
   weight_unit: string | null
-  strava_connected: boolean | null
   primary_training_focus?: string | null
   experience_level?: string | null
   // other profile fields
@@ -377,7 +376,7 @@ USER PROFILE CONTEXT:
 - Primary Goal: ${userProfile.fitness_goals || 'General fitness'}
 - Experience Level: ${userProfile.experience_level || 'Not specified'}
 - Weight Unit: ${userProfile.weight_unit || 'kg'}
-- Strava Connected: ${userProfile.strava_connected ? 'Yes' : 'No'}
+
 ${programContextSection}
 
 ENHANCED INSTRUCTIONS:
@@ -685,7 +684,7 @@ export async function getAICoachRecommendation(): Promise<
 
     const dataSignatureObject = {
       profileFitnessGoals: profile?.fitness_goals || null,
-      stravaConnected: profile?.strava_connected || false,
+  
       totalWorkouts: summary?.total_workout_sessions || 0,
       totalRuns: summary?.total_run_sessions || 0,
       workoutsThisWeek: summary?.workout_days_this_week || 0,
@@ -844,7 +843,7 @@ You are an expert AI Fitness Coach for NeuralLift. Your primary goal is to provi
 - Age: ${profile?.age || 'Not specified'}
 - Fitness Goals: ${profile?.fitness_goals || 'Not set'}
 - Preferred Weight Unit: ${preferredWeightUnit}
-- Strava Connected for Runs: ${profile?.strava_connected ? 'Yes' : 'No'}
+
 - Primary Training Focus: ${profile?.primary_training_focus || 'General Fitness'}
 - Experience Level: ${profile?.experience_level || 'Not Specified'}
 

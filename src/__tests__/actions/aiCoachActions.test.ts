@@ -38,7 +38,6 @@ const createMockUserProfile = () => ({
   age: 30,
   fitness_goals: 'Build muscle',
   weight_unit: 'kg',
-  strava_connected: true,
   primary_training_focus: 'Bodybuilding',
   experience_level: 'Intermediate',
 })
@@ -436,4 +435,4 @@ describe('aiCoachActions', () => {
       )
     })
   })
-}) 
+})

@@ -87,20 +87,7 @@ export const BaseEnvironmentSchema = z.object({
     'https://api.openai.com/v1/chat/completions'
   ),
 
-  // Strava Integration (Optional)
-  NEXT_PUBLIC_STRAVA_CLIENT_ID: envStringRequired('NEXT_PUBLIC_STRAVA_CLIENT_ID')
-    .optional()
-    .refine(id => !id || /^\d+$/.test(id), {
-      message: 'NEXT_PUBLIC_STRAVA_CLIENT_ID must be numeric',
-    }),
 
-  STRAVA_CLIENT_SECRET: envApiKey('STRAVA_CLIENT_SECRET', 40)
-    .optional()
-    .refine(secret => !secret || /^[a-f0-9]{40}$/.test(secret), {
-      message: 'STRAVA_CLIENT_SECRET must be a 40-character hex string',
-    }),
-
-  NEXT_PUBLIC_STRAVA_REDIRECT_URI: envUrl('NEXT_PUBLIC_STRAVA_REDIRECT_URI').optional(),
 
   // Stripe Configuration
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: envApiKey('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 100)
@@ -168,10 +155,7 @@ export const TestEnvironmentSchema = BaseEnvironmentSchema.extend({
   LLM_API_KEY: BaseEnvironmentSchema.shape.LLM_API_KEY.optional(),
   SUPABASE_SERVICE_ROLE_KEY: BaseEnvironmentSchema.shape.SUPABASE_SERVICE_ROLE_KEY.optional(),
 
-  // Strava integration not needed in tests
-  NEXT_PUBLIC_STRAVA_CLIENT_ID: z.string().optional(),
-  STRAVA_CLIENT_SECRET: z.string().optional(),
-  NEXT_PUBLIC_STRAVA_REDIRECT_URI: z.string().optional(),
+
 
   // Stripe integration not needed in tests
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
@@ -189,8 +173,6 @@ export const ClientEnvironmentSchema = z.object({
   NODE_ENV: BaseEnvironmentSchema.shape.NODE_ENV,
   NEXT_PUBLIC_SUPABASE_URL: BaseEnvironmentSchema.shape.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: BaseEnvironmentSchema.shape.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  NEXT_PUBLIC_STRAVA_CLIENT_ID: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRAVA_CLIENT_ID,
-  NEXT_PUBLIC_STRAVA_REDIRECT_URI: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRAVA_REDIRECT_URI,
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
   NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY,
   NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL,

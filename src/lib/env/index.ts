@@ -49,7 +49,6 @@ export {
   getServerEnv,
   getSupabaseServerConfig,
   getLLMConfig,
-  getStravaServerConfig,
   getDatabaseConfig,
   isServerFeatureAvailable,
   getEnvironmentConfig,
@@ -60,9 +59,7 @@ export {
 // Client-side utilities
 export {
   getClientEnv,
-  isClientFeatureAvailable,
   getSupabaseConfig,
-  getStravaConfig,
   isClientDevelopment,
   isClientProduction,
 } from './client'
@@ -77,12 +74,10 @@ export type {
   ServerEnvironment,
   ValidatedEnvironment,
   EnvironmentType,
-  ClientFeature,
   ServerFeature,
   ServiceName,
   SupabaseConfig,
   LLMConfig,
-  StravaConfig,
   EnvironmentConfig,
   ValidationResult,
   ValidationSuccess,
@@ -120,7 +115,6 @@ export function getEnvironmentHealth(): {
   details: {
     core: boolean
     ai: boolean
-    strava: boolean
   }
   warnings: string[]
 } {
@@ -132,7 +126,6 @@ export function getEnvironmentHealth(): {
       details: {
         core: false,
         ai: false,
-        strava: false,
       },
       warnings: result.details,
     }
@@ -141,10 +134,9 @@ export function getEnvironmentHealth(): {
   const details = {
     core: true, // If validation passed, core is healthy
     ai: isFeatureAvailable('ai'),
-    strava: isFeatureAvailable('strava'),
   }
 
-  const hasOptionalFeatures = details.ai || details.strava
+  const hasOptionalFeatures = details.ai
   const status = hasOptionalFeatures ? 'healthy' : 'degraded'
 
   return {

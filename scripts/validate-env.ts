@@ -37,7 +37,7 @@ function formatValidationResults() {
     console.log('🎯 Feature Availability:')
     console.log(`   Core Services: ${health.details.core ? '✅' : '❌'}`)
     console.log(`   AI Features: ${health.details.ai ? '✅' : '❌'}`)
-    console.log(`   Strava Integration: ${health.details.strava ? '✅' : '❌'}`)
+  
     console.log('')
 
     console.log(`🏥 Overall Health: ${health.status.toUpperCase()}`)

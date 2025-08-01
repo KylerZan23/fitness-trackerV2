@@ -1068,106 +1068,20 @@ export async function getWorkoutsForMonth(
     }))
     console.log(`Found ${liftingWorkouts.length} lifting workouts for ${year}-${monthIndex + 1}.`)
 
-    // 2. Fetch Strava Runs
-    console.log(
-      `Querying monthly Strava runs between UTC: ${startDateUTC.toISOString()} and ${endDateUTC.toISOString()}`
-    )
-    const { data: runData, error: runError } = await browserSupabaseClient
-      .from('user_strava_activities')
-      .select('id, strava_activity_id, name, start_date, moving_time, distance') // Added distance
-      .eq('user_id', userId)
-      .eq('type', 'Run')
-      .gte('start_date', startDateUTC.toISOString())
-      .lt('start_date', endDateUTC.toISOString())
-    // No sort here, will sort combined array later
-
-    if (runError) {
-      console.error(`Error fetching Strava runs for ${year}-${monthIndex + 1}:`, runError)
-      // Continue if runs fail for now
-    }
-
-    const stravaRuns: HistoricalWorkout[] = (runData || []).map(activity => ({
-      id: String(activity.strava_activity_id),
-      created_at: activity.start_date,
-      duration: Math.round((activity.moving_time ?? 0) / 60),
-      exerciseName: activity.name ?? 'Strava Run',
-      type: 'run' as const,
-      distance: activity.distance ?? 0, // Added distance, default to 0 if null
-    }))
-    console.log(`Found ${stravaRuns.length} Strava runs for ${year}-${monthIndex + 1}.`)
-
-    // 3. Combine and Sort
-    const combinedWorkouts = [...liftingWorkouts, ...stravaRuns]
-    combinedWorkouts.sort(
+    // Sort lifting workouts by date
+    liftingWorkouts.sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     )
 
-    console.log(`Total combined workouts for ${year}-${monthIndex + 1}: ${combinedWorkouts.length}`)
-    return combinedWorkouts
+    console.log(`Total workouts for ${year}-${monthIndex + 1}: ${liftingWorkouts.length}`)
+    return liftingWorkouts
   } catch (error) {
     console.error(`Error in getWorkoutsForMonth (${year}-${monthIndex + 1}):`, error)
     return []
   }
 }
 
-/**
- * Retrieves locally stored Strava run activities for a specific year, formatted for calendar display.
- * @param userId The ID of the user.
- * @param year The full year (e.g., 2024).
- * @returns Array of HistoricalWorkout for the specified year or empty array.
- */
-export async function getLocalStravaRunsForYear(
-  userId: string,
-  year: number
-): Promise<HistoricalWorkout[]> {
-  if (!userId) {
-    console.warn('getLocalStravaRunsForYear: No userId provided.')
-    return []
-  }
-  console.log(`Fetching local Strava runs for user ${userId.substring(0, 6)}... for year ${year}`)
 
-  try {
-    const { data, error } = await browserSupabaseClient
-      .from('user_strava_activities')
-      .select('id, strava_activity_id, name, start_date, moving_time') // Select necessary fields
-      .eq('user_id', userId)
-      .eq('type', 'Run') // Ensure we only get runs
-      .gte('start_date', `${year}-01-01T00:00:00.000Z`) // Activities on or after Jan 1st of the year (UTC)
-      .lt('start_date', `${year + 1}-01-01T00:00:00.000Z`) // Activities before Jan 1st of the next year (UTC)
-      .order('start_date', { ascending: true })
-
-    if (error) {
-      console.error(
-        `Error fetching local Strava runs for user ${userId.substring(0, 6)} year ${year}:`,
-        error
-      )
-      return []
-    }
-
-    if (!data) {
-      console.log(`No local Strava run data found for user ${userId.substring(0, 6)} year ${year}.`)
-      return []
-    }
-
-    console.log(
-      `Found ${data.length} local Strava runs for user ${userId.substring(0, 6)} year ${year}.`
-    )
-
-    return data.map(activity => ({
-      id: String(activity.strava_activity_id), // Use Strava's activity ID for keying, but could be our own `id` too
-      created_at: activity.start_date, // This is already TIMESTAMPTZ (UTC)
-      duration: Math.round((activity.moving_time ?? 0) / 60), // Convert seconds to minutes, handle null
-      exerciseName: activity.name ?? 'Strava Run', // Use activity name or default
-      type: 'run' as const, // Explicitly type as 'run'
-    }))
-  } catch (err) {
-    console.error(
-      `Exception in getLocalStravaRunsForYear for user ${userId.substring(0, 6)} year ${year}:`,
-      err
-    )
-    return []
-  }
-}
 
 // Function to get weekly muscle comparison data
 /**

@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata = {
   title: 'NeuralLift - AI-Powered Strength Training & Progress Optimization',
   description:
-    'Transform your strength training with AI-powered programs, track workouts with Strava integration, and unlock your lifting potential with NeuralLift.',
+    'Transform your strength training with AI-powered programs, track workouts, and unlock your lifting potential with NeuralLift.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
