@@ -10,17 +10,26 @@ let clientEnv: ClientEnvironment | null = null
 export function getClientEnv(): ClientEnvironment {
   if (!clientEnv) {
     try {
-      // Filter to only include client-safe environment variables
-      const clientSafeEnv = Object.fromEntries(
-        Object.entries(process.env).filter(
-          ([key]) => key.startsWith('NEXT_PUBLIC_') || key === 'NODE_ENV'
-        )
-      )
+      // Build client environment object from known variables
+      const clientSafeEnv = {
+        NODE_ENV: process.env.NODE_ENV,
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+        NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY,
+        NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL,
+      }
 
       clientEnv = ClientEnvironmentSchema.parse(clientSafeEnv)
     } catch (error) {
       console.error('❌ Client environment validation failed:', error)
-      throw new Error('Client environment configuration is invalid')
+      console.log('📊 Available environment variables:', {
+        NODE_ENV: process.env.NODE_ENV,
+        hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        hasStripeKey: !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+      })
+      throw new Error('Client environment configuration is invalid. Check console for details.')
     }
   }
 
