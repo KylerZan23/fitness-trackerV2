@@ -11,7 +11,7 @@ const {
   STRIPE_WEBHOOK_SECRET
 } = getServerEnv();
 
-const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' });
 
 export async function POST(req: Request) {
