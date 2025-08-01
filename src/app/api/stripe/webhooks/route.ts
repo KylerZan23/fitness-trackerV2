@@ -12,7 +12,7 @@ const {
 } = getServerEnv();
 
 const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' });
+const stripe = new Stripe(STRIPE_SECRET_KEY!, { apiVersion: '2024-04-10' });
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, sig, STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(body, sig, STRIPE_WEBHOOK_SECRET!);
   } catch (err: any) {
     console.error(`❌ Webhook signature verification failed:`, err.message);
     return new Response(`Webhook Error: ${err.message}`, { status: 400 });
