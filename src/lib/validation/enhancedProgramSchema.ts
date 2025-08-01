@@ -8,8 +8,8 @@
  */
 
 import { z } from 'zod'
-import { DayOfWeek, type WorkoutFocus } from '@/lib/types/program'
-import { MUSCLE_GROUP_BASE_VOLUMES, type VolumeLandmarks } from '@/lib/volumeCalculations'
+import { DayOfWeek, type WorkoutFocus, type VolumeLandmarks } from '@/lib/types/program'
+import { MUSCLE_GROUP_BASE_VOLUMES } from '@/lib/volumeCalculations'
 import { STRENGTH_RATIO_STANDARDS } from '@/lib/weakPointAnalysis'
 
 // ═══════════════════════════════════════════════════════════════════════════════
