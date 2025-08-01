@@ -24,7 +24,7 @@ export async function createCheckoutSession(priceId: string) {
   // --- END FIX ---
 
   const stripe = new Stripe(STRIPE_SECRET_KEY, {
-    apiVersion: '2024-06-20', // Using the latest official API version
+    apiVersion: '2024-09-30.acacia' as any, // Workaround for a type definition issue
   });
 
   const { data: profile } = await supabase
@@ -98,7 +98,7 @@ export async function createCustomerPortalSession() {
   // --- END FIX ---
 
   const stripe = new Stripe(STRIPE_SECRET_KEY, { 
-    apiVersion: '2024-06-20', // Using the latest official API version
+    apiVersion: '2024-09-30.acacia' as any, // Workaround for a type definition issue
   });
 
   const portalSession = await stripe.billingPortal.sessions.create({
