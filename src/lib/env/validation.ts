@@ -173,7 +173,7 @@ export function validateEnvironment(): ValidationResult<ValidatedEnvironment> {
       return {
         success: false,
         error:
-          false // Temporarily force detailed development errors
+          envType === 'production'
             ? createProductionErrorMessage()
             : createDevelopmentErrorMessage(errorMessage, details, suggestions),
         details,
