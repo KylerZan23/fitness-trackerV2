@@ -1,4 +1,5 @@
-import { supabase as browserSupabaseClient } from '../supabase'
+import { createClient as createBrowserClient } from '@/utils/supabase/client'
+const browserSupabaseClient = createBrowserClient()
 import { WorkoutFormData, WorkoutGroupData, WorkoutExerciseData } from '../schemas'
 import {
   startOfWeek,
