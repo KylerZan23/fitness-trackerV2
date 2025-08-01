@@ -66,13 +66,15 @@ export default function SignupPage() {
       if (authData.user) {
         console.log('Account created successfully, creating profile via direct insertion...')
 
-        // Conservative approach: Only insert columns that definitely exist in base schema
+        // Include trial and premium status fields for new users
         const profileData = {
           id: authData.user.id,
           email: data.email,
           name: data.name,
           age: 25, // Default age
           fitness_goals: 'Get fit', // Default goal
+          is_premium: false, // New users start as non-premium
+          trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7-day trial
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
