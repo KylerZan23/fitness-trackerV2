@@ -27,11 +27,18 @@ jobs:
       - name: Validate Environment Variables
         run: yarn validate:env
         env:
+          # This now includes ALL required secrets for validation, including Stripe
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_STAGING }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY_STAGING }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY_STAGING }}
-          LLM_API_ENDPOINT: ${{ secrets.LLM_API_ENDPOINT_STAGING }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PRICE_ID_MONTHLY: ${{ secrets.STRIPE_PRICE_ID_MONTHLY }}
+          STRIPE_PRICE_ID_ANNUAL: ${{ secrets.STRIPE_PRICE_ID_ANNUAL }}
+          NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: ${{ secrets.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY }}
+          NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL: ${{ secrets.NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL }}
           CI: true
 
       - name: Run ESLint
