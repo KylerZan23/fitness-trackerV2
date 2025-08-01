@@ -5,7 +5,8 @@
  */
 
 import { useState, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 import Image from 'next/image'
 
 interface ProfilePictureUploadProps {

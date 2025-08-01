@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { getPostComments } from '@/app/_actions/communityActions'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 import { CommentForm } from './CommentForm'
 import { CommentItem } from './CommentItem'
 import { Button } from '@/components/ui/button'

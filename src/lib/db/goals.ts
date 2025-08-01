@@ -1,6 +1,7 @@
 // src/lib/goalsDb.ts - Dedicated file for goal-related DB functions
 
-import { supabase as browserSupabaseClient } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const browserSupabaseClient = createClient()
 import type { GoalWithProgress } from '@/lib/types'
 import { startOfWeek, endOfWeek, formatISO } from 'date-fns'
 import { SupabaseClient } from '@supabase/supabase-js'

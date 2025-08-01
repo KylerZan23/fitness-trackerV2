@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 import { Error } from '@/components/ui/error'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { SocialProfileHeader } from '@/components/profile/SocialProfileHeader'

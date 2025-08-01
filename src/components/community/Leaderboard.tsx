@@ -23,7 +23,8 @@ import { Crown, Dumbbell, Target, Loader2, AlertCircle, RefreshCw, ToggleLeft, T
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { kgToLbs } from '@/lib/units'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 
 function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
   const [mode, setMode] = useState<LeaderboardMode>('e1rm')

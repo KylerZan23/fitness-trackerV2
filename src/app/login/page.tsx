@@ -6,7 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
 // import Image from 'next/image' // Removed as image panel is being removed
 import { LoginFormData, loginSchema } from '@/lib/schemas'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label' // Added

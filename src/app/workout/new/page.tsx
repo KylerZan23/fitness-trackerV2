@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 import { logWorkoutGroup, getUserProfile } from '@/lib/db/index'
 import { getPendingWorkoutSession } from '@/app/_actions/workoutSessionActions'
 import { Play, Pause, Square, Clock, CheckCircle, LayoutGrid, Focus, ChevronLeft, ChevronRight, Target } from 'lucide-react'

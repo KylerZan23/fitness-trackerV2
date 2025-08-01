@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, Suspense, useMemo, useRef, use } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import {
   fetchActiveProgramAction,

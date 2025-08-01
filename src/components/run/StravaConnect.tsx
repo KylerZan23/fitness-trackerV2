@@ -11,7 +11,8 @@ import {
   removeTokensFromDatabase,
   removeTokensFromLocalStorage,
 } from '@/lib/strava/token-store'
-import { supabase } from '@/lib/supabase' // Import the browser client
+import { createClient } from '@/utils/supabase/client' // Import the browser client
+const supabase = createClient()
 
 interface StravaConnectProps {
   userId: string

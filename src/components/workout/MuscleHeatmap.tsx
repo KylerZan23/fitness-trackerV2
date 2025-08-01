@@ -10,7 +10,8 @@ import {
   startOfMonth,
   endOfMonth,
 } from 'date-fns'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 import { MuscleGroup } from '@/lib/types'
 
 interface MuscleData {

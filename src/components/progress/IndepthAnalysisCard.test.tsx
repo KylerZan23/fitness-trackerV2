@@ -1,7 +1,8 @@
 import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { IndepthAnalysisCard } from './IndepthAnalysisCard'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 
 // Mock Supabase
 jest.mock('@/lib/supabase', () => ({

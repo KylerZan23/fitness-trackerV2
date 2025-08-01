@@ -10,7 +10,8 @@ import {
   startOfMonth,
   endOfMonth,
 } from 'date-fns'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 import { MuscleGroup, findMuscleGroupForExercise } from '@/lib/types'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, Title } from 'chart.js'
 import { Pie } from 'react-chartjs-2'

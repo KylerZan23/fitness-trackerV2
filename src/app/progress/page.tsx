@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 import { getUserProfile } from '@/lib/db/index'
 import { TrendingUp, BarChart3, Activity, Zap } from 'lucide-react'
 

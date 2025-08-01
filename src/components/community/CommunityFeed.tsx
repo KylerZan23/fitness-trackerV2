@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+const supabase = createClient()
 import { Users, Trophy, Flame, Dumbbell, Clock } from 'lucide-react'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Card, CardContent } from '@/components/ui/card'
