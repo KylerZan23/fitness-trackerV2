@@ -24,7 +24,7 @@ export async function createCheckoutSession(priceId: string) {
   // --- END FIX ---
 
   const stripe = new Stripe(STRIPE_SECRET_KEY, {
-    apiVersion: '2024-04-10',
+    apiVersion: '2024-06-20', // Using the latest official API version
   });
 
   const { data: profile } = await supabase
@@ -97,7 +97,9 @@ export async function createCustomerPortalSession() {
   }
   // --- END FIX ---
 
-  const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' });
+  const stripe = new Stripe(STRIPE_SECRET_KEY, { 
+    apiVersion: '2024-06-20', // Using the latest official API version
+  });
 
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: profile.stripe_customer_id,
