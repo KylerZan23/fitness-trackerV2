@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { BarChart3, Info, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
-import { VolumeDistribution, VolumeLandmarks } from '@/lib/validation/enhancedProgramSchema'
+import { VolumeDistribution } from '@/lib/validation/enhancedProgramSchema'
+import { VolumeLandmarks } from '@/lib/types/program'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface VolumeDistributionChartProps {
