@@ -181,6 +181,7 @@ const TrainingProgramSchema = z.object({
  */
 type ProgramGenerationResponse =
   | { program: TrainingProgram; success: true }
+  | { success: true; message: string }
   | { error: string; success: false }
 
 /**
@@ -762,7 +763,8 @@ async function processEnhancedUserData(
 async function constructEnhancedLLMPrompt(
   profile: UserProfileForGeneration,
   processingResult: EnhancedProcessingResult,
-  complexity: 'full' | 'simplified' | 'basic' = 'full'
+  complexity: 'full' | 'simplified' | 'basic' = 'full',
+  hasPaidAccess: boolean = true
 ): Promise<string> {
   const { 
     enhancedProfile, 
@@ -1015,8 +1017,26 @@ MANDATORY EVIDENCE-BASED CONSTRAINTS:
 
 6. **Mandatory Anchor Lifts**: Every non-rest day MUST have a designated anchor lift as the first exercise - a major compound movement receiving primary progression focus.
 
+${!hasPaidAccess ? `
+**CRITICAL CONSTRAINT: FREE TRIAL USER - EXAMPLE WEEK ONLY**
+- You MUST generate exactly ONE example week from their full training program.
+- The program's durationWeeksTotal must be exactly 1.
+- This is NOT a comprehensive one-week program - it's just a sample week to show program quality.
+- Structure this as a single week that would be part of a larger program (e.g., Week 3 of a 6-week program).
+- In the 'coachIntro', emphasize this is just a taste of their full personalized program and encourage upgrading.
+- Make the week compelling enough to show the value of the full subscription.
+- Focus on demonstrating the scientific approach and personalization quality.
+` : ''}
+
 TECHNICAL REQUIREMENTS:
-- Create a ${getDurationBasedOnGoals(onboarding)}-week program with appropriate phases
+${!hasPaidAccess ? `
+- Create exactly ONE example week (not a full program) to demonstrate program quality
+- Structure this as a sample week that would be part of a larger ${getDurationBasedOnGoals(onboarding, true)}-week program
+- Focus on showing the scientific approach and personalization quality
+- Make it compelling enough to encourage upgrading to the full program
+` : `
+- Create a ${getDurationBasedOnGoals(onboarding, hasPaidAccess)}-week program with appropriate phases
+`}
 - Each workout should have 6-10 exercises (including warm-up/cool-down)
 - Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.)
 - For rest days: set isRestDay: true, empty exercises array
@@ -1041,7 +1061,14 @@ NEURAL'S COACHING CUES (integrate appropriately):
 ${NEURAL_COACHING_CUES}
 
 TECHNICAL REQUIREMENTS:
-- Create a ${getDurationBasedOnGoals(onboarding)}-week program with appropriate phases
+${!hasPaidAccess ? `
+- Create exactly ONE example week (not a full program) to demonstrate program quality
+- Structure this as a sample week that would be part of a larger ${getDurationBasedOnGoals(onboarding, true)}-week program
+- Focus on showing the scientific approach and personalization quality
+- Make it compelling enough to encourage upgrading to the full program
+` : `
+- Create a ${getDurationBasedOnGoals(onboarding, hasPaidAccess)}-week program with appropriate phases
+`}
 - Each workout should have 6-10 exercises (including warm-up/cool-down)
 - Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.)
 - For rest days: set isRestDay: true, empty exercises array
@@ -1056,11 +1083,19 @@ TECHNICAL REQUIREMENTS:
 ${typeDefinitions}
 
 NEURAL'S COACHING VOICE REQUIREMENTS:
+${!hasPaidAccess ? `
+- **coachIntro**: Write a personalized introduction that emphasizes this is just ONE example week from their full personalized program. Mention their goal (${onboarding.primaryGoal}) and encourage them to upgrade for the complete ${getDurationBasedOnGoals(onboarding, true)}-week program with full periodization, progression, and adaptation.
+- **description**: Highlight this is a sample week demonstrating the scientific approach and personalization quality they can expect from the full program.
+- **generalAdvice**: Explain this week's training focus and mention how it fits into a larger program structure. Emphasize the value of the full subscription.
+- **TrainingWeek.coachTip**: Provide guidance for this specific week while mentioning how it would progress in the full program.
+- **ExerciseDetail.notes**: For anchor lifts and key exercises, provide concise form cues or scientific rationale. Mark anchor lifts clearly.
+` : `
 - **coachIntro**: Write a personalized, motivational introduction directly to ${profile.name}. Reference their specific goal (${onboarding.primaryGoal}) and the science-based approach you've designed for them.
 - **description**: Provide a compelling 1-2 sentence summary highlighting the evidence-based nature of the program.
 - **generalAdvice**: Start with "Here's the game plan..." and explain the scientific rationale behind your program structure, referencing volume landmarks, periodization, and weak point strategies.
 - **TrainingWeek.coachTip**: For each week, provide specific guidance related to that week's training focus (volume accumulation, intensification, deload, etc.).
 - **ExerciseDetail.notes**: For anchor lifts and key exercises, provide concise form cues or scientific rationale. Mark anchor lifts clearly.
+`}
 
 NEURAL'S COACHING CUES (integrate appropriately):
 ${NEURAL_COACHING_CUES}
@@ -1076,7 +1111,8 @@ Return ONLY valid JSON matching the TrainingProgram interface. No additional tex
  */
 async function callEnhancedLLMAPI(
   profile: UserProfileForGeneration,
-  processingResult: EnhancedProcessingResult
+  processingResult: EnhancedProcessingResult,
+  hasPaidAccess: boolean = true
 ): Promise<{ program?: any; error?: string; attempts?: number; finalComplexity?: string }> {
   const complexityLevels: Array<'full' | 'simplified' | 'basic'> = ['full', 'simplified', 'basic']
   let attempts = 0
@@ -1090,7 +1126,7 @@ async function callEnhancedLLMAPI(
 
     try {
       // Construct prompt with current complexity level
-      const prompt = await constructEnhancedLLMPrompt(profile, processingResult, complexity)
+      const prompt = await constructEnhancedLLMPrompt(profile, processingResult, complexity, hasPaidAccess)
       
       // Log prompt effectiveness metrics
       console.log(`📊 Prompt metrics - Length: ${prompt.length} chars, Complexity: ${complexity}`)
@@ -1129,7 +1165,12 @@ async function callEnhancedLLMAPI(
 /**
  * Determine program duration based on user goals
  */
-function getDurationBasedOnGoals(onboarding: OnboardingData): number {
+function getDurationBasedOnGoals(onboarding: OnboardingData, isPaidUser: boolean): number {
+  // Free trial users get 1 example week only
+  if (!isPaidUser) {
+    return 1
+  }
+
   const { primaryGoal } = onboarding
 
   // Adjust duration based on goals (shortened to 4-6 weeks to manage token limits)
@@ -1182,10 +1223,9 @@ async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: stri
 }
 
 /**
- * Main server action to generate a new training program for a user.
- * Supports two signatures:
- * 1. generateTrainingProgram(user, onboardingData) - for new onboarding flow
- * 2. generateTrainingProgram(userId) - for regenerating existing programs
+ * Lightweight server action to trigger training program generation.
+ * Creates a database entry and invokes the background generation process via Edge Function.
+ * Returns immediately with a success status while generation runs in the background.
  */
 export async function generateTrainingProgram(
   user: User,
@@ -1205,7 +1245,17 @@ export async function generateTrainingProgram(
     if (typeof userOrUserId === 'string') {
       // Legacy signature: generateTrainingProgram(userId)
       const userId = userOrUserId
-      console.log('Generating training program for user:', userId)
+      console.log('🔧 Triggering program generation for existing user:', userId)
+
+      // Authenticate the current user
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser()
+      if (authError || !currentUser) {
+        return { error: 'Authentication required. Please log in again.', success: false }
+      }
+
+      if (currentUser.id !== userId) {
+        return { error: 'Access denied. You can only generate your own programs.', success: false }
+      }
 
       // Fetch user profile and onboarding data from database
       const { data: profile, error: profileError } = await supabase
@@ -1214,182 +1264,84 @@ export async function generateTrainingProgram(
         .eq('id', userId)
         .maybeSingle()
 
-      if (profileError) {
-        console.error('Error fetching user profile:', profileError)
+      if (profileError || !profile) {
         return { error: 'Failed to load your profile. Please try again.', success: false }
       }
 
-      if (!profile) {
-        console.error('Profile is null for user:', userId)
-        return { error: 'Your profile was not found. Please complete the signup process again.', success: false }
-      }
-
       if (!profile.onboarding_responses) {
-        console.error('User has not completed onboarding:', userId)
         return { error: 'Please complete your onboarding first.', success: false }
       }
 
-      // Validate that profile has required fields
-      if (!profile.name || !profile.age) {
-        console.error('Profile missing required fields for user:', userId, profile)
-        return { error: 'Your profile is incomplete. Please contact support.', success: false }
+      // Check user's subscription status
+      const hasPaidAccess = await hasActiveSubscription(userId)
+      if (!hasPaidAccess) {
+        return { success: false, error: 'You need a premium subscription to generate a new program.' }
       }
 
-      // Use the profile data as the user profile for generation
-      const userProfileForGeneration: UserProfileForGeneration = {
-        id: profile.id,
-        name: profile.name,
-        age: profile.age,
-        weight_unit: profile.weight_unit,
-        primary_training_focus: profile.primary_training_focus,
-        experience_level: profile.experience_level,
-        onboarding_responses: profile.onboarding_responses,
-      }
-
-      // Continue with enhanced program generation
-      console.log('🎯 Starting enhanced program generation pipeline...')
-      const processingResult = await processEnhancedUserData(userProfileForGeneration)
-      
-      // Use enhanced LLM call with retry logic
-      const { program: llmResponse, error: llmError, attempts, finalComplexity } = await callEnhancedLLMAPI(
-        userProfileForGeneration, 
-        processingResult
-      )
-
-      if (llmError) {
-        console.error(`LLM API error after ${attempts} attempts:`, llmError)
-        return { error: 'Unable to generate your training program at this time. Please try again later.', success: false }
-      }
-
-      console.log(`🎉 Program generated successfully using ${finalComplexity} complexity in ${attempts} attempts`)
-
-      // Add generatedAt and aiModelUsed if not provided by LLM
-      const programData = {
-        ...llmResponse,
-        generatedAt: llmResponse.generatedAt || new Date().toISOString(),
-        aiModelUsed: llmResponse.aiModelUsed || 'gpt-4o',
-      }
-
-      // Enhanced validation process
-      console.log('🔍 Starting enhanced validation process...')
-      
-      // First try enhanced validation, fallback to basic if needed
-      let validatedProgram: TrainingProgram
-      let validationNotes: string[] = []
-      
-      try {
-        const enhancedValidation = validateEnhancedProgram(
-          programData,
-          processingResult.volumeLandmarks,
-          processingResult.identifiedWeakPoints
-        )
-        
-        if (enhancedValidation.isValid) {
-          console.log('✅ Enhanced validation passed!')
-          // Parse with enhanced schema
-          const enhancedResult = ENHANCED_PROGRAM_VALIDATION.safeParse(programData)
-          if (enhancedResult.success) {
-            validatedProgram = enhancedResult.data as unknown as TrainingProgram
-            validationNotes.push('Enhanced scientific validation passed')
-          } else {
-            throw new Error('Enhanced schema parse failed')
-          }
-        } else {
-          console.log('⚠️ Enhanced validation failed, trying basic validation...')
-          validationNotes.push(`Enhanced validation failed: ${enhancedValidation.violations.join(', ')}`)
-          throw new Error('Enhanced validation failed')
-        }
-      } catch (enhancedError) {
-        console.log('📋 Falling back to basic validation...')
-        // Fallback to basic validation
-        const basicValidation = TrainingProgramSchema.safeParse(programData)
-        if (!basicValidation.success) {
-          console.error('Both enhanced and basic validation failed:', basicValidation.error)
-          return { error: 'The generated program has validation errors. Please try again.', success: false }
-        }
-        validatedProgram = basicValidation.data as unknown as TrainingProgram
-        validationNotes.push('Used basic validation due to enhanced validation failure')
-      }
-
-      // Enhanced database storage with scientific analysis
-      console.log('💾 Saving enhanced program data to database...')
-      
-      // Prepare data with fallback for schema compatibility
-      const insertData: any = {
-        user_id: userId,
-        program_details: validatedProgram,
-        ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
-        onboarding_data_snapshot: profile.onboarding_responses,
-        // Enhanced scientific data with fallback handling
-        weak_point_analysis: processingResult.weakPointAnalysis,
-        periodization_model: processingResult.periodizationModel,
-        generation_metadata: {
-          attempts: attempts,
-          finalComplexity: finalComplexity,
-          validationNotes: validationNotes,
-          processingTimestamp: new Date().toISOString(),
-          enhancedUserProfile: {
-            trainingAge: processingResult.enhancedProfile.volumeParameters.trainingAge,
-            recoveryCapacity: processingResult.enhancedProfile.volumeParameters.recoveryCapacity,
-            stressLevel: processingResult.enhancedProfile.volumeParameters.stressLevel,
-            volumeTolerance: processingResult.enhancedProfile.volumeParameters.volumeTolerance,
-          }
-        }
-      }
-
-      // Handle volume_landmarks with schema compatibility
-      if (processingResult.volumeLandmarks) {
-        // Try JSONB format first (new schema), fallback to array format (old schema)
-        try {
-          insertData.volume_landmarks = processingResult.volumeLandmarks
-        } catch (e) {
-          // Fallback: convert to array format for old schema
-          insertData.volume_landmarks = Object.keys(processingResult.volumeLandmarks)
-        }
-      }
-
-      // TEMPORARY: If migration hasn't been run, omit problematic columns
-      // Remove this section once the migration is applied
-      const { data: savedProgram, error: saveError } = await supabase
+      // Create a new training program entry with pending status
+      const { data: newProgram, error: insertError } = await supabase
         .from('training_programs')
-        .insert(insertData)
-        .select()
+        .insert({
+          user_id: userId,
+          onboarding_data_snapshot: profile.onboarding_responses,
+          generation_status: 'pending',
+          program_details: {}, // Empty placeholder, will be filled by background process
+        })
+        .select('id')
         .single()
 
-      if (saveError) {
-        console.error('Error saving training program:', saveError)
-        
-        // If it's a schema error, try without the new columns
-        if (saveError.code === '22P02' || saveError.message?.includes('volume_landmarks')) {
-          console.log('🔄 Retrying without enhanced columns (migration may not be applied)...')
-          const fallbackData = {
-            user_id: userId,
-            program_details: validatedProgram,
-            ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
-            onboarding_data_snapshot: onboardingData,
-          }
-          
-          const { data: fallbackProgram, error: fallbackError } = await supabase
-            .from('training_programs')
-            .insert(fallbackData)
-            .select()
-            .single()
-            
-          if (fallbackError) {
-            console.error('Fallback save also failed:', fallbackError)
-            return { error: 'Failed to save your training program. Please try again.', success: false }
-          }
-          
-          console.log('✅ Program saved successfully with fallback schema!')
-          return { program: validatedProgram, success: true }
-        }
-        
-        return { error: 'Failed to save your training program. Please try again.', success: false }
+      if (insertError || !newProgram) {
+        console.error('Error creating program record:', insertError)
+        return { error: 'Failed to initialize program generation. Please try again.', success: false }
       }
 
-      console.log('🎊 Enhanced training program generated and saved successfully!')
-      console.log(`📈 Generation summary: ${attempts} attempts, ${finalComplexity} complexity, ${validationNotes.length} validation notes`)
-      return { program: validatedProgram, success: true }
+      console.log(`✅ Created program record with ID: ${newProgram.id}`)
+
+      // Invoke the Supabase Edge Function to start background generation
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.access_token) {
+          throw new Error('No valid session found')
+        }
+
+        const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-program`
+        
+        const response = await fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ programId: newProgram.id })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          throw new Error(`Edge Function call failed: ${errorData.error || response.statusText}`)
+        }
+
+        console.log(`🚀 Successfully triggered background generation for program ${newProgram.id}`)
+        
+        return { 
+          success: true, 
+          message: 'Program generation started successfully. You will be notified when it\'s ready.' 
+        }
+        
+      } catch (edgeError: any) {
+        console.error('Error calling Edge Function:', edgeError)
+        
+        // Update the program status to failed since Edge Function call failed
+        await supabase
+          .from('training_programs')
+          .update({ 
+            generation_status: 'failed',
+            generation_error: `Edge Function call failed: ${edgeError.message}`
+          })
+          .eq('id', newProgram.id)
+        
+        return { error: 'Failed to start program generation. Please try again.', success: false }
+      }
+      
     } else {
       // New signature: generateTrainingProgram(user, onboardingData)
       const user = userOrUserId
@@ -1397,171 +1349,81 @@ export async function generateTrainingProgram(
         return { error: 'Onboarding data is required for new program generation.', success: false }
       }
 
-      // ADD PERMISSION CHECK HERE
-      const hasAccess = await hasActiveSubscription(user.id);
-      if (!hasAccess) {
-        return { success: false, error: 'You need a premium subscription to generate a new program.' };
-      }
-      // END PERMISSION CHECK
+      console.log('🔧 Triggering program generation for new user:', user.id)
 
-      console.log('Generating training program for user:', user.id)
-
-      // Step 1: Combine user and onboarding data into the profile structure for the LLM
-      const userProfileForGeneration: UserProfileForGeneration = {
-        id: user.id,
-        name: user.user_metadata.name || 'User',
-        age: 25, // Default age, user can update later
-        weight_unit: onboardingData.weightUnit,
-        primary_training_focus: mapGoalToTrainingFocus(onboardingData.primaryGoal),
-        experience_level: onboardingData.experienceLevel,
-        onboarding_responses: onboardingData,
+      // Check user's subscription status
+      const hasPaidAccess = await hasActiveSubscription(user.id)
+      if (!hasPaidAccess) {
+        return { success: false, error: 'You need a premium subscription to generate a new program.' }
       }
 
-      // Step 2: Enhanced processing and program generation
-      console.log('🎯 Starting enhanced program generation pipeline for new user...')
-      const processingResult = await processEnhancedUserData(userProfileForGeneration)
-      
-      // Step 3: Use enhanced LLM call with retry logic
-      const { program: llmResponse, error: llmError, attempts, finalComplexity } = await callEnhancedLLMAPI(
-        userProfileForGeneration, 
-        processingResult
-      )
-
-      if (llmError) {
-        console.error(`LLM API error after ${attempts} attempts:`, llmError)
-        return { error: 'Unable to generate your training program at this time. Please try again later.', success: false }
-      }
-
-      console.log(`🎉 Program generated successfully using ${finalComplexity} complexity in ${attempts} attempts`)
-
-      // Add generatedAt and aiModelUsed if not provided by LLM
-      const programData = {
-        ...llmResponse,
-        generatedAt: llmResponse.generatedAt || new Date().toISOString(),
-        aiModelUsed: llmResponse.aiModelUsed || 'gpt-4o',
-      }
-
-      // Enhanced validation process
-      console.log('🔍 Starting enhanced validation process...')
-      
-      let validatedProgram: TrainingProgram
-      let validationNotes: string[] = []
-      
-      try {
-        const enhancedValidation = validateEnhancedProgram(
-          programData,
-          processingResult.volumeLandmarks,
-          processingResult.identifiedWeakPoints
-        )
-        
-        if (enhancedValidation.isValid) {
-          console.log('✅ Enhanced validation passed!')
-          const enhancedResult = ENHANCED_PROGRAM_VALIDATION.safeParse(programData)
-          if (enhancedResult.success) {
-            validatedProgram = enhancedResult.data as unknown as TrainingProgram
-            validationNotes.push('Enhanced scientific validation passed')
-          } else {
-            throw new Error('Enhanced schema parse failed')
-          }
-        } else {
-          console.log('⚠️ Enhanced validation failed, trying basic validation...')
-          validationNotes.push(`Enhanced validation failed: ${enhancedValidation.violations.join(', ')}`)
-          throw new Error('Enhanced validation failed')
-        }
-      } catch (enhancedError) {
-        console.log('📋 Falling back to basic validation...')
-        const basicValidation = TrainingProgramSchema.safeParse(programData)
-        if (!basicValidation.success) {
-          console.error('Both enhanced and basic validation failed:', basicValidation.error)
-          return { error: 'The generated program has validation errors. Please try again.', success: false }
-        }
-        validatedProgram = basicValidation.data as unknown as TrainingProgram
-        validationNotes.push('Used basic validation due to enhanced validation failure')
-      }
-
-      // Enhanced database storage
-      console.log('💾 Saving enhanced program data to database...')
-      
-      // Prepare data with fallback for schema compatibility
-      const insertData: any = {
-        user_id: user.id,
-        program_details: validatedProgram,
-        ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
-        onboarding_data_snapshot: onboardingData,
-        // Enhanced scientific data with fallback handling
-        weak_point_analysis: processingResult.weakPointAnalysis,
-        periodization_model: processingResult.periodizationModel,
-        generation_metadata: {
-          attempts: attempts,
-          finalComplexity: finalComplexity,
-          validationNotes: validationNotes,
-          processingTimestamp: new Date().toISOString(),
-          enhancedUserProfile: {
-            trainingAge: processingResult.enhancedProfile.volumeParameters.trainingAge,
-            recoveryCapacity: processingResult.enhancedProfile.volumeParameters.recoveryCapacity,
-            stressLevel: processingResult.enhancedProfile.volumeParameters.stressLevel,
-            volumeTolerance: processingResult.enhancedProfile.volumeParameters.volumeTolerance,
-          }
-        }
-      }
-
-      // Handle volume_landmarks with schema compatibility
-      if (processingResult.volumeLandmarks) {
-        // Try JSONB format first (new schema), fallback to array format (old schema)
-        try {
-          insertData.volume_landmarks = processingResult.volumeLandmarks
-        } catch (e) {
-          // Fallback: convert to array format for old schema
-          insertData.volume_landmarks = Object.keys(processingResult.volumeLandmarks)
-        }
-      }
-
-      // TEMPORARY: If migration hasn't been run, omit problematic columns
-      // Remove this section once the migration is applied
-      const { data: savedProgram, error: saveError } = await supabase
+      // Create a new training program entry with pending status
+      const { data: newProgram, error: insertError } = await supabase
         .from('training_programs')
-        .insert(insertData)
-        .select()
+        .insert({
+          user_id: user.id,
+          onboarding_data_snapshot: onboardingData,
+          generation_status: 'pending',
+          program_details: {}, // Empty placeholder, will be filled by background process
+        })
+        .select('id')
         .single()
 
-      if (saveError) {
-        console.error('Error saving training program:', saveError)
-        
-        // If it's a schema error, try without the new columns
-        if (saveError.code === '22P02' || saveError.message?.includes('volume_landmarks')) {
-          console.log('🔄 Retrying without enhanced columns (migration may not be applied)...')
-          const fallbackData = {
-            user_id: user.id,
-            program_details: validatedProgram,
-            ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
-            onboarding_data_snapshot: onboardingData,
-          }
-          
-          const { data: fallbackProgram, error: fallbackError } = await supabase
-            .from('training_programs')
-            .insert(fallbackData)
-            .select()
-            .single()
-            
-          if (fallbackError) {
-            console.error('Fallback save also failed:', fallbackError)
-            return { error: 'Failed to save your training program. Please try again.', success: false }
-          }
-          
-          console.log('✅ Program saved successfully with fallback schema!')
-          return { program: validatedProgram, success: true }
-        }
-        
-        return { error: 'Failed to save your training program. Please try again.', success: false }
+      if (insertError || !newProgram) {
+        console.error('Error creating program record:', insertError)
+        return { error: 'Failed to initialize program generation. Please try again.', success: false }
       }
 
-      console.log('🎊 Enhanced training program generated and saved successfully!')
-      console.log(`📈 Generation summary: ${attempts} attempts, ${finalComplexity} complexity, ${validationNotes.length} validation notes`)
-      return { program: validatedProgram, success: true }
+      console.log(`✅ Created program record with ID: ${newProgram.id}`)
+
+      // Invoke the Supabase Edge Function to start background generation
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.access_token) {
+          throw new Error('No valid session found')
+        }
+
+        const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-program`
+        
+        const response = await fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ programId: newProgram.id })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          throw new Error(`Edge Function call failed: ${errorData.error || response.statusText}`)
+        }
+
+        console.log(`🚀 Successfully triggered background generation for program ${newProgram.id}`)
+        
+        return { 
+          success: true, 
+          message: 'Program generation started successfully. You will be notified when it\'s ready.' 
+        }
+        
+      } catch (edgeError: any) {
+        console.error('Error calling Edge Function:', edgeError)
+        
+        // Update the program status to failed since Edge Function call failed
+        await supabase
+          .from('training_programs')
+          .update({ 
+            generation_status: 'failed',
+            generation_error: `Edge Function call failed: ${edgeError.message}`
+          })
+          .eq('id', newProgram.id)
+        
+        return { error: 'Failed to start program generation. Please try again.', success: false }
+      }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('ERROR in generateTrainingProgram:', error)
-    return { success: false, error: 'An unexpected error occurred while generating your program. Please try again.' }
+    return { success: false, error: 'An unexpected error occurred while starting program generation. Please try again.' }
   }
 }
 

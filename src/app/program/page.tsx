@@ -13,7 +13,7 @@ import { startWorkoutSession } from '@/app/_actions/workoutSessionActions'
 import { submitProgramFeedback } from '@/app/_actions/feedbackActions'
 import { type TrainingProgram } from '@/lib/types/program'
 import { type TrainingProgramWithId } from '@/lib/db/program'
-import { type EnhancedTrainingProgram, type VolumeDistribution, type AutoregulationProtocol, type WeakPointIntervention, type ScientificRationale } from '@/lib/validation/enhancedProgramSchema'
+import { type EnhancedTrainingProgram, type ScientificRationale } from '@/lib/validation/enhancedProgramSchema'
 import { MUSCLE_GROUP_BASE_VOLUMES, calculateAllMuscleLandmarks } from '@/lib/volumeCalculations'
 import { type VolumeParameters, type VolumeLandmarks } from '@/lib/types/program'
 import { calculateWorkoutStreak } from '@/lib/db/index'
@@ -29,11 +29,8 @@ import { WeeklyCheckInModal } from '@/components/program/WeeklyCheckInModal'
 import { DailyReadinessModal } from '@/components/program/DailyReadinessModal'
 
 // Enhanced program components
-import { VolumeDistributionChart } from '@/components/program/enhanced/VolumeDistributionChart'
 import { ScientificRationaleComponent } from '@/components/program/enhanced/ScientificRationale'
-import { AutoregulationGuidelines } from '@/components/program/enhanced/AutoregulationGuidelines'
-import { WeakPointInterventions } from '@/components/program/enhanced/WeakPointInterventions'
-import { PeriodizationOverview } from '@/components/program/enhanced/PeriodizationOverview'
+
 
 import { StreakIndicator } from '@/components/ui/StreakIndicator'
 import { useToast } from '@/components/ui/Toast'
@@ -269,6 +266,12 @@ function ProgramPageContent() {
   const [isMounted, setIsMounted] = useState(false)
   const { addToast } = useToast()
   
+  // New states for background generation
+  const [generationStatus, setGenerationStatus] = useState<'pending' | 'processing' | 'completed' | 'failed' | null>(null)
+  const [generationError, setGenerationError] = useState<string | null>(null)
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
+  const [isRetrying, setIsRetrying] = useState(false)
+  
   // Handle program generation warnings from URL params
   const [programWarning, setProgramWarning] = useState<string | null>(
     searchParams?.get('warning') || null
@@ -351,65 +354,240 @@ function ProgramPageContent() {
     getSession()
   }, [])
 
+  // Function to check program generation status
+  const checkGenerationStatus = useCallback(async () => {
+    if (!session?.user) return
+
+    try {
+      const { data: programs, error } = await supabase
+        .from('training_programs')
+        .select('id, generation_status, generation_error, program_details')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (error) {
+        console.error('Error checking generation status:', error)
+        return
+      }
+
+      if (programs) {
+        setGenerationStatus(programs.generation_status)
+        
+        if (programs.generation_status === 'completed' && programs.program_details) {
+          // Program is ready, create proper TrainingProgramWithId object
+          const programWithId: TrainingProgramWithId = {
+            id: programs.id,
+            ...(programs.program_details as TrainingProgram)
+          }
+          
+          setProgramData(programWithId)
+          setGenerationStatus('completed')
+          
+          // Stop polling
+          if (pollingInterval) {
+            clearInterval(pollingInterval)
+            setPollingInterval(null)
+          }
+          
+          // Fetch completed days and other data
+          const [completedDaysResult, profileData, streakData] = await Promise.all([
+            supabase
+              .from('workout_groups')
+              .select('linked_program_phase_index, linked_program_week_index, linked_program_day_of_week')
+              .eq('linked_program_id', programs.id)
+              .not('linked_program_phase_index', 'is', null)
+              .not('linked_program_week_index', 'is', null)
+              .not('linked_program_day_of_week', 'is', null),
+            supabase
+              .from('profiles')
+              .select('id, name, email, profile_picture_url, weight_unit')
+              .eq('id', session.user.id)
+              .maybeSingle(),
+            calculateWorkoutStreak(session.user.id)
+          ])
+
+          const completedDays: CompletedDayIdentifier[] = (completedDaysResult.data || []).map(workout => ({
+            phaseIndex: workout.linked_program_phase_index,
+            weekIndex: workout.linked_program_week_index,
+            dayOfWeek: workout.linked_program_day_of_week,
+          }))
+
+          setCompletedDays(completedDays)
+          
+          const workout = findTodaysWorkout(programs.program_details as TrainingProgram)
+          setTodaysWorkout(workout)
+          
+          const weeklyCheckInStatus = shouldShowWeeklyCheckIn(
+            programs.program_details as TrainingProgram,
+            completedDays
+          )
+          
+          if (weeklyCheckInStatus.show) {
+            setShowWeeklyCheckIn(true)
+            setCheckInWeekNumber(weeklyCheckInStatus.weekNumber)
+          }
+
+          if (profileData.data) {
+            setProfile(profileData.data)
+          }
+
+          setWorkoutStreak(streakData || 0)
+          setIsLoading(false)
+          
+        } else if (programs.generation_status === 'failed') {
+          setGenerationError(programs.generation_error)
+          setGenerationStatus('failed')
+          
+          // Stop polling
+          if (pollingInterval) {
+            clearInterval(pollingInterval)
+            setPollingInterval(null)
+          }
+          
+          setIsLoading(false)
+        }
+        // If still pending or processing, continue polling
+      }
+    } catch (err) {
+      console.error('Error in generation status check:', err)
+    }
+  }, [session, pollingInterval])
+
+  // Start polling for generation status
+  const startPolling = useCallback(() => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval)
+    }
+    
+    const interval = setInterval(() => {
+      checkGenerationStatus()
+    }, 5000) // Poll every 5 seconds
+    
+    setPollingInterval(interval)
+  }, [checkGenerationStatus, pollingInterval])
+
   const fetchData = useCallback(async () => {
     if (!session?.user) return
 
     try {
-    setIsLoading(true)
-    setError(null)
+      setIsLoading(true)
+      setError(null)
 
-      const [programResult, profileData, streakData] = await Promise.all([
-        fetchActiveProgramAction(),
-        supabase
-          .from('profiles')
-          .select('id, name, email, profile_picture_url, weight_unit')
-          .eq('id', session.user.id)
-          .maybeSingle(),
-        calculateWorkoutStreak(session.user.id)
-      ])
+      // First check if there's a program being generated
+      const { data: programs, error: programsError } = await supabase
+        .from('training_programs')
+        .select('id, generation_status, generation_error, program_details')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
 
-      if (programResult.program) {
-        setProgramData(programResult.program)
-        setCompletedDays(programResult.completedDays)
+      if (!programsError && programs) {
+        setGenerationStatus(programs.generation_status)
         
-        const workout = findTodaysWorkout(programResult.program)
-        setTodaysWorkout(workout)
-        
-        const weeklyCheckInStatus = shouldShowWeeklyCheckIn(
-          programResult.program,
-          programResult.completedDays
-        )
-        
-        if (weeklyCheckInStatus.show) {
-          setShowWeeklyCheckIn(true)
-          setCheckInWeekNumber(weeklyCheckInStatus.weekNumber)
+        if (programs.generation_status === 'pending' || programs.generation_status === 'processing') {
+          // Start polling for status updates
+          startPolling()
+          return
+        } else if (programs.generation_status === 'failed') {
+          setGenerationError(programs.generation_error)
+          setGenerationStatus('failed')
+          setIsLoading(false)
+          return
+        } else if (programs.generation_status === 'completed' && programs.program_details) {
+          // Program is ready, create proper TrainingProgramWithId object
+          const programWithId: TrainingProgramWithId = {
+            id: programs.id,
+            ...(programs.program_details as TrainingProgram)
+          }
+          setProgramData(programWithId)
+          setGenerationStatus('completed')
+          
+          // Fetch additional data for completed program
+          const [profileData, streakData, completedWorkouts] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('id, name, email, profile_picture_url, weight_unit')
+              .eq('id', session.user.id)
+              .maybeSingle(),
+            calculateWorkoutStreak(session.user.id),
+            supabase
+              .from('workout_groups')
+              .select('linked_program_phase_index, linked_program_week_index, linked_program_day_of_week')
+              .eq('linked_program_id', programs.id)
+              .not('linked_program_phase_index', 'is', null)
+              .not('linked_program_week_index', 'is', null)
+              .not('linked_program_day_of_week', 'is', null)
+          ])
+
+          if (profileData.data) {
+            setProfile(profileData.data)
+          }
+
+          setWorkoutStreak(streakData || 0)
+
+          const completedDays: CompletedDayIdentifier[] = (completedWorkouts.data || []).map(workout => ({
+            phaseIndex: workout.linked_program_phase_index,
+            weekIndex: workout.linked_program_week_index,
+            dayOfWeek: workout.linked_program_day_of_week,
+          }))
+
+          setCompletedDays(completedDays)
+          
+          const workout = findTodaysWorkout(programs.program_details as TrainingProgram)
+          setTodaysWorkout(workout)
+          
+          const weeklyCheckInStatus = shouldShowWeeklyCheckIn(
+            programs.program_details as TrainingProgram,
+            completedDays
+          )
+          
+          if (weeklyCheckInStatus.show) {
+            setShowWeeklyCheckIn(true)
+            setCheckInWeekNumber(weeklyCheckInStatus.weekNumber)
+          }
         }
       } else {
-        if (programResult.error && !programWarning) {
-          setError(programResult.error)
+        // No program found, fetch basic profile data
+        const [profileData, streakData] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id, name, email, profile_picture_url, weight_unit')
+            .eq('id', session.user.id)
+            .maybeSingle(),
+          calculateWorkoutStreak(session.user.id)
+        ])
+
+        if (profileData.data) {
+          setProfile(profileData.data)
         }
-      }
 
-      if (profileData.error) {
-        setProfile(null);
-      } else {
-        setProfile(profileData.data);
+        setWorkoutStreak(streakData || 0)
       }
-
-      setWorkoutStreak(streakData || 0)
 
     } catch (err) {
       setError('Failed to load program data')
     } finally {
       setIsLoading(false)
     }
-  }, [session, programWarning])
+  }, [session, startPolling])
 
   useEffect(() => {
     if (session) {
-    fetchData()
+      fetchData()
     }
   }, [session, fetchData])
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
+      }
+    }
+  }, [pollingInterval])
 
   useEffect(() => {
     const checkDailyReadiness = () => {
@@ -429,6 +607,54 @@ function ProgramPageContent() {
     await supabase.auth.signOut()
     router.push('/login')
   }
+
+  // Retry program generation
+  const handleRetryGeneration = async () => {
+    if (!session?.user) return
+    
+    setIsRetrying(true)
+    setGenerationError(null)
+    
+    try {
+      const { generateTrainingProgram } = await import('@/app/_actions/aiProgramActions')
+      const result = await generateTrainingProgram(session.user.id)
+      
+      if (result.success) {
+        setGenerationStatus('pending')
+        startPolling()
+        addToast({
+          type: 'success',
+          title: 'Program generation started',
+          description: 'Your program is being regenerated. This may take a few minutes.',
+        })
+      } else {
+        setGenerationError(result.error || 'Failed to start program generation')
+        addToast({
+          type: 'error',
+          title: 'Generation failed',
+          description: result.error || 'Failed to start program generation',
+        })
+      }
+    } catch (error) {
+      setGenerationError('An unexpected error occurred')
+      addToast({
+        type: 'error',
+        title: 'Generation failed',
+        description: 'An unexpected error occurred while starting program generation',
+      })
+    } finally {
+      setIsRetrying(false)
+    }
+  }
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
+      }
+    }
+  }, [pollingInterval])
 
   const handleCloseWeeklyCheckIn = () => {
     setShowWeeklyCheckIn(false)
@@ -523,61 +749,7 @@ function ProgramPageContent() {
     
     const individualLandmarks = calculateAllMuscleLandmarks(mockVolumeParameters)
     
-    const mockVolumeDistribution: VolumeDistribution = {
-      chest: { weeklyVolume: 16, percentageOfMAV: 85 },
-      back: { weeklyVolume: 18, percentageOfMAV: 78 },
-      shoulders: { weeklyVolume: 14, percentageOfMAV: 88 },
-      arms: { weeklyVolume: 12, percentageOfMAV: 75 },
-      quads: { weeklyVolume: 15, percentageOfMAV: 82 },
-      hamstrings: { weeklyVolume: 10, percentageOfMAV: 80 },
-      glutes: { weeklyVolume: 11, percentageOfMAV: 85 },
-      calves: { weeklyVolume: 8, percentageOfMAV: 50 },
-      abs: { weeklyVolume: 6, percentageOfMAV: 40 }
-    }
-    
-    const mockAutoregulationProtocol: AutoregulationProtocol = {
-      phaseRPETargets: {
-        accumulation: { min: 6, max: 8, target: 7 },
-        intensification: { min: 7, max: 9, target: 8 },
-        realization: { min: 8, max: 10, target: 9 },
-        deload: { min: 4, max: 6, target: 5 }
-      },
-      adjustmentGuidelines: {
-        highReadiness: "Add 1 RPE point to prescribed targets. Consider additional volume.",
-        normalReadiness: "Use prescribed RPE targets as written.",
-        lowReadiness: "Reduce RPE by 1 point. Focus on movement quality.",
-        veryLowReadiness: "Reduce RPE by 2 points or implement active recovery."
-      },
-      recoveryMarkers: [
-        "Feeling energetic and motivated",
-        "Good sleep quality (7+ hours)",
-        "Low muscle soreness",
-        "Normal appetite",
-        "Positive mood"
-      ],
-      fatigueIndicators: [
-        "Persistent muscle soreness",
-        "Poor sleep quality",
-        "Elevated resting heart rate",
-        "Loss of motivation",
-        "Decreased appetite"
-      ]
-    }
-    
-    const mockWeakPointInterventions: WeakPointIntervention[] = [
-      {
-        targetArea: 'WEAK_POSTERIOR_CHAIN',
-        identifiedRatio: 'squat:deadlift',
-        currentRatio: 0.75,
-        targetRatio: 0.85,
-        priority: 'High',
-        interventionExercises: ['Romanian Deadlifts', 'Hip Thrusts', 'Good Mornings'],
-        weeklyVolume: 6,
-        progressionProtocol: 'Start with 3x8-10, progress to 4x6-8 over 6 weeks',
-        reassessmentPeriodWeeks: 6,
-        expectedOutcome: 'Improved deadlift strength and posterior chain activation'
-      }
-    ]
+
     
     const mockScientificRationale: ScientificRationale = {
       principle: "Progressive Overload with Autoregulation",
@@ -589,25 +761,7 @@ function ProgramPageContent() {
       ]
     }
 
-    const handleRPELog = (rpe: number, notes: string) => {
-      console.log('RPE logged:', { rpe, notes, timestamp: new Date().toISOString() })
-      addToast({
-        type: 'success',
-        title: 'RPE Logged',
-        description: `Recorded RPE ${rpe}/10`,
-      })
-    }
 
-    const handleProgressUpdate = (interventionId: string, progress: any) => {
-      console.log('Progress updated:', { interventionId, progress })
-      addToast({
-        type: 'success',
-        title: 'Progress Updated',
-        description: 'Weak point intervention progress recorded',
-      })
-    }
-
-    const currentPhase = program.phases[0]?.phaseName || 'Hypertrophy'
 
     return (
       <div className="space-y-6">
@@ -618,68 +772,59 @@ function ProgramPageContent() {
           showCitations={true}
         />
 
-        {/* Volume Distribution Chart */}
-        <VolumeDistributionChart
-          volumeDistribution={mockVolumeDistribution}
-          individualLandmarks={individualLandmarks}
-          showComplianceIndicators={true}
-        />
 
-        {/* Autoregulation Guidelines */}
-        <AutoregulationGuidelines
-          protocol={mockAutoregulationProtocol}
-          currentPhase={currentPhase}
-          onRPELog={handleRPELog}
-          userReadiness="normal"
-        />
 
-        {/* Weak Point Interventions */}
-        {mockWeakPointInterventions.length > 0 && (
-          <WeakPointInterventions
-            interventions={mockWeakPointInterventions}
-            onProgressUpdate={handleProgressUpdate}
-            showProgressHistory={true}
-          />
-        )}
 
-        {/* Periodization Overview */}
-        <PeriodizationOverview
-          phases={program.phases.map((phase, index) => ({
-            phaseName: phase.phaseName,
-            durationWeeks: phase.durationWeeks,
-            phaseNumber: phase.phaseNumber || index + 1,
-            primaryAdaptation: 'hypertrophy' as const,
-            progressionType: 'volume_progression' as const,
-            objectives: phase.objectives
-          }))}
-          currentPhase={0}
-          currentWeek={1}
-          progressionModel="Block Periodization"
-        />
       </div>
     )
   }
 
-  if (isLoading) {
+  // Show loading state for generation in progress
+  // Only show loading if we're actually loading OR if we don't have program data yet
+  if (isLoading || generationStatus === 'pending' || generationStatus === 'processing') {
     return (
       <DashboardLayout
         sidebarProps={{
-          userName: 'Loading...',
-          userEmail: '',
+          userName: profile?.name || 'Loading...',
+          userEmail: profile?.email || '',
+          profilePictureUrl: profile?.profile_picture_url,
           onLogout: handleLogout,
         }}
       >
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="flex flex-col items-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-            <p className="text-gray-600">Loading your training program...</p>
+          <div className="flex flex-col items-center space-y-6 max-w-md text-center">
+            <div className="relative">
+              <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-6 h-6 bg-white rounded-full"></div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {generationStatus === 'pending' ? 'Initializing Program Generation' : 
+                 generationStatus === 'processing' ? 'Generating Your Training Program' : 
+                 'Loading your training program...'}
+              </h2>
+              <p className="text-gray-600">
+                {generationStatus === 'pending' ? 'Setting up your personalized program...' :
+                 generationStatus === 'processing' ? 'Our AI is creating your scientifically-optimized training plan. This may take a few minutes.' :
+                 'Please wait while we load your program...'}
+              </p>
+              {(generationStatus === 'pending' || generationStatus === 'processing') && (
+                <div className="flex items-center justify-center space-x-2 text-sm text-gray-500 mt-4">
+                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                  <span>Processing in background</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </DashboardLayout>
     )
   }
 
-  if (error) {
+  // Show error state for generation failures or other errors
+  if (error || generationStatus === 'failed') {
     return (
       <DashboardLayout
         sidebarProps={{
@@ -689,22 +834,49 @@ function ProgramPageContent() {
           onLogout: handleLogout,
         }}
       >
-        <div
-          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md relative mb-6"
-          role="alert"
-        >
-          {error}
-        </div>
-        <div className="text-center">
-          <Button onClick={fetchData} variant="outline">
-            Try Again
-          </Button>
+        <div className="text-center space-y-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="text-red-600 text-xl">⚠️</span>
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold text-red-800 mb-2">
+              {generationStatus === 'failed' ? 'Program Generation Failed' : 'Error Loading Program'}
+            </h3>
+            <p className="text-red-700 mb-4">
+              {generationError || error || 'An unexpected error occurred while loading your program.'}
+            </p>
+            <div className="space-y-3">
+              {generationStatus === 'failed' ? (
+                <Button 
+                  onClick={handleRetryGeneration}
+                  disabled={isRetrying}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {isRetrying ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Retrying...
+                    </>
+                  ) : (
+                    'Retry Generation'
+                  )}
+                </Button>
+              ) : (
+                <Button onClick={fetchData} variant="outline" className="w-full">
+                  Try Again
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     )
   }
 
-  if (!programData) {
+  // Only show program if we have data and are not loading
+  if (!programData || isLoading) {
     return (
       <DashboardLayout
         sidebarProps={{

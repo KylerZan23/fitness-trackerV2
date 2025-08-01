@@ -126,21 +126,21 @@ export async function saveOnboardingData(
 
     // Generate training program after successful onboarding completion
     try {
-      console.log('Generating training program for user:', user.id)
+      console.log('Starting background program generation for user:', user.id)
       
       // Pass the complete user data directly to the program generation function
       const programResult = await generateTrainingProgram(user, formData)
 
       if (programResult.success) {
-        console.log('Training program generated successfully')
+        console.log('Program generation started successfully')
         return { success: true }
       } else {
-        console.error('Failed to generate training program:', programResult.error)
+        console.error('Failed to start program generation:', programResult.error)
         // Don't fail the onboarding if program generation fails - user can regenerate later
         return {
           success: true,
           warning:
-            'Onboarding completed but program generation failed. Please try generating your program again.',
+            'Onboarding completed but program generation failed to start. Please try generating your program again.',
         }
       }
     } catch (programError) {
@@ -149,7 +149,7 @@ export async function saveOnboardingData(
       return {
         success: true,
         warning:
-          'Onboarding completed but program generation failed. Please try generating your program again.',
+          'Onboarding completed but program generation failed to start. Please try generating your program again.',
       }
     }
   } catch (error) {

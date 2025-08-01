@@ -4,7 +4,26 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 
 ## Recent Updates
 
-### Landing Page Computer Mockup Enhancement (Latest)
+### Training Program Caching System (Latest)
+✅ **Performance Optimization with Intelligent Caching**
+- **24-Hour Cache Duration**: Reduces LLM API calls and improves response times
+  - Cache key generation based on user profile, subscription status, and onboarding responses
+  - Stable JSON stringification with sorted keys for consistent cache keys
+  - Base64 hash of signature object for efficient storage and comparison
+- **Smart Cache Management**: Intelligent cache hit/miss handling
+  - Cache check before expensive LLM generation pipeline
+  - Automatic cache invalidation via expiration timestamps
+  - Graceful error handling for cache operations
+- **Data Consistency**: Cached programs still saved to training_programs table
+  - Ensures accurate program history tracking
+  - Maintains user experience consistency
+  - Preserves all program metadata and analytics
+- **Database Schema**: New ai_coach_cache table with optimized indexes
+  - Primary key on cache_key for fast lookups
+  - Indexes on user_id/expires_at and hashed_data_input
+  - Row-level security ensuring user data isolation
+
+### Landing Page Computer Mockup Enhancement
 ✅ **Desktop-Optimized Program Interface Showcase**
 - **Computer Display Mockup**: Replaced mobile phone mockup with laptop/desktop display
   - Realistic browser window simulation with macOS-style traffic light controls
