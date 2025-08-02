@@ -2,7 +2,8 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { type OnboardingData } from '@/lib/types/onboarding'
-import { type TrainingProgram, ENHANCED_PROGRAM_VALIDATION } from '@/lib/validation/enhancedProgramSchema'
+import { type TrainingProgram } from '@/lib/types/program'
+import { ENHANCED_PROGRAM_VALIDATION } from '@/lib/validation/enhancedProgramSchema'
 
 interface ProgramUpdateData {
   generation_status: 'completed' | 'failed' | 'in_progress';
