@@ -12,6 +12,7 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 - **Stricter AI Prompting**: Enhanced the instructions sent to the AI to be extremely explicit about returning *only* a single, valid, minified JSON object, significantly reducing the likelihood of errors.
 - **Improved User Experience**: Users will now experience fewer failures during the critical onboarding and program generation flows, leading to higher trust and satisfaction.
 - **Standardized Error Handling**: Established a new, more robust pattern for handling AI interactions that will be applied across all AI-powered features in the application.
+- **Added `sanitizeLlmJson` utility in `src/lib/utils/json.ts` to strip non-JSON text from LLM output.**
 
 ### Trainer API Endpoint System (Latest)
 ✅ **External API Access for Fitness Professionals**

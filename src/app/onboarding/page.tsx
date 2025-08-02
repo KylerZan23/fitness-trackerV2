@@ -3,7 +3,8 @@
 import React from 'react'
 import { IndividualQuestionPage } from '@/components/onboarding/IndividualQuestionPage'
 import { useRouter } from 'next/navigation'
-import { finalizeOnboardingAndGenerateProgram, type FullOnboardingAnswers } from '@/app/_actions/onboardingActions'
+import { generateTrainingProgram } from '@/app/_actions/aiProgramActions';
+import { finalizeOnboardingAndGenerateProgram, type FullOnboardingAnswers } from '@/app/_actions/onboardingActions';
 import { createClient } from '@/utils/supabase/client'
 
 /**
@@ -127,57 +128,61 @@ export default function OnboardingPage() {
       // Start progress animation
       const progressInterval = startProgressAnimation(onboardingData)
 
-      // Call the server action to save data and generate program
-      const result = await finalizeOnboardingAndGenerateProgram(onboardingData)
-
-      if ('error' in result) {
-        clearInterval(progressInterval)
-        throw new Error(result.error)
-      }
-
-      console.log('Onboarding completed, program generation started!')
-
-      // Check if there was a warning (program generation failed but onboarding succeeded)
-      if ('warning' in result && result.warning) {
-        clearInterval(progressInterval)
-        console.warn('Program generation warning:', result.warning)
-        router.push('/program?onboarding=completed&program_warning=true')
-        return
-      }
-
-      // For the new background generation, we need to find the program ID
-      // and start polling for status updates
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          // Get the most recent program for this user
-          const { data: programs, error: programsError } = await supabase
-            .from('training_programs')
-            .select('id, generation_status')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single()
-
-          if (!programsError && programs) {
-            setProgramId(programs.id)
-            pollProgramStatus(programs.id)
-          } else {
-            // Fallback: redirect to program page which will handle the status
-            router.push('/program?onboarding=completed')
-          }
-        }
-      } catch (pollError) {
-        console.error('Error setting up polling:', pollError)
-        // Fallback: redirect to program page
-        router.push('/program?onboarding=completed')
-      }
+      // After a brief delay, initiate the program generation and start polling.
+      // This ensures the onboarding data has been committed before we proceed.
+      setTimeout(() => {
+        generateProgramAndStartPolling(onboardingData);
+      }, 2000);
       
     } catch (error) {
-      console.error('Error completing onboarding:', error)
-      throw error // Re-throw so the IndividualQuestionPage can handle it
+      console.error('Error completing onboarding:', error);
+      // Stop the progress animation and show an error.
+      if (pollingInterval) clearInterval(pollingInterval);
+      setIsProcessing(false);
+      // You might want to display a more user-friendly error message here.
+      throw error;
     }
-  }
+  };
+
+  const generateProgramAndStartPolling = async (onboardingData: FullOnboardingAnswers) => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error("User not authenticated.");
+      }
+
+      // This server action now correctly triggers the background generation.
+      const result = await generateTrainingProgram(user, onboardingData);
+
+      if ('error' in result) {
+        throw new Error(result.error);
+      }
+
+      // Now, find the newly created program and start polling its status.
+      const { data: programs, error: programsError } = await supabase
+        .from('training_programs')
+        .select('id, generation_status')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (programsError || !programs) {
+        throw new Error("Could not find the new program to poll.");
+      }
+      
+      setProgramId(programs.id);
+      pollProgramStatus(programs.id);
+
+    } catch (error) {
+      console.error("Error during program generation and polling setup:", error);
+      if (pollingInterval) clearInterval(pollingInterval);
+      setIsProcessing(false);
+      router.push(`/program?onboarding=completed&error=${encodeURIComponent(error.message)}`);
+    }
+  };
 
   const handleError = (error: string) => {
     console.error('Onboarding error:', error)

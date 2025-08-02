@@ -1311,14 +1311,25 @@ export async function generateTrainingProgram(
 
         const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-program`
         
+        // Create user profile object for the Edge Function
+        const userProfile = {
+          userId: profile.id,
+          userName: profile.name,
+          age: profile.age,
+          weightUnit: profile.weight_unit,
+          trainingFocus: profile.primary_training_focus,
+          experienceLevel: profile.experience_level,
+          ...profile.onboarding_responses
+        }
+        
         const response = await fetch(edgeFunctionUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ programId: newProgram.id })
-        })
+          body: JSON.stringify({ userProfile })
+        });
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error', details: 'Could not parse error response.' }))
@@ -1349,51 +1360,96 @@ export async function generateTrainingProgram(
       }
       
     } else {
-      // New signature: generateTrainingProgram(user, onboardingData)
-      const user = userOrUserId
+      // This call signature is from the new onboarding flow.
+      // It provides the full user object and onboarding data.
+      const user = userOrUserId as User;
       if (!onboardingData) {
-        return { error: 'Onboarding data is required for new program generation.', success: false }
+        return { 
+          error: 'Onboarding data is required for new program generation.', 
+          success: false 
+        };
       }
 
-      console.log('🔧 Triggering program generation for new user:', user.id)
+      console.log('🔧 Triggering program generation for new user from onboarding:', user.id);
 
-      // Check user's subscription status with comprehensive access control
-      const hasPaidAccess = await hasActiveSubscription(user.id)
-      if (!hasPaidAccess) {
-        return { 
-          success: false, 
-          error: 'Your free trial has expired. Please upgrade to premium to generate new programs.',
-          redirectToPricing: true 
+      // We already have the user's onboarding data, so we can proceed directly.
+      // First, check for an active subscription.
+      const hasPaidAccess = await hasActiveSubscription(user.id);
+      if (!hasPaidAccess && !(await isReadOnlyMode(user.id))) {
+        const { data: freeGenerations, error: generationError } = await supabase
+          .from('training_programs')
+          .select('id')
+          .eq('user_id', user.id);
+
+        if (generationError) {
+          console.error('Error checking free generations:', generationError);
+          return {
+            success: false,
+            error: 'Could not verify your generation credits. Please try again.',
+          };
+        }
+        
+        if (freeGenerations && freeGenerations.length > 0) {
+           return {
+            success: false,
+            error: 'You have already used your free program generation. Please upgrade to continue.',
+            redirectToPricing: true,
+          };
         }
       }
 
-      // Create a new training program entry with pending status
+      // Create a new training program entry with a 'pending' status.
+      // This record will be updated by the background Edge Function.
       const { data: newProgram, error: insertError } = await supabase
         .from('training_programs')
         .insert({
           user_id: user.id,
           onboarding_data_snapshot: onboardingData,
           generation_status: 'pending',
-          program_details: {}, // Empty placeholder, will be filled by background process
+          program_details: {}, // Placeholder, will be filled by the background process.
         })
         .select('id')
-        .single()
+        .single();
 
       if (insertError || !newProgram) {
-        console.error('Error creating program record:', insertError)
-        return { error: 'Failed to initialize program generation. Please try again.', success: false }
+        console.error('Error creating new program record:', insertError);
+        return { 
+          error: 'Failed to initialize program generation. Please try again.', 
+          success: false 
+        };
       }
 
-      console.log(`✅ Created program record with ID: ${newProgram.id}`)
+      console.log(`✅ Created new program record with ID: ${newProgram.id} for user ${user.id}`);
 
-      // Invoke the Supabase Edge Function to start background generation
+      // Asynchronously invoke the Supabase Edge Function to start the actual generation.
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) {
-          throw new Error('No valid session found')
+          throw new Error('No valid session found for Edge Function invocation.');
         }
 
         const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-program`
+        
+        // Create user profile object for the Edge Function from onboarding data
+        const userProfile = {
+          userId: user.id,
+          userName: user.user_metadata?.name || 'User',
+          weightUnit: onboardingData.weightUnit,
+          trainingFocus: onboardingData.primaryGoal,
+          experienceLevel: onboardingData.experienceLevel,
+          primaryGoal: onboardingData.primaryGoal,
+          trainingFrequencyDays: onboardingData.trainingFrequencyDays,
+          sessionDuration: onboardingData.sessionDuration,
+          equipment: onboardingData.equipment,
+          injuriesLimitations: onboardingData.injuriesLimitations,
+          squat1RMEstimate: onboardingData.squat1RMEstimate,
+          benchPress1RMEstimate: onboardingData.benchPress1RMEstimate,
+          deadlift1RMEstimate: onboardingData.deadlift1RMEstimate,
+          overheadPress1RMEstimate: onboardingData.overheadPress1RMEstimate,
+          strengthAssessmentType: onboardingData.strengthAssessmentType,
+          exercisePreferences: onboardingData.exercisePreferences,
+          sportSpecificDetails: onboardingData.sportSpecificDetails
+        }
         
         const response = await fetch(edgeFunctionUrl, {
           method: 'POST',
@@ -1401,8 +1457,8 @@ export async function generateTrainingProgram(
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ programId: newProgram.id })
-        })
+          body: JSON.stringify({ userProfile })
+        });
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error', details: 'Could not parse error response.' }))
@@ -1410,26 +1466,28 @@ export async function generateTrainingProgram(
           throw new Error(`Edge Function call failed: ${errorData.error || response.statusText}${errorDetails}`)
         }
 
-        console.log(`🚀 Successfully triggered background generation for program ${newProgram.id}`)
+        console.log(`🚀 Successfully triggered background generation for program ${newProgram.id}`);
         
         return { 
           success: true, 
-          message: 'Program generation started successfully. You will be notified when it\'s ready.' 
-        }
-        
+          message: 'Program generation started! You will be notified when it is ready.' 
+        };
       } catch (edgeError: any) {
-        console.error('Error calling Edge Function:', edgeError)
+        console.error('Error invoking Edge Function:', edgeError);
         
-        // Update the program status to failed since Edge Function call failed
+        // If the Edge Function fails to trigger, update the program status to 'failed'.
         await supabase
           .from('training_programs')
           .update({ 
             generation_status: 'failed',
-            generation_error: `Edge Function call failed: ${edgeError.message}`
+            generation_error: `Failed to invoke generation function: ${edgeError.message}`
           })
-          .eq('id', newProgram.id)
+          .eq('id', newProgram.id);
         
-        return { error: 'Failed to start program generation. Please try again.', success: false }
+        return { 
+          error: 'Failed to start the program generation process. Please try again.', 
+          success: false 
+        };
       }
     }
   } catch (error: any) {
