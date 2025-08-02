@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, Users } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useReadOnlyMode, useReadOnlyGuard } from '@/contexts/ReadOnlyModeContext'
 
 const GROUP_TYPES = [
   // Strength & Power Sports
@@ -41,12 +42,19 @@ const GROUP_TYPES = [
 ]
 
 export function CreateGroupForm() {
+  const { isReadOnlyMode } = useReadOnlyMode()
+  const checkReadOnlyGuard = useReadOnlyGuard()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const router = useRouter()
 
   const handleSubmit = async (formData: FormData) => {
+    // Check if user is in read-only mode
+    if (!checkReadOnlyGuard('create community groups')) {
+      return
+    }
+
     setIsSubmitting(true)
     setError(null)
     setFieldErrors({})
@@ -92,10 +100,11 @@ export function CreateGroupForm() {
               <Input
                 id="name"
                 name="name"
-                placeholder="Enter a name for your community..."
+                placeholder={isReadOnlyMode ? "Upgrade to premium to create communities..." : "Enter a name for your community..."}
                 required
                 minLength={3}
                 maxLength={50}
+                disabled={isReadOnlyMode}
               />
               {fieldErrors.name && (
                 <p className="text-sm text-red-600">{fieldErrors.name[0]}</p>
@@ -104,9 +113,9 @@ export function CreateGroupForm() {
 
             <div className="space-y-2">
               <Label htmlFor="groupType">Community Type</Label>
-              <Select name="groupType" required>
+              <Select name="groupType" required disabled={isReadOnlyMode}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a community type..." />
+                  <SelectValue placeholder={isReadOnlyMode ? "Upgrade required..." : "Select a community type..."} />
                 </SelectTrigger>
                 <SelectContent>
                   {GROUP_TYPES.map((type) => (
@@ -126,11 +135,12 @@ export function CreateGroupForm() {
               <Textarea
                 id="description"
                 name="description"
-                placeholder="Describe what your community is about, what members can expect, and any guidelines..."
+                placeholder={isReadOnlyMode ? "Upgrade to premium to create communities..." : "Describe what your community is about, what members can expect, and any guidelines..."}
                 required
                 minLength={10}
                 maxLength={500}
                 rows={4}
+                disabled={isReadOnlyMode}
               />
               {fieldErrors.description && (
                 <p className="text-sm text-red-600">{fieldErrors.description[0]}</p>
@@ -146,10 +156,12 @@ export function CreateGroupForm() {
             <div className="flex space-x-3">
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isReadOnlyMode}
                 className="flex-1"
               >
-                {isSubmitting ? (
+                {isReadOnlyMode ? (
+                  'Upgrade Required'
+                ) : isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Creating...

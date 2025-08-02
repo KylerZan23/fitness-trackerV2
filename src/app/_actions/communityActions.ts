@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { isReadOnlyMode } from '@/lib/subscription'
 
 const createPostSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -79,6 +80,15 @@ export async function createCommunityGroup(formData: FormData) {
 
   if (!user) {
     return { success: false, error: "You must be logged in to create a group." }
+  }
+
+  // Check if user is in read-only mode (trial expired and no premium subscription)
+  const isInReadOnlyMode = await isReadOnlyMode(user.id)
+  if (isInReadOnlyMode) {
+    return { 
+      success: false, 
+      error: 'Your free trial has expired. Please upgrade to premium to create community groups.' 
+    }
   }
 
   const validatedFields = createGroupSchema.safeParse({
@@ -202,6 +212,15 @@ export async function createPost(formData: FormData) {
 
   if (!user) {
     return { success: false, error: "You must be logged in to post." }
+  }
+
+  // Check if user is in read-only mode (trial expired and no premium subscription)
+  const isInReadOnlyMode = await isReadOnlyMode(user.id)
+  if (isInReadOnlyMode) {
+    return { 
+      success: false, 
+      error: 'Your free trial has expired. Please upgrade to premium to create posts.' 
+    }
   }
 
   const validatedFields = createPostSchema.safeParse({

@@ -1,13 +1,8 @@
 import React from 'react'
-import { type TrainingPhase } from '@/lib/types/program'
+import { type TrainingPhase, type TrainingProgram } from '@/lib/types/program'
 import { type CompletedDayIdentifier } from '@/app/_actions/aiProgramActions'
-import { ProgramWeekDisplay } from './ProgramWeekDisplay'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
+import { SubscriptionGatedWeek } from './SubscriptionGatedWeek'
+import { Accordion } from '@/components/ui/accordion'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Target, FileText } from 'lucide-react'
@@ -16,13 +11,27 @@ interface ProgramPhaseDisplayProps {
   phase: TrainingPhase
   phaseIndex: number
   completedDays: CompletedDayIdentifier[]
+  allPhases: TrainingPhase[] // Add this to calculate absolute week indices
 }
 
 export function ProgramPhaseDisplay({
   phase,
   phaseIndex,
   completedDays,
+  allPhases,
 }: ProgramPhaseDisplayProps) {
+  // Calculate absolute week indices for subscription gating
+  const calculateAbsoluteWeekIndex = (currentPhaseIndex: number, weekIndex: number): number => {
+    let totalWeeks = 0
+    
+    // Count weeks from all phases before the current phase
+    for (let i = 0; i < currentPhaseIndex; i++) {
+      totalWeeks += allPhases[i]?.weeks?.length || 0
+    }
+    
+    // Add the current week index
+    return totalWeeks + weekIndex
+  }
   return (
     <Card className="mb-6">
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg border-b">
@@ -85,39 +94,21 @@ export function ProgramPhaseDisplay({
           </div>
 
           <Accordion type="single" collapsible className="space-y-4">
-            {phase.weeks.map((week, weekIndex) => (
-              <AccordionItem
-                key={`week-${week.weekNumber}-${weekIndex}`}
-                value={`week-${week.weekNumber}-${weekIndex}`}
-                className="border-2 border-gray-200 rounded-lg px-4 transition-colors hover:border-blue-300"
-              >
-                <AccordionTrigger className="hover:no-underline py-4">
-                  <div className="flex items-center justify-between w-full pr-4">
-                    <div className="flex items-center space-x-3">
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
-                        Week {week.weekNumber}
-                      </Badge>
-                      <span className="font-medium text-gray-900">
-                        Training Week {weekIndex + 1}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {week.days.length} days
-                      </Badge>
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-4 pb-6">
-                  <ProgramWeekDisplay
-                    week={week}
-                    weekIndex={weekIndex}
-                    phaseIndex={phaseIndex}
-                    completedDays={completedDays}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-            ))}
+            {phase.weeks.map((week, weekIndex) => {
+              const absoluteWeekIndex = calculateAbsoluteWeekIndex(phaseIndex, weekIndex)
+              
+              return (
+                <SubscriptionGatedWeek
+                  key={`week-${week.weekNumber}-${weekIndex}`}
+                  week={week}
+                  weekIndex={weekIndex}
+                  phaseIndex={phaseIndex}
+                  completedDays={completedDays}
+                  weekNumber={week.weekNumber}
+                  absoluteWeekIndex={absoluteWeekIndex}
+                />
+              )
+            })}
           </Accordion>
         </div>
       </CardContent>

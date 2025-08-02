@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { isReadOnlyMode } from '@/lib/subscription'
 import {
   type WorkoutDay,
   type DailyReadinessData,
@@ -51,6 +52,15 @@ export async function startWorkoutSession(
       userId: user.id,
       userEmail: user.email
     })
+
+    // Check if user is in read-only mode (trial expired and no premium subscription)
+    const isInReadOnlyMode = await isReadOnlyMode(user.id)
+    if (isInReadOnlyMode) {
+      return { 
+        success: false, 
+        error: 'Your free trial has expired. Please upgrade to premium to start new workouts.' 
+      }
+    }
 
     // Validate input data before insertion
     if (!workout || !context) {

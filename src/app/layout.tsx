@@ -3,6 +3,7 @@ import '@/styles/globals.css'
 import { Inter } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { ToastProvider } from '@/components/ui/Toast'
+import { ReadOnlyModeProvider } from '@/contexts/ReadOnlyModeContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -18,7 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className} suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <ToastProvider>
-            {children}
+            <ReadOnlyModeProvider>
+              {children}
+            </ReadOnlyModeProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

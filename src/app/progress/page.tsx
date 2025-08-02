@@ -2,22 +2,24 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { createClient } from '@/utils/supabase/client'
 const supabase = createClient()
 import { getUserProfile } from '@/lib/db/index'
-import { TrendingUp, BarChart3, Activity, Zap } from 'lucide-react'
+import { TrendingUp, BarChart3, Activity, Zap, Brain } from 'lucide-react'
 
 // Import UI Components
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 // Import new strength analytics components
 import { StatsCard, StrengthStatsCard, StrengthVitalsGrid } from '@/components/ui/StatsCard'
 import { StrengthProgressionChart } from '@/components/progress/StrengthProgressionChart'
 import { MuscleDistributionChart } from '@/components/workout/MuscleDistributionChart'
 import { IndepthAnalysisCard } from '@/components/progress/IndepthAnalysisCard'
-import AIWeeklyReviewCard from '@/components/progress/AIWeeklyReviewCard'
+
 
 // Import strength calculation utilities
 import {
@@ -266,8 +268,25 @@ export default function ProgressPage() {
           </div>
         </div>
 
-        {/* AI Weekly Review */}
-        <AIWeeklyReviewCard />
+        {/* AI Coach Redirect Notice */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Brain className="h-6 w-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-blue-900">AI Coach Features Moved</h3>
+              <p className="text-blue-700 mt-1">
+                Your AI weekly review, daily recommendations, and coaching insights are now available in the dedicated AI Coach section.
+              </p>
+            </div>
+            <Link href="/ai-coach">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                Go to AI Coach
+              </Button>
+            </Link>
+          </div>
+        </div>
 
         {/* Strength Vitals Cards */}
         <div>

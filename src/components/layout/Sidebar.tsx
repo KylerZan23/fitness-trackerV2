@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Home, Dumbbell, User, LogOut, Calendar, TrendingUp, Users } from 'lucide-react'
+import { Home, Dumbbell, User, LogOut, Calendar, TrendingUp, Users, Brain, BarChart3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Separator } from '@/components/ui/separator'
@@ -21,7 +21,9 @@ const navItems = [
   { href: '/workouts', label: 'Workouts', icon: Dumbbell },
   { href: '/community', label: 'Community', icon: Users },
   { href: '/progress', label: 'Progress', icon: TrendingUp },
-  { href: '/profile', label: 'Profile', icon: User }, // Placeholder
+  { href: '/analytics', label: 'Analytics', icon: BarChart3, isPro: true },
+  { href: '/ai-coach', label: 'AI Coach', icon: Brain },
+  { href: '/profile', label: 'Profile', icon: User },
 ]
 
 export function Sidebar({
@@ -60,7 +62,12 @@ export function Sidebar({
             >
               <item.icon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />{' '}
               {/* Icon color */}
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.isPro && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                  Pro
+                </span>
+              )}
             </Link>
           ))}
         </nav>

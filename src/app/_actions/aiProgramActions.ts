@@ -9,6 +9,7 @@ import { type FullOnboardingAnswers } from './onboardingActions'
 import { callLLM } from '@/lib/llmService'
 import { mapGoalToTrainingFocus } from '@/lib/utils/goalToFocusMapping'
 import { hasActiveSubscription } from '@/lib/permissions'
+import { isReadOnlyMode } from '@/lib/subscription'
 import {
   type TrainingProgram,
   type TrainingPhase,
@@ -182,7 +183,7 @@ const TrainingProgramSchema = z.object({
 type ProgramGenerationResponse =
   | { program: TrainingProgram; success: true }
   | { success: true; message: string }
-  | { error: string; success: false }
+  | { error: string; success: false; redirectToPricing?: boolean }
 
 /**
  * User profile interface for program generation
@@ -1272,10 +1273,14 @@ export async function generateTrainingProgram(
         return { error: 'Please complete your onboarding first.', success: false }
       }
 
-      // Check user's subscription status
+      // Check user's subscription status with comprehensive access control
       const hasPaidAccess = await hasActiveSubscription(userId)
       if (!hasPaidAccess) {
-        return { success: false, error: 'You need a premium subscription to generate a new program.' }
+        return { 
+          success: false, 
+          error: 'Your free trial has expired. Please upgrade to premium to generate new programs.',
+          redirectToPricing: true 
+        }
       }
 
       // Create a new training program entry with pending status
@@ -1352,10 +1357,14 @@ export async function generateTrainingProgram(
 
       console.log('🔧 Triggering program generation for new user:', user.id)
 
-      // Check user's subscription status
+      // Check user's subscription status with comprehensive access control
       const hasPaidAccess = await hasActiveSubscription(user.id)
       if (!hasPaidAccess) {
-        return { success: false, error: 'You need a premium subscription to generate a new program.' }
+        return { 
+          success: false, 
+          error: 'Your free trial has expired. Please upgrade to premium to generate new programs.',
+          redirectToPricing: true 
+        }
       }
 
       // Create a new training program entry with pending status

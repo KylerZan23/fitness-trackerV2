@@ -112,6 +112,54 @@ export async function middleware(request: NextRequest) {
       return redirectResponse
     }
 
+    // Check subscription status for premium route protection and read-only mode
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_premium, trial_ends_at')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        const now = new Date()
+        const trialEndsAt = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
+        const isTrialActive = trialEndsAt ? trialEndsAt > now : false
+        const hasActiveAccess = profile.is_premium || isTrialActive
+        
+        // Define premium routes that require active subscription
+        const premiumRoutes = ['/ai-coach']
+        const isPremiumRoute = premiumRoutes.some(route => request.nextUrl.pathname.startsWith(route))
+        
+        // Redirect expired users from premium routes to pricing page
+        if (!hasActiveAccess && isPremiumRoute) {
+          console.log(`Middleware: User ${user.id} trial expired, redirecting from ${request.nextUrl.pathname} to pricing`)
+          const redirectResponse = NextResponse.redirect(
+            new URL(`/pricing?expired=true&feature=${encodeURIComponent(request.nextUrl.pathname.substring(1))}`, request.url)
+          )
+          supabaseResponse.cookies.getAll().forEach(cookie => {
+            redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
+          })
+          return redirectResponse
+        }
+        
+        // Set read-only mode header if user has no active access
+        if (!hasActiveAccess) {
+          console.log(`Middleware: User ${user.id} trial expired, setting read-only mode`)
+          supabaseResponse.headers.set('x-read-only-mode', 'true')
+          supabaseResponse.headers.set('x-trial-expired', 'true')
+        } else {
+          supabaseResponse.headers.set('x-read-only-mode', 'false')
+          if (isTrialActive && trialEndsAt) {
+            const daysRemaining = Math.max(0, Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+            supabaseResponse.headers.set('x-trial-days-remaining', daysRemaining.toString())
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Middleware: Error checking subscription status:', error)
+      // Default to allowing access if there's an error checking subscription
+    }
+
     // Allow access to protected routes, onboarding, or other public routes if logged in
     console.log(`Middleware: Allowing authenticated access to ${request.nextUrl.pathname}.`)
     // Add user info to headers for downstream use, onto supabaseResponse
@@ -145,6 +193,10 @@ export const config = {
     '/program/:path*',
     '/profile/:path*',
     '/workout/:path*',
+    '/ai-coach/:path*',
+    '/progress/:path*',
+    '/community/:path*',
+    '/pricing/:path*',
     '/login',
     '/signup',
     '/onboarding',

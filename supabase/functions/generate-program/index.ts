@@ -181,78 +181,12 @@ serve(async (req) => {
 
     console.log(`🚀 Starting background program generation for program ID: ${programId}`)
 
-    // Update status to processing
-    await supabase
-      .from('training_programs')
-      .update({ 
-        generation_status: 'processing',
-        generation_error: null 
+    // Start background processing immediately (don't await)
+    processGenerationInBackground(programId, supabase)
+      .catch(error => {
+        console.error(`❌ Background generation failed for program ${programId}:`, error)
+        // Error handling is done within the background process
       })
-      .eq('id', programId)
-
-    // Fetch the program record with user data
-    const { data: fullProgramRecord, error: fetchError } = await supabase
-      .from('training_programs')
-      .select(`
-        id,
-        user_id,
-        onboarding_data_snapshot,
-        profiles!inner(
-          name,
-          age,
-          weight_unit,
-          primary_training_focus,
-          experience_level,
-          is_premium,
-          trial_ends_at
-        )
-      `)
-      .eq('id', programId)
-      .single()
-
-    if (fetchError || !fullProgramRecord) {
-      throw new Error(`Failed to fetch program record: ${fetchError?.message || 'Record not found'}`)
-    }
-
-    const profile = fullProgramRecord.profiles as any
-    const onboardingData = fullProgramRecord.onboarding_data_snapshot
-
-    if (!onboardingData) {
-      throw new Error('No onboarding data found for program generation')
-    }
-
-    // Check subscription status
-    const now = new Date()
-    const trialEndsAt = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
-    const isTrialActive = trialEndsAt ? trialEndsAt > now : false
-    const hasPaidAccess = profile.is_premium || isTrialActive
-
-    console.log(`💰 User subscription status - Premium: ${profile.is_premium}, Trial Active: ${isTrialActive}, Has Paid Access: ${hasPaidAccess}`)
-
-    // Generate the program using AI
-    const generatedProgram = await generateProgramWithAI(
-      profile,
-      onboardingData,
-      hasPaidAccess,
-      supabase
-    )
-
-    // Update the program record with results
-    const { error: updateError } = await supabase
-      .from('training_programs')
-      .update({
-        generation_status: 'completed',
-        generation_error: null,
-        program_details: generatedProgram,
-        ai_model_version: generatedProgram.aiModelUsed || 'gpt-4o'
-      })
-      .eq('id', programId)
-
-    if (updateError) {
-      throw new Error(`Failed to update program record: ${updateError.message}`)
-    }
-
-    console.log(`🎉 Program generation completed successfully for program ID: ${programId}`)
 
     // Return 202 Accepted immediately to indicate the job has been accepted
     return new Response(
@@ -305,7 +239,178 @@ serve(async (req) => {
   }
 })
 
-// AI Program Generation Function
+// Background Processing Function - runs asynchronously
+async function processGenerationInBackground(programId: string, supabase: any): Promise<void> {
+  try {
+    console.log(`🚀 Starting background program generation for program ID: ${programId}`)
+
+    // Update status to processing
+    await supabase
+      .from('training_programs')
+      .update({ 
+        generation_status: 'processing',
+        generation_error: null 
+      })
+      .eq('id', programId)
+
+    // Fetch the program record with user data
+    const { data: fullProgramRecord, error: fetchError } = await supabase
+      .from('training_programs')
+      .select(`
+        id,
+        user_id,
+        onboarding_data_snapshot,
+        profiles!inner(
+          name,
+          age,
+          weight_unit,
+          primary_training_focus,
+          experience_level,
+          is_premium,
+          trial_ends_at
+        )
+      `)
+      .eq('id', programId)
+      .single()
+
+    if (fetchError || !fullProgramRecord) {
+      throw new Error(`Failed to fetch program record: ${fetchError?.message || 'Record not found'}`)
+    }
+
+    const profile = fullProgramRecord.profiles as any
+    const onboardingData = fullProgramRecord.onboarding_data_snapshot
+
+    if (!onboardingData) {
+      throw new Error('No onboarding data found for program generation')
+    }
+
+    // Check subscription status
+    const now = new Date()
+    const trialEndsAt = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
+    const isTrialActive = trialEndsAt ? trialEndsAt > now : false
+    const hasPaidAccess = profile.is_premium || isTrialActive
+
+    console.log(`💰 User subscription status - Premium: ${profile.is_premium}, Trial Active: ${isTrialActive}, Has Paid Access: ${hasPaidAccess}`)
+
+    // Generate the program using enhanced AI pipeline
+    const generatedProgram = await generateEnhancedProgramWithAI(
+      profile,
+      onboardingData,
+      hasPaidAccess,
+      supabase
+    )
+
+    // Update the program record with results including enhanced metadata
+    const { error: updateError } = await supabase
+      .from('training_programs')
+      .update({
+        generation_status: 'completed',
+        generation_error: null,
+        program_details: generatedProgram.program,
+        ai_model_version: generatedProgram.program.aiModelUsed || 'gpt-4o',
+        weak_point_analysis: generatedProgram.metadata.weakPointAnalysis,
+        periodization_model: generatedProgram.metadata.periodizationModel,
+        generation_metadata: {
+          processingTimestamp: new Date().toISOString(),
+          enhancedUserProfile: generatedProgram.metadata.enhancedProfile,
+          processingDuration: generatedProgram.metadata.processingDuration
+        },
+        volume_landmarks: generatedProgram.metadata.volumeLandmarks
+      })
+      .eq('id', programId)
+
+    if (updateError) {
+      throw new Error(`Failed to update program record: ${updateError.message}`)
+    }
+
+    console.log(`🎉 Program generation completed successfully for program ID: ${programId}`)
+
+  } catch (error: any) {
+    console.error(`❌ Background generation failed for program ID: ${programId}`, error)
+    
+    // Update status to failed with error message
+    await supabase
+      .from('training_programs')
+      .update({ 
+        generation_status: 'failed',
+        generation_error: error.message || 'Unknown error occurred during generation'
+      })
+      .eq('id', programId)
+    
+    throw error
+  }
+}
+
+// Enhanced AI Program Generation Function with Scientific Processing
+async function generateEnhancedProgramWithAI(
+  profile: any,
+  onboardingData: any,
+  hasPaidAccess: boolean,
+  supabase: any
+): Promise<{
+  program: any,
+  metadata: {
+    weakPointAnalysis: any,
+    periodizationModel: string,
+    enhancedProfile: any,
+    volumeLandmarks: any,
+    processingDuration: number
+  }
+}> {
+  const startTime = Date.now()
+  
+  try {
+    console.log('🤖 Starting enhanced AI program generation with scientific processing...')
+
+    // Step 1: Process enhanced user data
+    console.log('📊 Processing enhanced user data...')
+    const processingResult = await processEnhancedUserData(profile, onboardingData)
+
+    // Step 2: Construct enhanced prompt with scientific data
+    console.log('🔬 Constructing enhanced prompt with scientific analysis...')
+    const prompt = constructEnhancedProgramPrompt(profile, onboardingData, processingResult, hasPaidAccess)
+
+    // Step 3: Call the LLM API with enhanced prompt
+    console.log('🤖 Calling enhanced LLM API...')
+    const llmResponse = await callLLMAPI(prompt)
+
+    if (!llmResponse.program) {
+      throw new Error(`LLM API error: ${llmResponse.error}`)
+    }
+
+    // Step 4: Validate and structure the response
+    const program = {
+      ...llmResponse.program,
+      generatedAt: new Date().toISOString(),
+      aiModelUsed: 'gpt-4o'
+    }
+
+    const processingDuration = Date.now() - startTime
+    console.log(`✅ Enhanced AI program generation completed successfully in ${processingDuration}ms`)
+    
+    return {
+      program,
+      metadata: {
+        weakPointAnalysis: processingResult.weakPointAnalysis,
+        periodizationModel: processingResult.periodizationModel,
+        enhancedProfile: {
+          trainingAge: processingResult.enhancedProfile.volumeParameters.trainingAge,
+          recoveryCapacity: processingResult.enhancedProfile.volumeParameters.recoveryCapacity,
+          stressLevel: processingResult.enhancedProfile.volumeParameters.stressLevel,
+          volumeTolerance: processingResult.enhancedProfile.volumeParameters.volumeTolerance,
+        },
+        volumeLandmarks: processingResult.volumeLandmarks,
+        processingDuration
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Enhanced AI program generation failed:', error)
+    throw error
+  }
+}
+
+// Legacy AI Program Generation Function (kept for compatibility)
 async function generateProgramWithAI(
   profile: any,
   onboardingData: any,
@@ -496,4 +601,282 @@ async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: stri
       error: error.message || 'Failed to communicate with AI service for program generation',
     }
   }
+}
+
+// Enhanced User Data Processing (adapted from shared library)
+async function processEnhancedUserData(profile: any, onboardingData: any): Promise<{
+  enhancedProfile: any,
+  volumeLandmarks: any,
+  weakPointAnalysis: any,
+  periodizationModel: string,
+  autoregulationNotes: string,
+  identifiedWeakPoints: string[]
+}> {
+  try {
+    console.log('🔬 Starting enhanced user data processing...')
+
+    // Generate enhanced user profile with volume parameters
+    const enhancedProfile = generateEnhancedUserProfile(profile, onboardingData)
+
+    // Calculate individualized volume landmarks
+    const volumeLandmarks = calculateAllMuscleLandmarks(enhancedProfile.volumeParameters)
+
+    // Perform weak point analysis if strength data is available
+    let weakPointAnalysis = null
+    let identifiedWeakPoints: string[] = []
+    
+    if (onboardingData.squat1RMEstimate && onboardingData.benchPress1RMEstimate && 
+        onboardingData.deadlift1RMEstimate && onboardingData.overheadPress1RMEstimate) {
+      const strengthProfile = {
+        squat1RM: onboardingData.squat1RMEstimate,
+        bench1RM: onboardingData.benchPress1RMEstimate,
+        deadlift1RM: onboardingData.deadlift1RMEstimate,
+        overheadPress1RM: onboardingData.overheadPress1RMEstimate
+      }
+      weakPointAnalysis = enhancedWeakPointAnalysis(strengthProfile)
+      identifiedWeakPoints = weakPointAnalysis.primaryWeakPoints || []
+    }
+
+    // Select appropriate periodization model
+    const periodizationModel = selectPeriodizationModel(
+      profile.experience_level || 'Beginner', 
+      onboardingData.primaryGoal
+    )
+
+    // Generate autoregulation recommendations
+    const autoregulationNotes = generateAutoregulationNotes(
+      enhancedProfile.rpeProfile, 
+      enhancedProfile.recoveryProfile
+    )
+
+    console.log('✅ Enhanced user data processing completed')
+
+    return {
+      enhancedProfile,
+      volumeLandmarks,
+      weakPointAnalysis,
+      periodizationModel,
+      autoregulationNotes,
+      identifiedWeakPoints
+    }
+  } catch (error) {
+    console.error('❌ Enhanced user data processing failed:', error)
+    throw error
+  }
+}
+
+// Simplified enhanced user profile generation
+function generateEnhancedUserProfile(profile: any, onboardingData: any): any {
+  const experienceLevel = profile.experience_level || 'Beginner'
+  const age = profile.age || 25
+  
+  // Simplified volume parameters calculation
+  const trainingAge = experienceLevel === 'Beginner' ? 0.5 : 
+                      experienceLevel === 'Intermediate' ? 2.5 : 5.0
+  
+  const recoveryCapacity = age < 25 ? 1.2 : age < 35 ? 1.0 : age < 45 ? 0.8 : 0.6
+  const stressLevel = 0.5 // Default moderate stress
+  const volumeTolerance = experienceLevel === 'Beginner' ? 0.8 : 
+                          experienceLevel === 'Intermediate' ? 1.0 : 1.2
+
+  return {
+    volumeParameters: {
+      trainingAge,
+      recoveryCapacity,
+      stressLevel,
+      volumeTolerance
+    },
+    rpeProfile: {
+      accuracy: experienceLevel === 'Beginner' ? 0.7 : 0.9,
+      preference: 'moderate'
+    },
+    recoveryProfile: {
+      recoveryRate: recoveryCapacity,
+      fatigueThreshold: 7.5
+    }
+  }
+}
+
+// Calculate muscle volume landmarks
+function calculateAllMuscleLandmarks(volumeParameters: any): any {
+  const { volumeTolerance, recoveryCapacity } = volumeParameters
+  
+  const baseLandmarks = {
+    'Chest': { MEV: 8, MAV: 14, MRV: 20 },
+    'Back': { MEV: 10, MAV: 16, MRV: 24 },
+    'Shoulders': { MEV: 8, MAV: 14, MRV: 20 },
+    'Arms': { MEV: 6, MAV: 12, MRV: 18 },
+    'Legs': { MEV: 10, MAV: 16, MRV: 24 },
+    'Core': { MEV: 6, MAV: 10, MRV: 16 }
+  }
+
+  // Adjust based on individual parameters
+  const adjustedLandmarks: any = {}
+  Object.entries(baseLandmarks).forEach(([muscle, landmarks]: [string, any]) => {
+    adjustedLandmarks[muscle] = {
+      MEV: Math.round(landmarks.MEV * volumeTolerance),
+      MAV: Math.round(landmarks.MAV * volumeTolerance * recoveryCapacity),
+      MRV: Math.round(landmarks.MRV * volumeTolerance * recoveryCapacity)
+    }
+  })
+
+  return adjustedLandmarks
+}
+
+// Enhanced weak point analysis
+function enhancedWeakPointAnalysis(strengthProfile: any): any {
+  const { squat1RM, bench1RM, deadlift1RM, overheadPress1RM } = strengthProfile
+  
+  // Calculate strength ratios
+  const benchToDeadlift = bench1RM / deadlift1RM
+  const squatToDeadlift = squat1RM / deadlift1RM
+  const ohpToBench = overheadPress1RM / bench1RM
+  
+  const weakPoints: string[] = []
+  
+  if (benchToDeadlift < 0.65) weakPoints.push('Chest and Pressing Strength')
+  if (squatToDeadlift < 0.85) weakPoints.push('Quad Strength and Knee Dominance')
+  if (ohpToBench < 0.6) weakPoints.push('Shoulder Stability and Overhead Strength')
+  if (deadlift1RM < squat1RM * 1.1) weakPoints.push('Posterior Chain and Hip Hinge')
+  
+  return {
+    primaryWeakPoints: weakPoints,
+    strengthRatios: {
+      benchToDeadlift,
+      squatToDeadlift,
+      ohpToBench
+    }
+  }
+}
+
+// Select periodization model
+function selectPeriodizationModel(experienceLevel: string, primaryGoal: string): string {
+  if (primaryGoal.includes('Strength Gain') || primaryGoal.includes('Powerlifting')) {
+    return 'Strength-Focused Block Periodization'
+  }
+  
+  if (primaryGoal.includes('Muscle Gain') || primaryGoal.includes('Hypertrophy')) {
+    return 'Hypertrophy-Focused Block Periodization'
+  }
+  
+  if (primaryGoal.includes('General Fitness') || experienceLevel === 'Beginner') {
+    return 'Linear Progression Model'
+  }
+  
+  return 'Balanced Block Periodization'
+}
+
+// Generate autoregulation notes
+function generateAutoregulationNotes(rpeProfile: any, recoveryProfile: any): string {
+  return `RPE Target Ranges:
+- Accumulation Phase: 6-8 RPE (emphasizing volume)
+- Intensification Phase: 7-9 RPE (emphasizing load)
+- Realization Phase: 8-10 RPE (peaking activities)
+- Deload Phase: 4-6 RPE (restoration focus)
+
+Daily Adjustments:
+- High readiness days: Add 2-5% load or 1-2 sets
+- Normal readiness: Execute planned session
+- Low readiness: Reduce intensity 10-20% or volume 20-30%
+- Very low readiness: Active recovery or complete rest
+
+Recovery Capacity: ${recoveryProfile.recoveryRate}/2.0 (1.0 = average)
+Fatigue Threshold: ${recoveryProfile.fatigueThreshold}/10`
+}
+
+// Enhanced prompt construction with scientific data
+function constructEnhancedProgramPrompt(profile: any, onboardingData: any, processingResult: any, hasPaidAccess: boolean): string {
+  const { primaryGoal, trainingFrequencyDays, sessionDuration, equipment, injuriesLimitations } = onboardingData
+  const { name, age, experience_level } = profile
+  const { enhancedProfile, volumeLandmarks, weakPointAnalysis, periodizationModel } = processingResult
+
+  const durationWeeks = hasPaidAccess ? getDurationBasedOnGoals(onboardingData, true) : 1
+  const weightUnit = profile.weight_unit || 'kg'
+
+  return `You are Neural, an elite exercise scientist and evidence-based coach AI. Create a scientifically-grounded training program based on the user's enhanced profile analysis.
+
+USER PROFILE:
+- Name: ${name}, Age: ${age}, Experience: ${experience_level || 'Beginner'}
+- Goal: ${primaryGoal}
+- Training: ${trainingFrequencyDays} days/week, ${sessionDuration}
+- Equipment: ${equipment.join(', ')}
+- Injuries/Limitations: ${injuriesLimitations || 'None'}
+- Periodization: ${periodizationModel}
+${weakPointAnalysis && weakPointAnalysis.primaryWeakPoints && weakPointAnalysis.primaryWeakPoints.length > 0 ? 
+  `- Weak Points: ${weakPointAnalysis.primaryWeakPoints.join(', ')}` : ''}
+
+SCIENTIFIC FRAMEWORK:
+${VOLUME_FRAMEWORK_GUIDELINES}
+${AUTOREGULATION_GUIDELINES}
+${PERIODIZATION_GUIDELINES}
+${EXERCISE_SELECTION_GUIDELINES}
+
+INDIVIDUALIZED VOLUME GUIDELINES (weekly sets):
+${Object.entries(volumeLandmarks).map(([muscle, landmarks]: [string, any]) => 
+  `${muscle}: MEV ${landmarks.MEV}, MAV ${landmarks.MAV}, MRV ${landmarks.MRV}`
+).join(' | ')}
+
+STRENGTH PROFILE (${weightUnit}):
+- Squat 1RM: ${onboardingData.squat1RMEstimate || 'Not provided'}
+- Bench Press 1RM: ${onboardingData.benchPress1RMEstimate || 'Not provided'}  
+- Deadlift 1RM: ${onboardingData.deadlift1RMEstimate || 'Not provided'}
+- Overhead Press 1RM: ${onboardingData.overheadPress1RMEstimate || 'Not provided'}
+
+USER CAPACITY PARAMETERS:
+- Training Age: ${enhancedProfile.volumeParameters.trainingAge} years
+- Recovery Capacity: ${enhancedProfile.volumeParameters.recoveryCapacity}/2.0
+- Volume Tolerance: ${enhancedProfile.volumeParameters.volumeTolerance}/2.0
+
+${!hasPaidAccess ? `
+**FREE TRIAL USER - EXAMPLE WEEK ONLY**
+- Generate exactly ONE example week from their full training program
+- This is a sample week to demonstrate program quality
+- Structure as Week 3 of a ${getDurationBasedOnGoals(onboardingData, true)}-week program
+- Emphasize this is just a taste of their full personalized program
+` : `
+**FULL PROGRAM GENERATION**
+- Create a ${durationWeeks}-week program with appropriate phases
+- Include proper periodization and progression
+`}
+
+REQUIREMENTS:
+1. Respect volume landmarks (start at MEV, progress to MAV, never exceed MRV)
+2. Include anchor lifts as first exercise on training days
+3. Use appropriate RPE targets (6-8 RPE typically)
+4. Address identified weak points through exercise selection
+5. Each workout should have 6-10 exercises (including warm-up/cool-down)
+6. Use dayOfWeek numbers (1=Monday, 2=Tuesday, etc.)
+7. For rest days: set isRestDay: true, empty exercises array
+8. Set estimatedDurationMinutes to match user's session length preference
+
+COACHING VOICE:
+${NEURAL_COACHING_CUES}
+
+Return ONLY valid JSON matching this structure:
+{
+  "programName": "string",
+  "description": "string", 
+  "durationWeeksTotal": number,
+  "phases": [{
+    "phaseName": "string",
+    "durationWeeks": number,
+    "weeks": [{
+      "weekNumber": number,
+      "days": [{
+        "dayOfWeek": number,
+        "focus": "string",
+        "exercises": [{
+          "name": "string",
+          "sets": number,
+          "reps": "string",
+          "rest": "string",
+          "rpe": number,
+          "notes": "string"
+        }],
+        "isRestDay": boolean,
+        "estimatedDurationMinutes": number
+      }]
+    }]
+  }]
+}`
 }

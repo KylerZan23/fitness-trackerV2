@@ -1,12 +1,19 @@
 import { createClient } from '@/utils/supabase/client'
 const supabase = createClient()
 
+export type SubscriptionTier = 'trial' | 'standard' | 'pro'
+
 export interface SubscriptionStatus {
   hasAccess: boolean
   isPremium: boolean
+  isPro: boolean
+  isStandard: boolean
   isTrialActive: boolean
+  subscriptionTier: SubscriptionTier
   trialEndsAt: string | null
   daysRemaining: number | null
+  isReadOnlyMode: boolean
+  trialExpired: boolean
 }
 
 /**
@@ -18,7 +25,7 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
   try {
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('is_premium, trial_ends_at')
+      .select('is_premium, trial_ends_at, subscription_tier')
       .eq('id', userId)
       .single()
 
@@ -27,34 +34,57 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
       return {
         hasAccess: false,
         isPremium: false,
+        isPro: false,
+        isStandard: false,
         isTrialActive: false,
+        subscriptionTier: 'trial',
         trialEndsAt: null,
         daysRemaining: null,
+        isReadOnlyMode: true,
+        trialExpired: true,
       }
     }
 
     const now = new Date()
     const trialEndsAt = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
     const isTrialActive = trialEndsAt ? trialEndsAt > now : false
+    const trialExpired = trialEndsAt ? trialEndsAt <= now : false
     const daysRemaining = trialEndsAt 
       ? Math.max(0, Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
       : null
 
+    const subscriptionTier: SubscriptionTier = profile.subscription_tier || 'trial'
+    const isPro = subscriptionTier === 'pro'
+    const isStandard = subscriptionTier === 'standard'
+    const isPremium = isPro || isStandard || profile.is_premium
+    const hasAccess = isPremium || isTrialActive
+    const isReadOnlyMode = !hasAccess && trialExpired
+
     return {
-      hasAccess: profile.is_premium || isTrialActive,
-      isPremium: profile.is_premium || false,
+      hasAccess,
+      isPremium,
+      isPro,
+      isStandard,
       isTrialActive,
+      subscriptionTier,
       trialEndsAt: profile.trial_ends_at,
       daysRemaining,
+      isReadOnlyMode,
+      trialExpired,
     }
   } catch (error) {
     console.error('Error checking subscription status:', error)
     return {
       hasAccess: false,
       isPremium: false,
+      isPro: false,
+      isStandard: false,
       isTrialActive: false,
+      subscriptionTier: 'trial',
       trialEndsAt: null,
       daysRemaining: null,
+      isReadOnlyMode: true,
+      trialExpired: true,
     }
   }
 }
@@ -143,8 +173,122 @@ export async function cancelPremium(userId: string): Promise<boolean> {
  * @param status - The subscription status object
  * @returns string - Human-readable status message
  */
+/**
+ * Check if the current user is in read-only mode (trial expired, no premium subscription)
+ * @param userId - The user ID to check
+ * @returns Promise<boolean> - True if user should be in read-only mode
+ */
+export async function isReadOnlyMode(userId: string): Promise<boolean> {
+  const status = await getSubscriptionStatus(userId)
+  return status.isReadOnlyMode
+}
+
+/**
+ * Get subscription status from middleware headers (client-side)
+ * This is used to avoid additional database calls on the client
+ */
+export function getSubscriptionStatusFromHeaders(): {
+  isReadOnlyMode: boolean
+  trialExpired: boolean
+  daysRemaining: number | null
+} {
+  if (typeof window === 'undefined') {
+    return { isReadOnlyMode: false, trialExpired: false, daysRemaining: null }
+  }
+
+  // These headers would be set by middleware and passed through response
+  const isReadOnlyMode = document.querySelector('meta[name="x-read-only-mode"]')?.getAttribute('content') === 'true'
+  const trialExpired = document.querySelector('meta[name="x-trial-expired"]')?.getAttribute('content') === 'true'
+  const daysRemainingStr = document.querySelector('meta[name="x-trial-days-remaining"]')?.getAttribute('content')
+  const daysRemaining = daysRemainingStr ? parseInt(daysRemainingStr, 10) : null
+
+  return { isReadOnlyMode, trialExpired, daysRemaining }
+}
+
+/**
+ * Check if user has Pro tier access specifically
+ * @param userId - The user ID to check
+ * @returns Promise<boolean> - True if user has Pro tier subscription
+ */
+export async function hasProAccess(userId: string): Promise<boolean> {
+  const status = await getSubscriptionStatus(userId)
+  return status.isPro
+}
+
+/**
+ * Check if user has Standard tier access (includes Pro)
+ * @param userId - The user ID to check  
+ * @returns Promise<boolean> - True if user has Standard or Pro tier subscription
+ */
+export async function hasStandardAccess(userId: string): Promise<boolean> {
+  const status = await getSubscriptionStatus(userId)
+  return status.isStandard || status.isPro
+}
+
+/**
+ * Get user's subscription tier
+ * @param userId - The user ID to check
+ * @returns Promise<SubscriptionTier> - User's current subscription tier
+ */
+export async function getSubscriptionTier(userId: string): Promise<SubscriptionTier> {
+  const status = await getSubscriptionStatus(userId)
+  return status.subscriptionTier
+}
+
+/**
+ * Upgrade user to Pro tier
+ * @param userId - The user ID to upgrade
+ * @returns Promise<boolean> - True if upgrade was successful
+ */
+export async function upgradeToProTier(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        subscription_tier: 'pro',
+        is_premium: true,
+      })
+      .eq('id', userId)
+
+    return !error
+  } catch (error) {
+    console.error('Error upgrading to Pro tier:', error)
+    return false
+  }
+}
+
+/**
+ * Upgrade user to Standard tier  
+ * @param userId - The user ID to upgrade
+ * @returns Promise<boolean> - True if upgrade was successful
+ */
+export async function upgradeToStandardTier(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        subscription_tier: 'standard',
+        is_premium: true,
+      })
+      .eq('id', userId)
+
+    return !error
+  } catch (error) {
+    console.error('Error upgrading to Standard tier:', error)
+    return false
+  }
+}
+
 export function getSubscriptionMessage(status: SubscriptionStatus): string {
-  if (status.isPremium) {
+  if (status.isPro) {
+    return 'Pro Subscription Active'
+  }
+  
+  if (status.isStandard) {
+    return 'Standard Subscription Active'
+  }
+  
+  if (status.isPremium && !status.isPro && !status.isStandard) {
     return 'Premium Subscription Active'
   }
   

@@ -7,12 +7,15 @@ import { Textarea } from '@/components/ui/textarea'
 import { createPost } from '@/app/_actions/communityActions'
 import { useRouter } from 'next/navigation'
 import { Send } from 'lucide-react'
+import { useReadOnlyMode, useReadOnlyGuard } from '@/contexts/ReadOnlyModeContext'
 
 interface CreatePostFormProps {
   groupId: string
 }
 
 export function CreatePostForm({ groupId }: CreatePostFormProps) {
+  const { isReadOnlyMode } = useReadOnlyMode()
+  const checkReadOnlyGuard = useReadOnlyGuard()
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -26,6 +29,11 @@ export function CreatePostForm({ groupId }: CreatePostFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Check if user is in read-only mode
+    if (!checkReadOnlyGuard('create posts')) {
+      return
+    }
     
     // Clear previous errors
     setError('')
@@ -93,12 +101,12 @@ export function CreatePostForm({ groupId }: CreatePostFormProps) {
       <div>
         <Input
           type="text"
-          placeholder="What's on your mind? Give your post a title..."
+          placeholder={isReadOnlyMode ? "Upgrade to premium to create posts..." : "What's on your mind? Give your post a title..."}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className={`text-base ${fieldErrors.title ? 'border-red-500' : ''}`}
           maxLength={100}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isReadOnlyMode}
         />
         {fieldErrors.title && (
           <div className="mt-1 text-sm text-red-600">
@@ -112,13 +120,13 @@ export function CreatePostForm({ groupId }: CreatePostFormProps) {
       
       <div>
         <Textarea
-          placeholder="Share your thoughts, ask a question, or start a discussion..."
+          placeholder={isReadOnlyMode ? "Upgrade to premium to create posts..." : "Share your thoughts, ask a question, or start a discussion..."}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={4}
           className={`text-base resize-none ${fieldErrors.content ? 'border-red-500' : ''}`}
           maxLength={2000}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isReadOnlyMode}
         />
         {fieldErrors.content && (
           <div className="mt-1 text-sm text-red-600">
@@ -133,11 +141,13 @@ export function CreatePostForm({ groupId }: CreatePostFormProps) {
       <div className="flex justify-end">
         <Button 
           type="submit" 
-          disabled={isSubmitting || title.trim().length < 3 || content.trim().length < 10}
+          disabled={isSubmitting || title.trim().length < 3 || content.trim().length < 10 || isReadOnlyMode}
           className="flex items-center space-x-2"
         >
           <Send className="w-4 h-4" />
-          <span>{isSubmitting ? 'Posting...' : 'Post'}</span>
+          <span>
+            {isReadOnlyMode ? 'Upgrade Required' : (isSubmitting ? 'Posting...' : 'Post')}
+          </span>
         </Button>
       </div>
     </form>

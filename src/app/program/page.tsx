@@ -18,6 +18,7 @@ import { MUSCLE_GROUP_BASE_VOLUMES, calculateAllMuscleLandmarks } from '@/lib/vo
 import { type VolumeParameters, type VolumeLandmarks } from '@/lib/types/program'
 import { calculateWorkoutStreak } from '@/lib/db/index'
 import { Session } from '@supabase/supabase-js'
+import { useReadOnlyMode, useReadOnlyGuard } from '@/contexts/ReadOnlyModeContext'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -251,6 +252,8 @@ const ProgramFeedbackSection = ({ programData }: { programData: TrainingProgramW
 function ProgramPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { isReadOnlyMode, subscriptionStatus } = useReadOnlyMode()
+  const checkReadOnlyGuard = useReadOnlyGuard()
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [programData, setProgramData] = useState<TrainingProgramWithId | null>(null)
@@ -271,6 +274,7 @@ function ProgramPageContent() {
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [pollingStartTime, setPollingStartTime] = useState<number | null>(null)
   
   // Handle program generation warnings from URL params
   const [programWarning, setProgramWarning] = useState<string | null>(
@@ -358,6 +362,23 @@ function ProgramPageContent() {
   const checkGenerationStatus = useCallback(async () => {
     if (!session?.user) return
 
+    // Check for timeout (10 minutes max polling)
+    if (pollingStartTime && Date.now() - pollingStartTime > 10 * 60 * 1000) {
+      console.warn('Program generation polling timed out after 10 minutes')
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
+        setPollingInterval(null)
+      }
+      setGenerationStatus('failed')
+      setGenerationError('Program generation timed out. Please try again.')
+      addToast({
+        type: 'error',
+        title: 'Generation timeout',
+        description: 'Program generation took too long. Please try generating again.',
+      })
+      return
+    }
+
     try {
       const { data: programs, error } = await supabase
         .from('training_programs')
@@ -383,6 +404,16 @@ function ProgramPageContent() {
           }
           
           setProgramData(programWithId)
+          
+          // Only show success notification if we were previously in a pending/processing state
+          if (generationStatus === 'pending' || generationStatus === 'processing') {
+            addToast({
+              type: 'success',
+              title: '🎉 Your training program is ready!',
+              description: 'Your scientifically-optimized training program has been generated successfully.',
+            })
+          }
+          
           setGenerationStatus('completed')
           
           // Stop polling
@@ -460,6 +491,8 @@ function ProgramPageContent() {
     if (pollingInterval) {
       clearInterval(pollingInterval)
     }
+    
+    setPollingStartTime(Date.now()) // Track when polling started
     
     const interval = setInterval(() => {
       checkGenerationStatus()
@@ -628,6 +661,11 @@ function ProgramPageContent() {
           description: 'Your program is being regenerated. This may take a few minutes.',
         })
       } else {
+        // Check if we should redirect to pricing
+        if (!result.success && 'redirectToPricing' in result && result.redirectToPricing) {
+          router.push('/pricing?expired=true&feature=training program generation')
+          return
+        }
         setGenerationError(result.error || 'Failed to start program generation')
         addToast({
           type: 'error',
@@ -917,6 +955,11 @@ function ProgramPageContent() {
                   size="lg" 
                   className="w-full sm:w-auto"
                   onClick={async () => {
+                    // Check if user is in read-only mode
+                    if (!checkReadOnlyGuard('generate training programs')) {
+                      return
+                    }
+
                     setIsLoading(true)
                     try {
                       const { generateTrainingProgram } = await import('@/app/_actions/aiProgramActions')
@@ -926,6 +969,11 @@ function ProgramPageContent() {
                         router.replace('/program')
                         await fetchData()
                       } else {
+                        // Check if we should redirect to pricing
+                        if (!result.success && 'redirectToPricing' in result && result.redirectToPricing) {
+                          router.push('/pricing?expired=true&feature=training program generation')
+                          return
+                        }
                         setError(result.error || 'Failed to generate program')
                       }
                     } catch (err) {
@@ -934,7 +982,7 @@ function ProgramPageContent() {
                       setIsLoading(false)
                     }
                   }}
-                  disabled={isLoading}
+                  disabled={isLoading || isReadOnlyMode}
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Generate Training Program
@@ -963,6 +1011,42 @@ function ProgramPageContent() {
       }}
     >
       <div className="space-y-6 sm:space-y-8">
+        {/* Trial Status Banner */}
+        {subscriptionStatus && !subscriptionStatus.isPremium && (
+          <Card className={`mb-6 ${subscriptionStatus.isTrialActive ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200' : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'}`}>
+            <CardHeader>
+              <CardTitle className={`flex items-center text-xl font-semibold ${subscriptionStatus.isTrialActive ? 'text-amber-900' : 'text-red-900'}`}>
+                <Clock className={`w-6 h-6 mr-3 ${subscriptionStatus.isTrialActive ? 'text-amber-600' : 'text-red-600'}`} />
+                {subscriptionStatus.isTrialActive ? 'Free Trial Active' : 'Trial Expired'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`${subscriptionStatus.isTrialActive ? 'text-amber-700' : 'text-red-700'} mb-4`}>
+                {subscriptionStatus.isTrialActive 
+                  ? `You have ${subscriptionStatus.daysRemaining} day${subscriptionStatus.daysRemaining !== 1 ? 's' : ''} left in your free trial.`
+                  : 'Your free trial has expired. Upgrade to premium to continue using all features.'
+                }
+              </p>
+              {subscriptionStatus.isReadOnlyMode && (
+                <div className="bg-red-100 border border-red-300 rounded-lg p-4 mb-4">
+                  <p className="text-red-800 text-sm font-medium">
+                    🔒 Read-Only Mode: You can view your past workouts and dashboard, but cannot create new workouts or programs.
+                  </p>
+                </div>
+              )}
+              <Button
+                onClick={() => {
+                  // In a real implementation, redirect to pricing page
+                  console.log('Redirect to pricing page')
+                }}
+                className={`${subscriptionStatus.isTrialActive ? 'bg-amber-600 hover:bg-amber-700' : 'bg-red-600 hover:bg-red-700'} text-white`}
+              >
+                Upgrade to Premium
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+        
         {programData.coachIntro && (
           <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
             <CardHeader>
@@ -1037,6 +1121,11 @@ function ProgramPageContent() {
                         return
                       }
 
+                      // Check if user is in read-only mode
+                      if (!checkReadOnlyGuard('start workouts')) {
+                        return
+                      }
+
                       const hasCompletedReadiness = dailyReadinessService.hasCompletedToday()
                       
                       if (!hasCompletedReadiness) {
@@ -1048,7 +1137,7 @@ function ProgramPageContent() {
                       
                       handleStartWorkout(readinessData ?? undefined)
                     }}
-                    disabled={todaysWorkout?.isRestDay || isLoading}
+                    disabled={todaysWorkout?.isRestDay || isLoading || isReadOnlyMode}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-6 px-12 rounded-2xl text-2xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center space-x-4 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Play className="h-8 w-8" />
@@ -1179,6 +1268,7 @@ function ProgramPageContent() {
                       phase={phase}
                       phaseIndex={phaseIndex}
                       completedDays={completedDays}
+                      allPhases={programData.phases}
                     />
                   ))}
                 </div>

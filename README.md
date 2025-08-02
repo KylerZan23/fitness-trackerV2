@@ -1,10 +1,85 @@
 # NeuralLift - AI-Powered Fitness Tracker
 
-A comprehensive fitness tracking application powered by Next.js and Supabase, featuring AI-driven program generation, community features, and real-time progress tracking.
+A comprehensive fitness tracking application powered by Next.js and Supabase, featuring AI-driven program generation, community features, and real-time progress tracking. Includes multi-tier subscription system with Pro tier Advanced Analytics.
 
 ## Recent Updates
 
-### Free Trial Program Generation Fix (Latest)
+### Dedicated Upgrade Page Implementation (Latest)
+✅ **Personalized Upgrade Experience with Dynamic Progress Tracking**
+- **Dynamic User Progress Display**: Compelling data-driven upgrade experience at `/upgrade`
+  - Fetches and displays user workout statistics (total workouts, weight lifted, weekly averages)
+  - Personalized messaging highlighting user's fitness journey and achievements
+  - Most active day tracking and monthly workout count displays
+  - Visual progress cards with engaging icons and clear metrics
+- **Contextual Upgrade Messaging**: Smart messaging based on user context
+  - **Trial Expired**: "Your 7-Day Trial Has Ended" with progress emphasis
+  - **Feature Locked**: "Unlock [feature]" with targeted upgrade prompts
+  - Query parameter support for context (`?expired=true&feature=AI%20Coach`)
+  - Dynamic back navigation based on referral source
+- **Integrated Stripe Checkout**: Seamless payment processing
+  - Reuses existing `createCheckoutSession` server action
+  - Monthly ($9.99) and Annual ($39.99) subscription options
+  - "Most Popular" badge highlighting 67% annual savings
+  - Complete feature list with checkmarks for both plans
+- **Professional UI Design**: Trust-building upgrade interface
+  - Gradient background with clean card-based layout
+  - Trust indicators (7-day trial, cancel anytime, secure payment)
+  - Error handling with user-friendly messaging
+  - Loading states during Stripe checkout process
+  - Mobile-responsive design matching existing app aesthetic
+
+### Premium Feature Paywall Implementation
+✅ **Comprehensive Subscription-Based Access Control**
+- **Premium Route Protection**: Middleware-level route protection for core premium features
+  - AI Coach features fully protected at `/ai-coach` route
+  - Expired trial users automatically redirected to upgrade page
+  - Clear messaging about feature requirements and trial status
+- **Training Program Generation Restrictions**: Enhanced subscription checks for program creation
+  - Multiple validation layers in server actions and UI components
+  - Graceful error handling with upgrade prompts
+  - Automatic redirect to upgrade page for expired users
+- **Week-Based Workout Plan Access**: Progressive content unlocking system
+  - **Trial Users**: Access to first 2 weeks of training program
+  - **Premium Users**: Full access to all program weeks and phases
+  - Visual indication of locked content with upgrade prompts
+  - Subscription-gated accordion components with premium badges
+- **Dedicated Pricing Page**: Professional pricing interface at `/pricing`
+  - Dynamic trial expiration messaging based on user status
+  - Feature-specific upgrade prompts with context
+  - Integration with existing Stripe checkout system
+  - Clean user experience with FAQ section and upgrade paths
+- **Enhanced User Experience**: Clear value proposition and upgrade flows
+  - Contextual upgrade prompts based on accessed features
+  - Trial status indicators throughout the application
+  - Professional locked content styling with premium branding
+  - Seamless integration with existing subscription management
+
+### Asynchronous Program Generation Architecture
+✅ **Background Processing for Enhanced User Experience**
+- **Instant Response Times**: Program generation triggers now return immediately (< 1 second vs 30-60 seconds)
+  - Lightweight server action creates database entry with 'pending' status
+  - Supabase Edge Function processes generation in background
+  - Real-time status updates via polling mechanism
+- **Non-Blocking UI**: Users can continue using the app while programs generate
+  - Loading states with progress indicators and messaging
+  - Success notifications when generation completes
+  - Comprehensive error handling with retry mechanisms
+- **Enhanced Scientific Processing**: Background generation includes full AI pipeline
+  - Enhanced user data processing with volume parameters
+  - Individualized volume landmarks calculation
+  - Weak point analysis and periodization model selection
+  - Scientific autoregulation guidelines integration
+- **Scalable Architecture**: Supports multiple concurrent generations
+  - Edge Functions scale independently of main application
+  - Better resource utilization and cost efficiency
+  - Database status tracking with generation metadata
+- **Robust Error Handling**: Comprehensive timeout and failure management
+  - 10-minute timeout protection against infinite polling
+  - Detailed error logging and user-friendly error messages
+  - Automatic retry mechanisms for failed generations
+  - Database consistency guarantees
+
+### Free Trial Program Generation Fix
 ✅ **Comprehensive Program Generation for All Users**
 - **Fixed Inadequate Free Trial Programs**: Resolved issue where free trial users received only 1 workout day with 2 exercises
   - Updated Supabase Edge Function to use comprehensive program generation logic
@@ -442,6 +517,21 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 - **Enhanced Muscle Group Categorization**: Intelligent exercise classification that handles LLM-generated variations (e.g., "Dumbbell Bench Press", "Romanian Deadlifts")
 - Muscle distribution heatmaps and volume tracking with accurate categorization
 - Weekly and monthly progress summaries
+
+✅ **Pro Tier Advanced Analytics** (New)
+- **Volume Progression Dashboard**: Weekly/monthly volume trends by muscle group with density analysis
+- **Enhanced PR Tracker**: Multi-rep max calculations, strength velocity trends, and PR prediction algorithms
+- **Fatigue & Recovery Analysis**: Muscle group fatigue mapping, recovery time analysis, and training readiness indicators
+- **Advanced Data Export**: Raw data export capabilities and progress report generation
+- **AI-Powered Insights**: Automated training recommendations based on volume, fatigue, and progression patterns
+
+### Subscription Tiers
+✅ **Multi-Tier Pricing Model**
+- **Trial**: 7-day free trial with full basic features
+- **Standard** ($9.99/month): Unlimited AI programs, basic analytics, community access
+- **Pro** ($19.99/month): Advanced Analytics dashboard, volume tracking, fatigue analysis, data export
+- **Pro Annual** ($159.99/year): All Pro features plus advanced periodization and custom reports
+- **Feature Gating**: Pro features protected with upgrade prompts and seamless billing integration
 
 ### Onboarding Experience
 ✅ **Comprehensive User Setup**
