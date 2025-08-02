@@ -17,7 +17,7 @@ import {
   HowItWorks 
 } from '@/components/landing'
 import { EXPERT_COACHES, type ExpertCoach } from '@/lib/coaches'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { createCheckoutSession } from '@/app/_actions/stripeActions'
 import { loadStripe } from '@stripe/stripe-js'
@@ -197,64 +197,138 @@ const PricingSection = () => {
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900">Flexible Plans to Fit Your Journey</h2>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900">Choose Your Plan</h2>
           <p className="mt-4 text-lg text-gray-600">Start with a 7-day free trial. Cancel anytime.</p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Mock Tier 1: Free Trial */}
-          <Card className="p-6 text-center flex flex-col">
-            <h3 className="text-xl font-bold">Free Trial</h3>
-            <p className="text-muted-foreground mt-2">7 Days</p>
-            <ul className="text-left mt-4 space-y-2 flex-grow">
-              <li>✓ Full AI Programs</li>
-              <li>✓ AI Coach Access</li>
-              <li>✓ Basic Tracking</li>
-            </ul>
-            <Button className="mt-8 w-full" asChild><Link href="/signup">Start Free Trial</Link></Button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          {/* Standard Tier */}
+          <Card className="p-8 text-center flex flex-col relative">
+            <CardHeader className="pb-6">
+              <CardTitle className="text-2xl font-bold text-gray-900">Standard</CardTitle>
+              <CardDescription className="text-lg text-gray-600 mt-2">
+                The complete AI-powered training experience.
+              </CardDescription>
+              <div className="mt-6">
+                <div className="text-4xl font-bold text-gray-900">$9.99</div>
+                <div className="text-gray-500 text-lg">/month</div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 flex-grow">
+              <ul className="text-left space-y-4 mb-8">
+                <li className="flex items-center space-x-3">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700">AI-Personalized Program Generation</span>
+                </li>
+                <li className="flex items-center space-x-3">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700">Adaptive "AI Coach" Weekly Reviews</span>
+                </li>
+                <li className="flex items-center space-x-3">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700">Full Workout & Progress Tracking</span>
+                </li>
+                <li className="flex items-center space-x-3">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700">Exercise Video Library</span>
+                </li>
+              </ul>
+              <Button 
+                className="w-full py-3 text-lg font-semibold" 
+                size="lg"
+                asChild
+              >
+                <Link href="/signup">Start 7-Day Free Trial</Link>
+              </Button>
+            </CardContent>
           </Card>
           
-          {/* Mock Tier 2: Monthly */}
-          <Card className="p-6 text-center flex flex-col">
-            <h3 className="text-xl font-bold">Monthly</h3>
-            <p className="text-brand-green text-3xl font-bold mt-2">$9.99<span className="text-lg text-muted-foreground">/month</span></p>
-            <ul className="text-left mt-4 space-y-2 flex-grow">
-              <li>✓ Full AI Programs</li>
-              <li>✓ AI Coach Access</li>
-              <li>✓ Advanced Analytics</li>
-              <li>✓ Community Access</li>
-              <li>✓ Priority Support</li>
-            </ul>
-            <Button 
-              className="mt-8 w-full" 
-              onClick={() => handleSubscribe(getClientEnv().NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY)} 
-              disabled={isLoading}
-            >
-              {isLoading ? 'Processing...' : 'Subscribe Monthly'}
-            </Button>
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-          </Card>
-          
-          {/* Mock Tier 3: Annual */}
-          <Card className="p-6 text-center border-2 border-brand-green flex flex-col">
-            <h3 className="text-xl font-bold">Annual</h3>
-            <p className="text-brand-green text-3xl font-bold mt-2">$39.99<span className="text-lg text-muted-foreground">/year</span></p>
-            <ul className="text-left mt-4 space-y-2 flex-grow">
-              <li>✓ Full AI Programs</li>
-              <li>✓ AI Coach Access</li>
-              <li>✓ Advanced Analytics</li>
-              <li>✓ Community Access</li>
-              <li>✓ Priority Support</li>
-              <li>✓ Exclusive Features</li>
-            </ul>
-            <Button 
-              className="mt-8 w-full" 
-              onClick={() => handleSubscribe(getClientEnv().NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL)} 
-              disabled={isLoading}
-            >
-              {isLoading ? 'Processing...' : 'Save 67% Annually'}
-            </Button>
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          {/* Pro Tier */}
+          <Card className="p-8 text-center flex flex-col relative border-2 border-brand-green shadow-lg">
+            {/* Most Popular Badge */}
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-brand-green text-white px-4 py-2 text-sm font-semibold">
+                Most Popular
+              </Badge>
+            </div>
+            
+            <CardHeader className="pb-6">
+              <CardTitle className="text-2xl font-bold text-gray-900">Pro</CardTitle>
+              <CardDescription className="text-lg text-gray-600 mt-2">
+                For athletes and coaches who demand the best.
+              </CardDescription>
+              <div className="mt-6">
+                <div className="text-4xl font-bold text-brand-green">$14.99</div>
+                <div className="text-gray-500 text-lg">/month</div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 flex-grow">
+              <ul className="text-left space-y-4 mb-8">
+                <li className="flex items-center space-x-3">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700">Everything in Standard, plus:</span>
+                </li>
+                <li className="flex items-center space-x-3">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700">Advanced Performance Analytics</span>
+                </li>
+                <li className="flex items-center space-x-3">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700">Premium "Pro" Community Badge</span>
+                </li>
+                <li className="flex items-center space-x-3">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700">Exclusive Expert Q&A Sessions</span>
+                </li>
+                <li className="flex items-center space-x-3">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700">Coming Soon: B2B Tools for Coaches</span>
+                </li>
+              </ul>
+              <Button 
+                className="w-full py-3 text-lg font-semibold bg-brand-green hover:bg-brand-green/90" 
+                size="lg"
+                asChild
+              >
+                <Link href="/signup">Start 7-Day Free Trial</Link>
+              </Button>
+            </CardContent>
           </Card>
         </div>
       </div>

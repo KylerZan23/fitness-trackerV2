@@ -4,6 +4,15 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 
 ## Recent Updates
 
+### Robust AI Program Generation
+✅ **Enhanced Reliability for AI-Powered Features**
+- **Invalid JSON Error Fixed**: Resolved a critical bug where the AI model would occasionally return non-JSON text, causing program generation to fail.
+- **JSON Output Strictness**: The AI model now adheres to a strict protocol, returning only a single, valid, and minified JSON object without any additional text or formatting. This eliminates previous issues with extraneous characters or markdown.
+- **Robust Parsing Logic**: Implemented a resilient parsing system that intelligently extracts the valid JSON object from the AI's response, even if it's surrounded by conversational text (this is a fallback and the AI is prompted for clean output).
+- **Stricter AI Prompting**: Enhanced the instructions sent to the AI to be extremely explicit about returning *only* a single, valid, minified JSON object, significantly reducing the likelihood of errors.
+- **Improved User Experience**: Users will now experience fewer failures during the critical onboarding and program generation flows, leading to higher trust and satisfaction.
+- **Standardized Error Handling**: Established a new, more robust pattern for handling AI interactions that will be applied across all AI-powered features in the application.
+
 ### Trainer API Endpoint System (Latest)
 ✅ **External API Access for Fitness Professionals**
 - **API Key Authentication System**: Secure, scope-based authentication for external access

@@ -95,27 +95,37 @@ export async function getSubscriptionStatus(userId: string): Promise<Subscriptio
  * @returns Promise<boolean> - True if user has access (premium or active trial)
  */
 export async function hasActiveAccess(userId: string): Promise<boolean> {
-  const status = await getSubscriptionStatus(userId)
-  return status.hasAccess
+  try {
+    // Use database function for consistent timezone handling
+    const { data, error } = await supabase
+      .rpc('has_active_access', { user_id: userId })
+    
+    if (error) {
+      console.error('Error checking active access:', error)
+      // Fallback to subscription status check
+      const status = await getSubscriptionStatus(userId)
+      return status.hasAccess
+    }
+    
+    return data || false
+  } catch (error) {
+    console.error('Error in hasActiveAccess:', error)
+    // Fallback to subscription status check
+    const status = await getSubscriptionStatus(userId)
+    return status.hasAccess
+  }
 }
 
 /**
- * Start a 7-day trial for a new user
+ * Start a 7-day trial for a new user using database function
  * @param userId - The user ID to start trial for
  * @returns Promise<boolean> - True if trial was started successfully
  */
 export async function startTrial(userId: string): Promise<boolean> {
   try {
-    const trialEndDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    
+    // Use database function for consistent timezone handling
     const { error } = await supabase
-      .from('profiles')
-      .update({
-        trial_ends_at: trialEndDate,
-        is_premium: false,
-      })
-      .eq('id', userId)
-      .is('trial_ends_at', null) // Only update if trial hasn't been set yet
+      .rpc('start_user_trial', { user_id: userId })
 
     return !error
   } catch (error) {

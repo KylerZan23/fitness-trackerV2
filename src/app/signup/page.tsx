@@ -66,7 +66,7 @@ export default function SignupPage() {
       if (authData.user) {
         console.log('Account created successfully, creating profile via direct insertion...')
 
-        // Include trial and premium status fields for new users
+        // Create basic profile first (without trial - will be set by database function)
         const profileData = {
           id: authData.user.id,
           email: data.email,
@@ -74,7 +74,6 @@ export default function SignupPage() {
           age: 25, // Default age
           fitness_goals: 'Get fit', // Default goal
           is_premium: false, // New users start as non-premium
-          trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7-day trial
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
@@ -95,6 +94,18 @@ export default function SignupPage() {
           })
           setError(`Failed to create your profile: ${profileError.message || 'Unknown error'}`)
           return
+        }
+
+        // Start trial using database function (ensures consistent timezone handling)
+        console.log('Starting trial using database function...')
+        const { error: trialError } = await supabase
+          .rpc('start_user_trial', { user_id: authData.user.id })
+
+        if (trialError) {
+          console.error('Error starting trial:', trialError)
+          // Don't fail signup if trial start fails - user can still access with manual trial start
+        } else {
+          console.log('Trial started successfully')
         }
 
         console.log('Profile created successfully, redirecting to onboarding...')

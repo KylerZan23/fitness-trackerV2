@@ -496,6 +496,7 @@ COACHING VOICE:
 ${NEURAL_COACHING_CUES}
 
 Return ONLY valid JSON matching this structure:
+Your response MUST be a single, valid, minified JSON object and nothing else. Do not include any explanatory text, markdown formatting, or any characters before or after the JSON object. The entire output must be parsable by JSON.parse().
 {
   "programName": "string",
   "description": "string", 
@@ -543,64 +544,93 @@ function getDurationBasedOnGoals(onboardingData: any, isPaidUser: boolean): numb
   return 6
 }
 
-// Call LLM API
+// Call LLM API with retry mechanism
 async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: string }> {
-  try {
-    const apiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!apiKey) {
-      throw new Error('Missing OPENAI_API_KEY environment variable')
-    }
+  const MAX_RETRIES = 3;
+  const INITIAL_DELAY_MS = 1000;
+  let lastError: any = null;
 
-    const apiEndpoint = 'https://api.openai.com/v1/chat/completions'
-
-    const body = {
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 4096,
-      response_format: { type: 'json_object' },
-    }
-
-    const response = await fetch(apiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-    })
-
-    if (!response.ok) {
-      let errorDetails = response.statusText
-      try {
-        const errorData = await response.json()
-        errorDetails = errorData.error?.message || JSON.stringify(errorData) || response.statusText
-      } catch (e) {
-        // Ignore if error response is not JSON
-      }
-      throw new Error(`LLM API Error: ${response.status} - ${errorDetails}`)
-    }
-
-    const data = await response.json()
-
-    if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
-      throw new Error('Invalid response structure from LLM.')
-    }
-
-    const contentString = data.choices[0].message.content
-    
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      return { program: JSON.parse(contentString) }
-    } catch (parseError) {
-      console.error('Failed to parse LLM JSON response:', contentString)
-      throw new Error('LLM returned invalid JSON.')
-    }
-  } catch (error: any) {
-    console.error('LLM API call failed:', error)
-    return {
-      error: error.message || 'Failed to communicate with AI service for program generation',
+      console.log(`🤖 Calling LLM API... Attempt ${attempt}/${MAX_RETRIES}`);
+      const apiKey = Deno.env.get('OPENAI_API_KEY');
+      if (!apiKey) {
+        throw new Error('Missing OPENAI_API_KEY environment variable');
+      }
+
+      const apiEndpoint = 'https://api.openai.com/v1/chat/completions';
+
+      const body = {
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 4096,
+        response_format: { type: 'json_object' },
+      };
+
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        let errorDetails = response.statusText;
+        try {
+          const errorData = await response.json();
+          errorDetails = errorData.error?.message || JSON.stringify(errorData) || response.statusText;
+        } catch (e) {
+          // Ignore if error response is not JSON
+        }
+        throw new Error(`LLM API Error: ${response.status} - ${errorDetails}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
+        throw new Error('Invalid response structure from LLM.');
+      }
+
+      const contentString = data.choices[0].message.content;
+      
+      const extractJsonFromString = (text: string): string | null => {
+        const match = text.match(/\{[\s\S]*\}/);
+        return match ? match[0] : null;
+      };
+
+      const jsonString = extractJsonFromString(contentString);
+
+      if (!jsonString) {
+        console.error('Failed to find any JSON object in LLM response:', contentString);
+        throw new Error('LLM did not return a recognizable JSON object.');
+      }
+      
+      try {
+        const program = JSON.parse(jsonString);
+        return { program }; // Success
+      } catch (parseError) {
+        console.error('Failed to parse extracted LLM JSON response:', jsonString);
+        console.error('Original full LLM response:', contentString);
+        throw new Error('LLM returned invalid JSON, even after extraction.');
+      }
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`Attempt ${attempt} failed: ${error.message}`);
+      if (attempt < MAX_RETRIES) {
+        const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
   }
+
+  console.error('LLM API call failed after all retries:', lastError);
+  return {
+    error: lastError?.message || 'Failed to communicate with AI service after multiple attempts.',
+  };
 }
 
 // Enhanced User Data Processing (adapted from shared library)
@@ -853,6 +883,7 @@ COACHING VOICE:
 ${NEURAL_COACHING_CUES}
 
 Return ONLY valid JSON matching this structure:
+Your response MUST be a single, valid, minified JSON object and nothing else. Do not include any explanatory text, markdown formatting, or any characters before or after the JSON object. The entire output must be parsable by JSON.parse().
 {
   "programName": "string",
   "description": "string", 
