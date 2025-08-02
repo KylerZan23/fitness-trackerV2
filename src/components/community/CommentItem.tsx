@@ -5,6 +5,7 @@ import { updateComment, deleteComment } from '@/app/_actions/communityActions'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { ProBadge } from '@/components/ui/ProBadge'
 import { formatDistanceToNow } from 'date-fns'
 import { MoreHorizontal, Edit2, Trash2, Save, X } from 'lucide-react'
 import {
@@ -21,6 +22,7 @@ interface Comment {
   updated_at: string
   user_id: string
   user: {
+    id: string
     name: string
     profile_picture_url: string | null
   }
@@ -129,6 +131,7 @@ export function CommentItem({
           <span className="font-medium text-sm text-gray-900">
             {comment.user.name}
           </span>
+          <ProBadge userId={comment.user.id} variant="compact" />
           <span className="text-xs text-gray-500">
             {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
             {isEdited && ' (edited)'}

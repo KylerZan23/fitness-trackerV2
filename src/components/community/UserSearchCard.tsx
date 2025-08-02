@@ -5,6 +5,7 @@ import { Users, UserPlus, UserMinus } from 'lucide-react'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { ProBadge } from '@/components/ui/ProBadge'
 import { followUser, unfollowUser, getFollowStatus, type FollowerProfile } from '@/app/_actions/followActions'
 
 interface UserSearchCardProps {
@@ -79,6 +80,7 @@ export function UserSearchCard({ user, onFollowChange }: UserSearchCardProps) {
                 <h3 className="font-semibold text-gray-900 truncate">
                   {user.name}
                 </h3>
+                <ProBadge userId={user.id} variant="compact" />
               </div>
               
               {user.professional_title && (

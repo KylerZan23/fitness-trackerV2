@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { createClient } from '@/utils/supabase/client'
 const supabase = createClient()
-import { Users, Trophy, Library } from 'lucide-react'
+import { Users, Trophy, Library, Crown } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ActivitiesFeed, Leaderboard, CommunityGroupList, UserSearchBar } from '@/components/community'
+import { ExpertQAManager } from '@/components/community/ExpertQAManager'
 
 export default function CommunityPage() {
   const [userProfile, setUserProfile] = useState<{
@@ -70,7 +71,7 @@ export default function CommunityPage() {
 
         {/* Tabbed Interface */}
         <Tabs defaultValue="feed" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="feed">
               <Trophy className="w-4 h-4 mr-2" />
               Activities
@@ -78,6 +79,10 @@ export default function CommunityPage() {
             <TabsTrigger value="groups">
               <Library className="w-4 h-4 mr-2" />
               Communities
+            </TabsTrigger>
+            <TabsTrigger value="expert-qa">
+              <Crown className="w-4 h-4 mr-2" />
+              Expert Q&A
             </TabsTrigger>
             <TabsTrigger value="leaderboard">
               <Trophy className="w-4 h-4 mr-2" />
@@ -96,6 +101,10 @@ export default function CommunityPage() {
           
           <TabsContent value="groups" className="mt-6">
             <CommunityGroupList />
+          </TabsContent>
+          
+          <TabsContent value="expert-qa" className="mt-6">
+            <ExpertQAManager />
           </TabsContent>
           
           <TabsContent value="leaderboard" className="mt-6">

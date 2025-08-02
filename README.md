@@ -1,10 +1,33 @@
 # NeuralLift - AI-Powered Fitness Tracker
 
-A comprehensive fitness tracking application powered by Next.js and Supabase, featuring AI-driven program generation, community features, and real-time progress tracking. Includes multi-tier subscription system with Pro tier Advanced Analytics.
+A comprehensive fitness tracking application powered by Next.js and Supabase, featuring AI-driven program generation, community features, and real-time progress tracking. Includes multi-tier subscription system with Pro tier Advanced Analytics and external Trainer API for programmatic access.
 
 ## Recent Updates
 
-### Dedicated Upgrade Page Implementation (Latest)
+### Trainer API Endpoint System (Latest)
+✅ **External API Access for Fitness Professionals**
+- **API Key Authentication System**: Secure, scope-based authentication for external access
+  - SHA-256 hashed API keys with configurable permissions (`program:generate`, `program:read`, etc.)
+  - Rate limiting with hourly and daily limits per API key
+  - Usage tracking and analytics for monitoring and billing
+  - Secure key distribution with one-time visibility during creation
+- **Program Generation API**: `/api/v1/trainer/generate-program` endpoint
+  - Leverages existing AI program generation engine with full complexity support
+  - Accepts structured user biometrics, training goals, and experience data
+  - Returns complete training programs with scientific rationale and periodization
+  - Comprehensive request/response validation using Zod schemas
+- **Developer Experience**: Professional API documentation and tools
+  - Complete API documentation with examples and error codes
+  - CORS support for web applications
+  - Standardized error response format with detailed validation messages
+  - Admin management interface for API key lifecycle (creation, monitoring, deactivation)
+- **Security and Reliability**: Enterprise-grade API infrastructure
+  - Automatic cleanup of usage logs (30-day retention)
+  - Database migrations for API key management
+  - Environment variable validation for API configuration
+  - Architecture Decision Record (ADR-072) documenting design decisions
+
+### Dedicated Upgrade Page Implementation
 ✅ **Personalized Upgrade Experience with Dynamic Progress Tracking**
 - **Dynamic User Progress Display**: Compelling data-driven upgrade experience at `/upgrade`
   - Fetches and displays user workout statistics (total workouts, weight lifted, weekly averages)
@@ -525,11 +548,17 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 - **Advanced Data Export**: Raw data export capabilities and progress report generation
 - **AI-Powered Insights**: Automated training recommendations based on volume, fatigue, and progression patterns
 
+✅ **Premium Community Features** (New)
+- **Pro Badges**: Visual indicators next to usernames for Pro tier subscribers across all community interactions
+- **Expert Q&A**: Exclusive content type accessible only to Pro subscribers featuring expert insights and advanced discussions
+- **Access Control**: Multi-layer security ensuring Pro content remains exclusive with graceful upgrade prompts
+- **Enhanced Community Status**: Distinguished presence for Pro users in community feeds, comments, and interactions
+
 ### Subscription Tiers
 ✅ **Multi-Tier Pricing Model**
 - **Trial**: 7-day free trial with full basic features
 - **Standard** ($9.99/month): Unlimited AI programs, basic analytics, community access
-- **Pro** ($19.99/month): Advanced Analytics dashboard, volume tracking, fatigue analysis, data export
+- **Pro** ($19.99/month): Advanced Analytics dashboard, volume tracking, fatigue analysis, data export, Expert Q&A access, Pro badges
 - **Pro Annual** ($159.99/year): All Pro features plus advanced periodization and custom reports
 - **Feature Gating**: Pro features protected with upgrade prompts and seamless billing integration
 

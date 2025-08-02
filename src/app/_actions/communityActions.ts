@@ -3,9 +3,16 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { isReadOnlyMode } from '@/lib/subscription'
+import { isReadOnlyMode, hasProAccess } from '@/lib/subscription'
 
 const createPostSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters long."),
+  content: z.string().min(10, "Content must be at least 10 characters long."),
+  groupId: z.string().uuid().optional(),
+  contentType: z.enum(['general', 'expert_qa']).default('general'),
+})
+
+const createExpertQASchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
   content: z.string().min(10, "Content must be at least 10 characters long."),
   groupId: z.string().uuid().optional(),
@@ -227,13 +234,22 @@ export async function createPost(formData: FormData) {
     title: formData.get('title'),
     content: formData.get('content'),
     groupId: formData.get('groupId') || undefined,
+    contentType: formData.get('contentType') || 'general',
   })
 
   if (!validatedFields.success) {
     return { success: false, error: "Invalid post data.", errors: validatedFields.error.flatten().fieldErrors }
   }
 
-  const { title, content, groupId } = validatedFields.data
+  const { title, content, groupId, contentType } = validatedFields.data
+
+  // Check if user has permission for Expert Q&A content
+  if (contentType === 'expert_qa') {
+    const hasProSubscription = await hasProAccess(user.id)
+    if (!hasProSubscription) {
+      return { success: false, error: "Expert Q&A content is only available to Pro subscribers." }
+    }
+  }
 
   // If posting to a group, verify membership
   if (groupId) {
@@ -248,6 +264,7 @@ export async function createPost(formData: FormData) {
     title,
     content,
     group_id: groupId,
+    content_type: contentType,
   })
 
   if (error) {
@@ -973,6 +990,150 @@ export async function getFollowedUsersActivities(limit: number = 20): Promise<{
   } catch (error) {
     console.error('ERROR in getFollowedUsersActivities:', error)
     return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+// ===== EXPERT Q&A ACTIONS =====
+
+// Action to create Expert Q&A post (Pro subscribers only)
+export async function createExpertQAPost(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "You must be logged in to create Expert Q&A posts." }
+  }
+
+  // Check if user has Pro access
+  const hasProSubscription = await hasProAccess(user.id)
+  if (!hasProSubscription) {
+    return { success: false, error: "Expert Q&A content is only available to Pro subscribers." }
+  }
+
+  // Check if user is in read-only mode
+  const isInReadOnlyMode = await isReadOnlyMode(user.id)
+  if (isInReadOnlyMode) {
+    return { 
+      success: false, 
+      error: 'Your subscription has expired. Please renew to create Expert Q&A posts.' 
+    }
+  }
+
+  const validatedFields = createExpertQASchema.safeParse({
+    title: formData.get('title'),
+    content: formData.get('content'),
+    groupId: formData.get('groupId') || undefined,
+  })
+
+  if (!validatedFields.success) {
+    return { success: false, error: "Invalid Expert Q&A data.", errors: validatedFields.error.flatten().fieldErrors }
+  }
+
+  const { title, content, groupId } = validatedFields.data
+
+  // If posting to a group, verify membership
+  if (groupId) {
+    const membershipCheck = await checkGroupMembership(groupId)
+    if (!membershipCheck.success || !membershipCheck.isMember) {
+      return { success: false, error: "You must be a member of the group to post there." }
+    }
+  }
+
+  const { error } = await supabase.from('community_posts').insert({
+    user_id: user.id,
+    title,
+    content,
+    group_id: groupId,
+    content_type: 'expert_qa',
+    tags: ['expert-qa'], // Add expert-qa tag for easy filtering
+  })
+
+  if (error) {
+    console.error("Error creating Expert Q&A post:", error)
+    return { success: false, error: "Failed to create Expert Q&A post." }
+  }
+
+  // Revalidate the community pages
+  revalidatePath('/community')
+  if (groupId) {
+    revalidatePath(`/community/${groupId}`)
+  }
+
+  return { success: true, message: "Expert Q&A post created successfully!" }
+}
+
+// Action to get Expert Q&A posts (Pro subscribers only)
+export async function getExpertQAPosts(page: number = 1, limit: number = 20, groupId?: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "Please log in to view Expert Q&A content." }
+  }
+
+  // Check if user has Pro access
+  const hasProSubscription = await hasProAccess(user.id)
+  if (!hasProSubscription) {
+    return { success: false, error: "Expert Q&A content is only available to Pro subscribers.", data: [] }
+  }
+
+  const offset = (page - 1) * limit
+  let query = supabase
+    .from('community_posts')
+    .select(`
+      id,
+      title,
+      content,
+      created_at,
+      content_type,
+      tags,
+      user:profiles!community_posts_user_id_fkey(id, name, profile_picture_url)
+    `)
+    .eq('content_type', 'expert_qa')
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  // Filter by group if specified
+  if (groupId) {
+    query = query.eq('group_id', groupId)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error("Error fetching Expert Q&A posts:", error)
+    return { success: false, error: "Failed to load Expert Q&A content." }
+  }
+
+  return { success: true, data: data || [] }
+}
+
+// Action to check if user can view Expert Q&A content
+export async function canViewExpertQA() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, canView: false, error: "Please log in to access Expert Q&A." }
+  }
+
+  const hasProSubscription = await hasProAccess(user.id)
+  return { success: true, canView: hasProSubscription }
+}
+
+// ===== TYPE DEFINITIONS =====
+
+export interface ExpertQAPost {
+  id: string
+  title: string
+  content: string
+  created_at: string
+  content_type: 'expert_qa'
+  tags: string[]
+  user: {
+    id: string
+    name: string
+    profile_picture_url: string | null
   }
 }
 

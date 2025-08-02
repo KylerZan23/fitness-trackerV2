@@ -87,7 +87,21 @@ export const BaseEnvironmentSchema = z.object({
     'https://api.openai.com/v1/chat/completions'
   ),
 
+  // API Key Management Configuration
+  API_KEY_ENCRYPTION_SECRET: envApiKey('API_KEY_ENCRYPTION_SECRET', 32)
+    .optional()
+    .refine(
+      secret => !secret || secret.length >= 32,
+      {
+        message: 'API_KEY_ENCRYPTION_SECRET must be at least 32 characters long',
+      }
+    ),
 
+  // Rate limiting configuration
+  API_RATE_LIMIT_WINDOW_MINUTES: z.preprocess(
+    () => process.env.API_RATE_LIMIT_WINDOW_MINUTES,
+    z.string().optional().transform(val => val ? parseInt(val, 10) : 60)
+  ),
 
   // Stripe Configuration
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: envApiKey('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 100)

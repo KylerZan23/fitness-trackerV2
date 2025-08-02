@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { ProBadge } from '@/components/ui/ProBadge'
 import type { FollowedUserActivity, ExerciseDetail } from '@/app/_actions/communityActions'
 import { 
   toggleActivityLike, 
@@ -114,6 +115,7 @@ function CommentItem({ comment }: { comment: ActivityComment }) {
       <div className="flex-1">
         <div className="flex items-center space-x-2 mb-1">
           <span className="font-medium text-gray-900 text-sm">{comment.user.name}</span>
+          <ProBadge userId={comment.user.id} variant="compact" />
           <span className="text-xs text-gray-500">{timeAgo}</span>
         </div>
         <p className="text-sm text-gray-700">{comment.content}</p>
@@ -330,6 +332,7 @@ export function WorkoutActivityCard({ activity }: WorkoutActivityCardProps) {
           <div className="flex-1">
             <div className="flex items-center space-x-2">
               <h3 className="font-semibold text-gray-900">{activity.user.name}</h3>
+              <ProBadge userId={activity.user.id} variant="compact" />
               <span className="text-sm text-gray-500">{timeAgo}</span>
             </div>
           </div>
