@@ -351,7 +351,7 @@ function getExpertGuidelines(
   } else if (focusLower.includes('sport performance') || focusLower.includes('athletic performance')) {
     if (normalizedLevelKey === 'BEGINNER') return SPORT_PERFORMANCE_BEGINNER_GUIDELINES;
     if (normalizedLevelKey === 'INTERMEDIATE') return SPORT_PERFORMANCE_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return SPORT_PERFORMANCE_ADVANCED_GUIDELINES;
+    return SPORT_PERFORMANCE_ADVANCED_GUIDELINES;
   } else if (focusLower.includes('general fitness') || focusLower.includes('weight loss')) {
     if (normalizedLevelKey === 'BEGINNER') return GENERAL_FITNESS_BEGINNER_GUIDELINES;
     if (normalizedLevelKey === 'INTERMEDIATE') return GENERAL_FITNESS_INTERMEDIATE_GUIDELINES;
@@ -1316,8 +1316,9 @@ export async function generateTrainingProgram(
         })
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-          throw new Error(`Edge Function call failed: ${errorData.error || response.statusText}`)
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error', details: 'Could not parse error response.' }))
+          const errorDetails = errorData.details ? `: ${errorData.details}` : ''
+          throw new Error(`Edge Function call failed: ${errorData.error || response.statusText}${errorDetails}`)
         }
 
         console.log(`🚀 Successfully triggered background generation for program ${newProgram.id}`)
@@ -1395,8 +1396,9 @@ export async function generateTrainingProgram(
         })
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-          throw new Error(`Edge Function call failed: ${errorData.error || response.statusText}`)
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error', details: 'Could not parse error response.' }))
+          const errorDetails = errorData.details ? `: ${errorData.details}` : ''
+          throw new Error(`Edge Function call failed: ${errorData.error || response.statusText}${errorDetails}`)
         }
 
         console.log(`🚀 Successfully triggered background generation for program ${newProgram.id}`)

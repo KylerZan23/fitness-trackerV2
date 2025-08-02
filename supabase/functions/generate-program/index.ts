@@ -9,12 +9,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Import the core generation logic modules (adapted for Deno)
-import { generateEnhancedUserProfile } from 'https://esm.sh/@supabase/supabase-js@2'
-import { calculateAllMuscleLandmarks } from 'https://esm.sh/@supabase/supabase-js@2'
-import { enhancedWeakPointAnalysis } from 'https://esm.sh/@supabase/supabase-js@2'
-import { callLLM } from 'https://esm.sh/@supabase/supabase-js@2'
-
 // Program generation guidelines (simplified for Edge Function)
 const VOLUME_FRAMEWORK_GUIDELINES = `
 VOLUME LANDMARKS (weekly sets per muscle group):
@@ -64,6 +58,8 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  let programId: string | null = null
+
   try {
     // Only accept POST requests
     if (req.method !== 'POST') {
@@ -100,7 +96,8 @@ serve(async (req) => {
     })
 
     // Parse request body
-    const { programId } = await req.json()
+    const body = await req.json()
+    programId = body.programId
 
     if (!programId) {
       return new Response(
@@ -275,15 +272,14 @@ serve(async (req) => {
     console.error('❌ Edge function error:', error)
     
     // Try to update the program record with error status
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      const supabase = createClient(supabaseUrl, supabaseKey, {
-        auth: { autoRefreshToken: false, persistSession: false }
-      })
+    if (programId) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+          auth: { autoRefreshToken: false, persistSession: false }
+        })
 
-      const { programId } = await req.json()
-      if (programId) {
         await supabase
           .from('training_programs')
           .update({
@@ -291,9 +287,9 @@ serve(async (req) => {
             generation_error: error.message
           })
           .eq('id', programId)
+      } catch (updateError) {
+        console.error('Failed to update error status:', updateError)
       }
-    } catch (updateError) {
-      console.error('Failed to update error status:', updateError)
     }
     
     return new Response(
@@ -442,211 +438,62 @@ function getDurationBasedOnGoals(onboardingData: any, isPaidUser: boolean): numb
   return 6
 }
 
-// Call LLM API (simplified for Edge Function)
+// Call LLM API
 async function callLLMAPI(prompt: string): Promise<{ program?: any; error?: string }> {
   try {
-    // This would need to be implemented with your actual LLM service
-    // For now, we'll use a more comprehensive mock that respects the user's requirements
-    const mockProgram = generateComprehensiveMockProgram(prompt)
-    return { program: mockProgram }
+    const apiKey = Deno.env.get('OPENAI_API_KEY')
+    if (!apiKey) {
+      throw new Error('Missing OPENAI_API_KEY environment variable')
+    }
+
+    const apiEndpoint = 'https://api.openai.com/v1/chat/completions'
+
+    const body = {
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 4096,
+      response_format: { type: 'json_object' },
+    }
+
+    const response = await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      let errorDetails = response.statusText
+      try {
+        const errorData = await response.json()
+        errorDetails = errorData.error?.message || JSON.stringify(errorData) || response.statusText
+      } catch (e) {
+        // Ignore if error response is not JSON
+      }
+      throw new Error(`LLM API Error: ${response.status} - ${errorDetails}`)
+    }
+
+    const data = await response.json()
+
+    if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
+      throw new Error('Invalid response structure from LLM.')
+    }
+
+    const contentString = data.choices[0].message.content
+    
+    try {
+      return { program: JSON.parse(contentString) }
+    } catch (parseError) {
+      console.error('Failed to parse LLM JSON response:', contentString)
+      throw new Error('LLM returned invalid JSON.')
+    }
   } catch (error: any) {
+    console.error('LLM API call failed:', error)
     return {
       error: error.message || 'Failed to communicate with AI service for program generation',
-    }
-  }
-}
-
-// Generate a comprehensive mock program based on the prompt
-function generateComprehensiveMockProgram(prompt: string): any {
-  // Parse the prompt to extract user requirements
-  const hasFreeTrial = prompt.includes('FREE TRIAL USER')
-  const hasFoundationalStrength = prompt.includes('Foundational Strength')
-  const has4xWeek = prompt.includes('4 days/week') || prompt.includes('4x week')
-  const hasIntermediate = prompt.includes('Intermediate')
-
-  if (hasFreeTrial) {
-    // Free trial: One example week with 4 workout days
-    return {
-      programName: "Your Personalized Training Program - Sample Week",
-      description: "This is a sample week from your full personalized program. Upgrade to access the complete 4-week foundational strength program with full periodization and progression.",
-      durationWeeksTotal: 1,
-      phases: [{
-        phaseName: "Foundation Phase - Sample Week",
-        durationWeeks: 1,
-        weeks: [{
-          weekNumber: 1,
-          days: [
-            {
-              dayOfWeek: 1,
-              focus: "Upper Body - Push",
-              exercises: [
-                { name: "Bench Press", sets: 4, reps: "6-8", rest: "3-4 minutes", notes: "Anchor lift - focus on form and controlled descent" },
-                { name: "Overhead Press", sets: 3, reps: "8-10", rest: "2-3 minutes", notes: "Secondary compound movement" },
-                { name: "Incline Dumbbell Press", sets: 3, reps: "10-12", rest: "2 minutes", notes: "Accessory chest work" },
-                { name: "Lateral Raises", sets: 3, reps: "12-15", rest: "90 seconds", notes: "Shoulder isolation" },
-                { name: "Tricep Dips", sets: 3, reps: "8-12", rest: "2 minutes", notes: "Tricep strength" },
-                { name: "Plank", sets: 3, reps: "30-45 seconds", rest: "60 seconds", notes: "Core stability" }
-              ],
-              isRestDay: false,
-              estimatedDurationMinutes: 75
-            },
-            {
-              dayOfWeek: 2,
-              focus: "Lower Body - Squat",
-              exercises: [
-                { name: "Back Squat", sets: 4, reps: "6-8", rest: "3-4 minutes", notes: "Anchor lift - focus on depth and form" },
-                { name: "Romanian Deadlift", sets: 3, reps: "8-10", rest: "2-3 minutes", notes: "Posterior chain development" },
-                { name: "Leg Press", sets: 3, reps: "10-12", rest: "2 minutes", notes: "Quad accessory work" },
-                { name: "Walking Lunges", sets: 3, reps: "12 each leg", rest: "2 minutes", notes: "Unilateral leg work" },
-                { name: "Calf Raises", sets: 4, reps: "15-20", rest: "90 seconds", notes: "Calf development" },
-                { name: "Bird Dogs", sets: 3, reps: "10 each side", rest: "60 seconds", notes: "Core stability" }
-              ],
-              isRestDay: false,
-              estimatedDurationMinutes: 80
-            },
-            {
-              dayOfWeek: 3,
-              isRestDay: true,
-              exercises: [],
-              estimatedDurationMinutes: 0
-            },
-            {
-              dayOfWeek: 4,
-              focus: "Upper Body - Pull",
-              exercises: [
-                { name: "Pull-ups", sets: 4, reps: "6-8", rest: "3-4 minutes", notes: "Anchor lift - use assistance if needed" },
-                { name: "Barbell Rows", sets: 3, reps: "8-10", rest: "2-3 minutes", notes: "Back thickness" },
-                { name: "Lat Pulldowns", sets: 3, reps: "10-12", rest: "2 minutes", notes: "Lat width" },
-                { name: "Face Pulls", sets: 3, reps: "12-15", rest: "90 seconds", notes: "Rear delt work" },
-                { name: "Bicep Curls", sets: 3, reps: "10-12", rest: "90 seconds", notes: "Bicep development" },
-                { name: "Dead Bug", sets: 3, reps: "10 each side", rest: "60 seconds", notes: "Core anti-rotation" }
-              ],
-              isRestDay: false,
-              estimatedDurationMinutes: 75
-            },
-            {
-              dayOfWeek: 5,
-              focus: "Lower Body - Deadlift",
-              exercises: [
-                { name: "Conventional Deadlift", sets: 4, reps: "5-7", rest: "3-4 minutes", notes: "Anchor lift - focus on hip hinge" },
-                { name: "Front Squat", sets: 3, reps: "8-10", rest: "2-3 minutes", notes: "Quad and core work" },
-                { name: "Good Mornings", sets: 3, reps: "10-12", rest: "2 minutes", notes: "Posterior chain" },
-                { name: "Step-ups", sets: 3, reps: "10 each leg", rest: "2 minutes", notes: "Unilateral work" },
-                { name: "Hanging Leg Raises", sets: 3, reps: "8-12", rest: "2 minutes", notes: "Core strength" },
-                { name: "Glute Bridges", sets: 3, reps: "12-15", rest: "90 seconds", notes: "Glute activation" }
-              ],
-              isRestDay: false,
-              estimatedDurationMinutes: 80
-            },
-            {
-              dayOfWeek: 6,
-              isRestDay: true,
-              exercises: [],
-              estimatedDurationMinutes: 0
-            },
-            {
-              dayOfWeek: 7,
-              isRestDay: true,
-              exercises: [],
-              estimatedDurationMinutes: 0
-            }
-          ]
-        }]
-      }]
-    }
-  } else {
-    // Paid user: Full 4-week program
-    return {
-      programName: "Your Personalized Foundational Strength Program",
-      description: "A comprehensive 4-week foundational strength program designed to build a solid base of strength and muscle.",
-      durationWeeksTotal: 4,
-      phases: [{
-        phaseName: "Foundation Phase",
-        durationWeeks: 4,
-        weeks: [
-          // Week 1
-          {
-            weekNumber: 1,
-            days: [
-              {
-                dayOfWeek: 1,
-                focus: "Upper Body - Push",
-                exercises: [
-                  { name: "Bench Press", sets: 4, reps: "6-8", rest: "3-4 minutes", notes: "Anchor lift - focus on form" },
-                  { name: "Overhead Press", sets: 3, reps: "8-10", rest: "2-3 minutes", notes: "Secondary compound" },
-                  { name: "Incline Dumbbell Press", sets: 3, reps: "10-12", rest: "2 minutes", notes: "Accessory chest" },
-                  { name: "Lateral Raises", sets: 3, reps: "12-15", rest: "90 seconds", notes: "Shoulder isolation" },
-                  { name: "Tricep Dips", sets: 3, reps: "8-12", rest: "2 minutes", notes: "Tricep strength" },
-                  { name: "Plank", sets: 3, reps: "30-45 seconds", rest: "60 seconds", notes: "Core stability" }
-                ],
-                isRestDay: false,
-                estimatedDurationMinutes: 75
-              },
-              {
-                dayOfWeek: 2,
-                focus: "Lower Body - Squat",
-                exercises: [
-                  { name: "Back Squat", sets: 4, reps: "6-8", rest: "3-4 minutes", notes: "Anchor lift - focus on depth" },
-                  { name: "Romanian Deadlift", sets: 3, reps: "8-10", rest: "2-3 minutes", notes: "Posterior chain" },
-                  { name: "Leg Press", sets: 3, reps: "10-12", rest: "2 minutes", notes: "Quad accessory" },
-                  { name: "Walking Lunges", sets: 3, reps: "12 each leg", rest: "2 minutes", notes: "Unilateral work" },
-                  { name: "Calf Raises", sets: 4, reps: "15-20", rest: "90 seconds", notes: "Calf development" },
-                  { name: "Bird Dogs", sets: 3, reps: "10 each side", rest: "60 seconds", notes: "Core stability" }
-                ],
-                isRestDay: false,
-                estimatedDurationMinutes: 80
-              },
-              {
-                dayOfWeek: 3,
-                isRestDay: true,
-                exercises: [],
-                estimatedDurationMinutes: 0
-              },
-              {
-                dayOfWeek: 4,
-                focus: "Upper Body - Pull",
-                exercises: [
-                  { name: "Pull-ups", sets: 4, reps: "6-8", rest: "3-4 minutes", notes: "Anchor lift - use assistance if needed" },
-                  { name: "Barbell Rows", sets: 3, reps: "8-10", rest: "2-3 minutes", notes: "Back thickness" },
-                  { name: "Lat Pulldowns", sets: 3, reps: "10-12", rest: "2 minutes", notes: "Lat width" },
-                  { name: "Face Pulls", sets: 3, reps: "12-15", rest: "90 seconds", notes: "Rear delt work" },
-                  { name: "Bicep Curls", sets: 3, reps: "10-12", rest: "90 seconds", notes: "Bicep development" },
-                  { name: "Dead Bug", sets: 3, reps: "10 each side", rest: "60 seconds", notes: "Core anti-rotation" }
-                ],
-                isRestDay: false,
-                estimatedDurationMinutes: 75
-              },
-              {
-                dayOfWeek: 5,
-                focus: "Lower Body - Deadlift",
-                exercises: [
-                  { name: "Conventional Deadlift", sets: 4, reps: "5-7", rest: "3-4 minutes", notes: "Anchor lift - focus on hip hinge" },
-                  { name: "Front Squat", sets: 3, reps: "8-10", rest: "2-3 minutes", notes: "Quad and core work" },
-                  { name: "Good Mornings", sets: 3, reps: "10-12", rest: "2 minutes", notes: "Posterior chain" },
-                  { name: "Step-ups", sets: 3, reps: "10 each leg", rest: "2 minutes", notes: "Unilateral work" },
-                  { name: "Hanging Leg Raises", sets: 3, reps: "8-12", rest: "2 minutes", notes: "Core strength" },
-                  { name: "Glute Bridges", sets: 3, reps: "12-15", rest: "90 seconds", notes: "Glute activation" }
-                ],
-                isRestDay: false,
-                estimatedDurationMinutes: 80
-              },
-              {
-                dayOfWeek: 6,
-                isRestDay: true,
-                exercises: [],
-                estimatedDurationMinutes: 0
-              },
-              {
-                dayOfWeek: 7,
-                isRestDay: true,
-                exercises: [],
-                estimatedDurationMinutes: 0
-              }
-            ]
-          }
-          // Additional weeks would be added here for the full program
-        ]
-      }]
     }
   }
 }
