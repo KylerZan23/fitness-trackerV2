@@ -1,3 +1,5 @@
+'use client'
+
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Brain } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-import { hasActiveSubscription } from '@/lib/permissions'
+import { checkSubscriptionStatus } from '@/app/_actions/subscriptionActions'
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -48,13 +48,13 @@ export function SubscriptionGatedWeek({
           return
         }
 
-        // Check subscription status
-        const userHasAccess = await hasActiveSubscription(user.id)
+        // Check subscription status using server action
+        const subscriptionStatus = await checkSubscriptionStatus()
         
         // Allow access if:
         // 1. User has active subscription, OR
         // 2. This is within the trial week limit (0-indexed, so weeks 0 and 1 are free)
-        const weekIsAccessible = userHasAccess || absoluteWeekIndex < TRIAL_WEEK_LIMIT
+        const weekIsAccessible = subscriptionStatus.hasAccess || absoluteWeekIndex < TRIAL_WEEK_LIMIT
         
         setHasAccess(weekIsAccessible)
       } catch (error) {
