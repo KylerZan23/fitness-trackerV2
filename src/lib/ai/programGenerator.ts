@@ -132,13 +132,14 @@ export async function runProgramGenerationPipeline(programId: string): Promise<v
       aiModelUsed: llmResponse.aiModelUsed || 'gpt-4o',
     }
     
-        const validationResult = ENHANCED_PROGRAM_VALIDATION.safeParse(programData);
+    let validatedProgram: TrainingProgram
+    const validationResult = ENHANCED_PROGRAM_VALIDATION.safeParse(programData)
     if (!validationResult.success) {
       // It's better to log the detailed error for debugging purposes
-      console.error("Program validation failed:", validationResult.error.flatten());
-      throw new Error(`Program validation failed: ${validationResult.error.message}`);
+      console.error('Program validation failed:', validationResult.error.flatten())
+      throw new Error(`Program validation failed: ${validationResult.error.message}`)
     }
-    validatedProgram = validationResult.data as unknown as TrainingProgram;
+    validatedProgram = validationResult.data as unknown as TrainingProgram
     
     console.log('💾 Updating program record with generated data...')
     

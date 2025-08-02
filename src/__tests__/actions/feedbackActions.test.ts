@@ -3,8 +3,7 @@ import {
   testServerAction,
   submitProgramFeedback,
   submitCoachFeedback,
-  getFeedbackStats,
-  type FeedbackResponse
+  getFeedbackStats
 } from '@/app/_actions/feedbackActions'
 
 // Mock all dependencies

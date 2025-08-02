@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals'
+import { type SupabaseClient } from '@/utils/supabase/server'
 
 /**
  * Shared mock factories for consistent testing patterns across all server action tests
@@ -105,43 +106,44 @@ export const createMockFeedback = (overrides: Partial<MockFeedback> = {}): MockF
 /**
  * Supabase client mock factory
  */
-export const createMockSupabaseClient = () => ({
-  auth: {
-    getUser: jest.fn().mockResolvedValue({ 
-      data: { user: null }, 
-      error: null 
+export const createMockSupabaseClient = (): jest.Mocked<SupabaseClient> =>
+  ({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: null },
+        error: null,
+      }),
+      getSession: jest.fn().mockResolvedValue({
+        data: { session: null },
+        error: null,
+      }),
+    },
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    order: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockResolvedValue({
+      data: [],
+      error: null,
     }),
-    getSession: jest.fn().mockResolvedValue({ 
-      data: { session: null }, 
-      error: null 
+    update: jest.fn().mockResolvedValue({
+      data: [],
+      error: null,
     }),
-  },
-  from: jest.fn().mockReturnThis(),
-  select: jest.fn().mockReturnThis(),
-  eq: jest.fn().mockReturnThis(),
-  order: jest.fn().mockReturnThis(),
-  limit: jest.fn().mockReturnThis(),
-  insert: jest.fn().mockResolvedValue({ 
-    data: [], 
-    error: null 
-  }),
-  update: jest.fn().mockResolvedValue({ 
-    data: [], 
-    error: null 
-  }),
-  upsert: jest.fn().mockResolvedValue({ 
-    data: [], 
-    error: null 
-  }),
-  single: jest.fn().mockResolvedValue({ 
-    data: null, 
-    error: null 
-  }),
-  rpc: jest.fn().mockResolvedValue({ 
-    data: null, 
-    error: null 
-  }),
-})
+    upsert: jest.fn().mockResolvedValue({
+      data: [],
+      error: null,
+    }),
+    single: jest.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    }),
+    rpc: jest.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    }),
+  } as any as jest.Mocked<SupabaseClient>)
 
 /**
  * Helper functions for common test scenarios

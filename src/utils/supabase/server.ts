@@ -1,4 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { SupabaseClient } from '@supabase/supabase-js'
 import { type ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
 import { cookies as nextCookies } from 'next/headers'
 import { getSupabaseServerConfig } from '@/lib/env'
@@ -31,3 +32,5 @@ export async function createClient(cookieStore?: ReadonlyRequestCookies) {
     },
   })
 }
+
+export type { SupabaseClient }
