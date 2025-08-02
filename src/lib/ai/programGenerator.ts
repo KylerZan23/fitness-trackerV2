@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { type OnboardingData } from '@/lib/types/onboarding'
 import { type TrainingProgram } from '@/lib/types/program'
-import { validateEnhancedProgram, TrainingProgramSchema } from '@/lib/validation/enhancedProgramSchema'
+import { validateEnhancedProgram, ENHANCED_PROGRAM_VALIDATION } from '@/lib/validation/enhancedProgramSchema'
 
 // Import the core generation logic modules
 import { generateEnhancedUserProfile } from '@/lib/dataInference'
@@ -132,29 +132,13 @@ export async function runProgramGenerationPipeline(programId: string): Promise<v
       aiModelUsed: llmResponse.aiModelUsed || 'gpt-4o',
     }
     
-    let validatedProgram: TrainingProgram
-    
-    // Try enhanced validation first, fallback to basic
-    try {
-      const enhancedValidation = validateEnhancedProgram(
-        programData,
-        processingResult.volumeLandmarks,
-        processingResult.identifiedWeakPoints
-      )
-      
-      if (enhancedValidation.isValid) {
-        validatedProgram = programData as TrainingProgram
-      } else {
-        throw new Error('Enhanced validation failed')
-      }
-    } catch (enhancedError) {
-      console.log('📋 Falling back to basic validation...')
-      const basicValidation = TrainingProgramSchema.safeParse(programData)
-      if (!basicValidation.success) {
-        throw new Error(`Program validation failed: ${basicValidation.error.message}`)
-      }
-      validatedProgram = basicValidation.data as unknown as TrainingProgram
+        const validationResult = ENHANCED_PROGRAM_VALIDATION.safeParse(programData);
+    if (!validationResult.success) {
+      // It's better to log the detailed error for debugging purposes
+      console.error("Program validation failed:", validationResult.error.flatten());
+      throw new Error(`Program validation failed: ${validationResult.error.message}`);
     }
+    validatedProgram = validationResult.data as unknown as TrainingProgram;
     
     console.log('💾 Updating program record with generated data...')
     
