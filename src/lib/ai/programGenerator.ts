@@ -2,8 +2,19 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { type OnboardingData } from '@/lib/types/onboarding'
-import { type TrainingProgram } from '@/lib/types/program'
-import { validateEnhancedProgram, ENHANCED_PROGRAM_VALIDATION } from '@/lib/validation/enhancedProgramSchema'
+import { type TrainingProgram, ENHANCED_PROGRAM_VALIDATION } from '@/lib/validation/enhancedProgramSchema'
+
+interface ProgramUpdateData {
+  generation_status: 'completed' | 'failed' | 'in_progress';
+  generation_error: string | null;
+  program_details: TrainingProgram;
+  ai_model_version: string;
+  weak_point_analysis: any;
+  periodization_model: string;
+  generation_metadata: any;
+  volume_landmarks?: any;
+}
+
 
 // Import the core generation logic modules
 import { generateEnhancedUserProfile } from '@/lib/dataInference'
@@ -144,7 +155,7 @@ export async function runProgramGenerationPipeline(programId: string): Promise<v
     console.log('💾 Updating program record with generated data...')
     
     // Step 4: Update the program record with results
-    const updateData = {
+    const updateData: ProgramUpdateData = {
       generation_status: 'completed',
       generation_error: null,
       program_details: validatedProgram,
@@ -158,18 +169,11 @@ export async function runProgramGenerationPipeline(programId: string): Promise<v
           recoveryCapacity: processingResult.enhancedProfile.volumeParameters.recoveryCapacity,
           stressLevel: processingResult.enhancedProfile.volumeParameters.stressLevel,
           volumeTolerance: processingResult.enhancedProfile.volumeParameters.volumeTolerance,
-        }
-      }
+        },
+      },
+      volume_landmarks: processingResult.volumeLandmarks,
     }
-    
-    // Handle volume_landmarks with fallback
-    try {
-      updateData.volume_landmarks = processingResult.volumeLandmarks
-    } catch (e) {
-      // If the column doesn't exist, skip it
-      console.warn('Volume landmarks column not available, skipping...')
-    }
-    
+
     const { error: updateError } = await supabase
       .from('training_programs')
       .update(updateData)
