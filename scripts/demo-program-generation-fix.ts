@@ -23,7 +23,7 @@ interface Exercise {
 
 interface WorkoutDay {
   dayOfWeek: number
-  focus: string
+  focus?: string
   exercises: Exercise[]
   isRestDay: boolean
   estimatedDurationMinutes: number
