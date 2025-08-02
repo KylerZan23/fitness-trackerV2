@@ -4,7 +4,30 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 
 ## Recent Updates
 
-### Training Program Caching System (Latest)
+### Free Trial Program Generation Fix (Latest)
+✅ **Comprehensive Program Generation for All Users**
+- **Fixed Inadequate Free Trial Programs**: Resolved issue where free trial users received only 1 workout day with 2 exercises
+  - Updated Supabase Edge Function to use comprehensive program generation logic
+  - Implemented proper subscription status checking (premium vs trial)
+  - Added free trial limitations (1 example week vs full program)
+  - Enhanced exercise selection with proper hierarchy (compounds → isolation)
+- **Improved Program Structure**: Both free trial and paid users now receive proper programs
+  - **Free Trial Users**: 1 week, 4 workout days, 6 exercises per workout
+  - **Paid Users**: 4 weeks, 4 workout days, 6 exercises per workout
+  - Proper exercise hierarchy with anchor lifts, secondary compounds, and isolation work
+  - Clear upgrade messaging for free trial users
+- **Enhanced User Experience**: Better program quality and conversion potential
+  - Scientific exercise selection with proper volume distribution
+  - Comprehensive workout structure with warm-up, main exercises, and cool-down
+  - Proper rest day scheduling and recovery management
+  - Clear value proposition for upgrading to premium
+- **Technical Improvements**: Robust error handling and status updates
+  - Enhanced Edge Function with proper error handling
+  - Database status tracking for program generation
+  - Comprehensive logging for debugging and monitoring
+  - Graceful fallback mechanisms for failed generation
+
+### Training Program Caching System
 ✅ **Performance Optimization with Intelligent Caching**
 - **24-Hour Cache Duration**: Reduces LLM API calls and improves response times
   - Cache key generation based on user profile, subscription status, and onboarding responses
