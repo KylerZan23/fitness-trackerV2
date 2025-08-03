@@ -36,8 +36,39 @@ export async function finalizeOnboardingAndGenerateProgram(
 ): Promise<ActionResponse> {
   try {
     console.log('finalizeOnboardingAndGenerateProgram called')
-    // Directly pass formData to saveOnboardingData
-    return await saveOnboardingData(formData)
+    
+    // First save the onboarding data
+    const saveResult = await saveOnboardingData(formData)
+    if (!saveResult.success) {
+      return saveResult
+    }
+
+    // Get the authenticated user to pass to program generation
+    const supabase = await createClient()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      console.error('Authentication error in finalizeOnboardingAndGenerateProgram:', authError)
+      return { success: false, error: 'Authentication failed. Please log in again.' }
+    }
+
+    // Now generate the training program
+    console.log('Starting program generation for user:', user.id)
+    const programResult = await generateTrainingProgram(user, formData)
+    
+    if (!programResult.success) {
+      console.error('Program generation failed:', programResult.error)
+      return { 
+        success: false, 
+        error: programResult.error || 'Failed to generate training program. Please try again.' 
+      }
+    }
+
+    console.log('Onboarding and program generation completed successfully')
+    return { success: true }
   } catch (error) {
     console.error('ERROR in finalizeOnboardingAndGenerateProgram:', error)
     return { success: false, error: 'An unexpected error occurred while completing onboarding. Please try again.' }

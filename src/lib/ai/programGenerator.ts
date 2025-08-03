@@ -62,7 +62,10 @@ interface EnhancedProcessingResult {
  * This is the shared function that handles the entire program generation process
  * from fetching user data to validating and updating the program in the database.
  */
-export async function runProgramGenerationPipeline(programId: string): Promise<void> {
+export async function runProgramGenerationPipeline(
+  programId: string,
+  isFreeTrial: boolean = false // <-- Accept the new parameter
+): Promise<void> {
   const supabase = await createClient()
   
   try {
@@ -128,7 +131,7 @@ export async function runProgramGenerationPipeline(programId: string): Promise<v
     const { program: llmResponse, error: llmError } = await callEnhancedLLMAPI(
       userProfileForGeneration, 
       processingResult,
-      true // Assume paid access for background generation
+      !isFreeTrial // Use the isFreeTrial flag to determine paid access
     )
     
     if (llmError) {
@@ -349,6 +352,25 @@ async function constructSimplifiedLLMPrompt(
   const typeDefinitions = getTypeScriptInterfaceDefinitions()
   const weightUnit = profile.weight_unit || 'kg'
 
+  // --- START: ADD THIS BLOCK ---
+  let programLengthInstruction = `
+    ## Program Length
+    Generate a full ${getDurationBasedOnGoals(onboarding, hasPaidAccess)}-week mesocycle. The program should show clear progression from week to week.
+  `;
+
+  if (!hasPaidAccess) {
+    programLengthInstruction = `
+    ## Program Length Constraint: CRITICAL
+    FREE TRIAL USER - Generate exactly ONE week only:
+    - durationWeeksTotal: 1
+    - ONE phase with durationWeeks: 1
+    - ONE week in that phase
+    - Standard training week tailored to their goals
+    - Use proper dayOfWeek numbers: 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday
+    `;
+  }
+  // --- END: ADD THIS BLOCK ---
+
   return `You are Neural, an elite exercise scientist and evidence-based coach AI. Create a scientifically-grounded training program based on the user's profile. Your entire output MUST be a single, valid JSON object that adheres to the TrainingProgram TypeScript interface.
 
 ${typeDefinitions}
@@ -387,7 +409,7 @@ REQUIREMENTS:
 ${weakPointAnalysis && weakPointAnalysis.primaryWeakPoints.length > 0 ? 
   `4. Address weak points: ${weakPointAnalysis.primaryWeakPoints.join(', ')}` : ''}
 
-Create a ${getDurationBasedOnGoals(onboarding, hasPaidAccess)}-week program with appropriate phases.
+${programLengthInstruction} // <-- Inject the new instruction here
 
 NEURAL'S COACHING CUES:
 ${NEURAL_COACHING_CUES}

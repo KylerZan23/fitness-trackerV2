@@ -10,6 +10,7 @@ import { callLLM } from '@/lib/llmService'
 import { mapGoalToTrainingFocus } from '@/lib/utils/goalToFocusMapping'
 import { hasActiveSubscription } from '@/lib/permissions'
 import { isReadOnlyMode } from '@/lib/subscription'
+import { revalidatePath } from "next/cache"
 import {
   type TrainingProgram,
   type TrainingPhase,
@@ -1311,24 +1312,13 @@ export async function generateTrainingProgram(
 
         const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-program`
         
-        // Create user profile object for the Edge Function
-        const userProfile = {
-          userId: profile.id,
-          userName: profile.name,
-          age: profile.age,
-          weightUnit: profile.weight_unit,
-          trainingFocus: profile.primary_training_focus,
-          experienceLevel: profile.experience_level,
-          ...profile.onboarding_responses
-        }
-        
         const response = await fetch(edgeFunctionUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ userProfile })
+          body: JSON.stringify({ programId: newProgram.id })
         });
 
         if (!response.ok) {
@@ -1339,6 +1329,7 @@ export async function generateTrainingProgram(
 
         console.log(`🚀 Successfully triggered background generation for program ${newProgram.id}`)
         
+        revalidatePath("/dashboard");
         return { 
           success: true, 
           message: 'Program generation started successfully. You will be notified when it\'s ready.' 
@@ -1430,34 +1421,13 @@ export async function generateTrainingProgram(
 
         const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-program`
         
-        // Create user profile object for the Edge Function from onboarding data
-        const userProfile = {
-          userId: user.id,
-          userName: user.user_metadata?.name || 'User',
-          weightUnit: onboardingData.weightUnit,
-          trainingFocus: onboardingData.primaryGoal,
-          experienceLevel: onboardingData.experienceLevel,
-          primaryGoal: onboardingData.primaryGoal,
-          trainingFrequencyDays: onboardingData.trainingFrequencyDays,
-          sessionDuration: onboardingData.sessionDuration,
-          equipment: onboardingData.equipment,
-          injuriesLimitations: onboardingData.injuriesLimitations,
-          squat1RMEstimate: onboardingData.squat1RMEstimate,
-          benchPress1RMEstimate: onboardingData.benchPress1RMEstimate,
-          deadlift1RMEstimate: onboardingData.deadlift1RMEstimate,
-          overheadPress1RMEstimate: onboardingData.overheadPress1RMEstimate,
-          strengthAssessmentType: onboardingData.strengthAssessmentType,
-          exercisePreferences: onboardingData.exercisePreferences,
-          sportSpecificDetails: onboardingData.sportSpecificDetails
-        }
-        
         const response = await fetch(edgeFunctionUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ userProfile })
+          body: JSON.stringify({ programId: newProgram.id })
         });
 
         if (!response.ok) {
@@ -1468,6 +1438,7 @@ export async function generateTrainingProgram(
 
         console.log(`🚀 Successfully triggered background generation for program ${newProgram.id}`);
         
+        revalidatePath("/dashboard");
         return { 
           success: true, 
           message: 'Program generation started! You will be notified when it is ready.' 
@@ -2454,4 +2425,92 @@ interface WeakPointAnalysisInput {
   primaryGoal?: string
   injuriesLimitations?: string
   strengthAssessmentType?: string
+}
+
+/**
+ * Server action to finalize onboarding and generate training program with subscription status
+ */
+export async function finalizeOnboardingAndGenerateProgram(
+  userId: string,
+  onboardingData: OnboardingData
+) {
+  const supabase = await createClient();
+
+  // --- START: ADD THIS BLOCK ---
+  // Fetch user's subscription status
+  const { data: subscription, error: subError } = await supabase
+    .from('subscriptions')
+    .select('status, trial_end')
+    .eq('user_id', userId)
+    .single();
+
+  // Determine if the user is on a free trial
+  const isFreeTrial = subscription?.status === 'trialing' && 
+                      subscription.trial_end && 
+                      new Date(subscription.trial_end) > new Date();
+  // --- END: ADD THIS BLOCK ---
+
+  // 1. Create the program entry with 'pending' status and get its ID
+  const { data: newProgram, error: programError } = await supabase
+    .from("training_programs")
+    .insert({
+      user_id: userId,
+      generation_status: "pending",
+      onboarding_data_snapshot: onboardingData,
+      program_details: {}, // Empty placeholder, will be filled by background process
+    })
+    .select("id") // <-- Ensure you are selecting the 'id'
+    .single();   // <-- Use .single() to get a single object back
+
+  if (programError || !newProgram) {
+    console.error("Failed to create pending program entry:", programError);
+    return { success: false, error: "Failed to initialize program." };
+  }
+
+  // This is the ID of the program you just created
+  const programId = newProgram.id;
+
+  // 2. Invoke the edge function with the NEWLY required programId
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('No valid session found');
+    }
+
+    const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-program`;
+    
+    const response = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ 
+        programId,
+        isFreeTrial, // <-- Pass the new flag
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error', details: 'Could not parse error response.' }))
+      const errorDetails = errorData.details ? `: ${errorData.details}` : ''
+      throw new Error(`Edge Function call failed: ${errorData.error || response.statusText}${errorDetails}`)
+    }
+
+    console.log(`🚀 Successfully triggered background generation for program ${programId} with isFreeTrial: ${isFreeTrial}`);
+    
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (invokeError: any) {
+    console.error("Failed to invoke generation function:", invokeError);
+    // Optionally, update the program status to 'failed' here
+    await supabase
+      .from("training_programs")
+      .update({ 
+        generation_status: "failed",
+        generation_error: `Edge Function call failed: ${invokeError.message}`
+      })
+      .eq("id", programId);
+    return { success: false, error: `Edge Function call failed: ${invokeError.message}` };
+  }
 }

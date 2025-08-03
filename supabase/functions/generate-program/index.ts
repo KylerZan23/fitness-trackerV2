@@ -40,7 +40,26 @@ const programSchema = z.object({
 });
 
 // --- Prompt Builder ---
-function buildPrompt(userProfile: any) {
+function buildPrompt(userProfile: any, isFreeTrial: boolean = false) {
+  // --- START: ADD THIS BLOCK ---
+  let programLengthInstruction = `
+    ## Program Length
+    Generate a full 4-week mesocycle. The program should show clear progression from week to week.
+  `;
+
+  if (isFreeTrial) {
+    programLengthInstruction = `
+    ## Program Length Constraint: CRITICAL
+    FREE TRIAL USER - Generate exactly ONE week only:
+    - durationWeeksTotal: 1
+    - ONE phase with durationWeeks: 1
+    - ONE week in that phase
+    - Standard training week tailored to their goals
+    - Use proper dayOfWeek numbers: 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday
+    `;
+  }
+  // --- END: ADD THIS BLOCK ---
+
   return `
     Based on the user profile below, generate a complete, detailed, and personalized training program.
     User Profile: ${JSON.stringify(userProfile, null, 2)}
@@ -50,12 +69,14 @@ function buildPrompt(userProfile: any) {
     2. The root object of the JSON MUST be named "trainingProgram".
     3. The program must be structured into phases, weeks, and days.
     4. Each day must include a "focus" (e.g., "Upper Body") and an array of "exercises".
+    
+    ${programLengthInstruction} // <-- Inject the new instruction here
   `;
 }
 
 // --- Program Generation Logic ---
-async function generateProgram(userProfile: any): Promise<any> {
-  const prompt = buildPrompt(userProfile);
+async function generateProgram(userProfile: any, isFreeTrial: boolean = false): Promise<any> {
+  const prompt = buildPrompt(userProfile, isFreeTrial);
   let rawOutput = '';
 
   try {
@@ -85,14 +106,16 @@ async function generateProgram(userProfile: any): Promise<any> {
 
 // --- Supabase Edge Function Handler ---
 Deno.serve(async (req) => {
-  // Handle preflight requests for CORS.
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  let programId: string | undefined;
-
   try {
+    console.log("generate-program function invoked."); // <-- ADD THIS
+    
+    // Handle preflight requests for CORS.
+    if (req.method === 'OPTIONS') {
+      return new Response('ok', { headers: corsHeaders });
+    }
+
+    let programId: string | undefined;
+
     // 1. Validate request and parse body.
     if (!req.headers.get("content-type")?.includes("application/json")) {
       return new Response(JSON.stringify({ error: "Request must be JSON" }), { 
@@ -103,6 +126,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     programId = body.programId;
+    const isFreeTrial = body.isFreeTrial || false; // <-- Extract the isFreeTrial flag
 
     if (!programId) {
       return new Response(JSON.stringify({ error: "Missing 'programId' in request body" }), { 
@@ -110,6 +134,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
+
+    console.log(`Starting program generation for programId: ${programId}`); // <-- ADD THIS
+    const startTime = Date.now(); // <-- ADD THIS
 
     console.log(`Processing request for programId: ${programId}`);
 
@@ -141,7 +168,9 @@ Deno.serve(async (req) => {
 
     // 5. Generate the program using the onboarding data snapshot.
     const userProfile = programRecord.onboarding_data_snapshot;
-    const program = await generateProgram(userProfile);
+    console.log(`Starting AI program generation for user profile with isFreeTrial: ${isFreeTrial}...`); // <-- ADD THIS
+    const program = await generateProgram(userProfile, isFreeTrial); // <-- Pass isFreeTrial flag
+    console.log(`AI program generation completed successfully.`); // <-- ADD THIS
 
     // 6. Update the program record with the generated details and 'completed' status.
     const { error: updateError } = await supabase
@@ -158,6 +187,9 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to save the generated program: ${updateError.message}`);
     }
     
+    const duration = Date.now() - startTime; // <-- ADD THIS
+    console.log(`Successfully completed program generation in ${duration}ms.`); // <-- ADD THIS
+    
     console.log(`✅ Successfully generated and saved program ${programId}`);
     return new Response(JSON.stringify({ success: true, programId }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -165,7 +197,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("Edge Function Error:", error.message);
+    console.error("Critical error in generate-program function:", error); // <-- ENHANCE THIS
     
     // If an error occurs, attempt to update the program status to 'failed'.
     if (programId) {
