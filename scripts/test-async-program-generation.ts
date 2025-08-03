@@ -325,7 +325,7 @@ async function runTest() {
     console.log('   - Program generation')
     console.log('   - Data validation')
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('\n❌ Test FAILED:', error.message)
     process.exit(1)
   } finally {
