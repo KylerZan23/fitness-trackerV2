@@ -11,65 +11,7 @@ import { mapGoalToTrainingFocus } from '@/lib/utils/goalToFocusMapping'
 import { hasActiveSubscription } from '@/lib/permissions'
 import { isReadOnlyMode } from '@/lib/subscription'
 import { revalidatePath } from "next/cache"
-import {
-  type TrainingProgram,
-  type TrainingPhase,
-  type TrainingWeek,
-  type WorkoutDay,
-  type ExerciseDetail,
-  DayOfWeek,
-  type WorkoutFocus,
-} from '@/lib/types/program'
-import {
-  // Enhanced Science-Based Guidelines
-  VOLUME_FRAMEWORK_GUIDELINES,
-  AUTOREGULATION_GUIDELINES,
-  PERIODIZATION_GUIDELINES,
-  WEAK_POINT_INTERVENTION_GUIDELINES,
-  FATIGUE_MANAGEMENT_GUIDELINES,
-  EXERCISE_SELECTION_GUIDELINES,
-  // Legacy Guidelines (maintained for compatibility)
-  MUSCLE_GAIN_BEGINNER_GUIDELINES,
-  MUSCLE_GAIN_INTERMEDIATE_GUIDELINES,
-  MUSCLE_GAIN_ADVANCED_GUIDELINES,
-  MUSCLE_GAIN_HYPERTROPHY_FOCUS_BEGINNER_GUIDELINES,
-  MUSCLE_GAIN_HYPERTROPHY_FOCUS_INTERMEDIATE_GUIDELINES,
-  MUSCLE_GAIN_HYPERTROPHY_FOCUS_ADVANCED_GUIDELINES,
-  STRENGTH_GAIN_BEGINNER_GUIDELINES,
-  STRENGTH_GAIN_INTERMEDIATE_GUIDELINES,
-  STRENGTH_GAIN_ADVANCED_GUIDELINES,
-  STRENGTH_GAIN_POWERLIFTING_PEAK_BEGINNER_GUIDELINES,
-  STRENGTH_GAIN_POWERLIFTING_PEAK_INTERMEDIATE_GUIDELINES,
-  STRENGTH_GAIN_POWERLIFTING_PEAK_ADVANCED_GUIDELINES,
-  ENDURANCE_IMPROVEMENT_BEGINNER_GUIDELINES,
-  ENDURANCE_IMPROVEMENT_INTERMEDIATE_GUIDELINES,
-  ENDURANCE_IMPROVEMENT_ADVANCED_GUIDELINES,
-  ENDURANCE_IMPROVEMENT_GYM_CARDIO_BEGINNER_GUIDELINES,
-  ENDURANCE_IMPROVEMENT_GYM_CARDIO_INTERMEDIATE_GUIDELINES,
-  ENDURANCE_IMPROVEMENT_GYM_CARDIO_ADVANCED_GUIDELINES,
-  SPORT_PERFORMANCE_BEGINNER_GUIDELINES,
-  SPORT_PERFORMANCE_INTERMEDIATE_GUIDELINES,
-  SPORT_PERFORMANCE_ADVANCED_GUIDELINES,
-  SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_BEGINNER_GUIDELINES,
-  SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_INTERMEDIATE_GUIDELINES,
-  SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_ADVANCED_GUIDELINES,
-  GENERAL_FITNESS_BEGINNER_GUIDELINES,
-  GENERAL_FITNESS_INTERMEDIATE_GUIDELINES,
-  GENERAL_FITNESS_ADVANCED_GUIDELINES,
-  GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_BEGINNER_GUIDELINES,
-  GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_INTERMEDIATE_GUIDELINES,
-  GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_ADVANCED_GUIDELINES,
-  WEIGHT_LOSS_GYM_BASED_BEGINNER_GUIDELINES,
-  WEIGHT_LOSS_GYM_BASED_INTERMEDIATE_GUIDELINES,
-  WEIGHT_LOSS_GYM_BASED_ADVANCED_GUIDELINES,
-  BODYWEIGHT_MASTERY_BEGINNER_GUIDELINES,
-  BODYWEIGHT_MASTERY_INTERMEDIATE_GUIDELINES,
-  BODYWEIGHT_MASTERY_ADVANCED_GUIDELINES,
-  RECOMPOSITION_LEAN_MASS_FAT_LOSS_BEGINNER_GUIDELINES,
-  RECOMPOSITION_LEAN_MASS_FAT_LOSS_INTERMEDIATE_GUIDELINES,
-  RECOMPOSITION_LEAN_MASS_FAT_LOSS_ADVANCED_GUIDELINES,
-  NEURAL_COACHING_CUES,
-} from '@/lib/llmProgramContent'
+import { getProgramGuideline, getScientificGuideline } from '@/lib/cms/sanityClient'
 
 // Enhanced Data Analysis Modules
 import { generateEnhancedUserProfile } from '@/lib/dataInference'
@@ -278,93 +220,34 @@ interface ExerciseDetail {
 /**
  * Helper function to select guidelines based on user's training focus and experience level
  */
-function getExpertGuidelines(
+async function getExpertGuidelines(
   trainingFocus: string | null,
   experienceLevel: string | null
-): string {
+): Promise<string> {
   const focus = trainingFocus || 'General Fitness: Foundational Strength'; // Default if null
   const level = experienceLevel?.toLowerCase() || 'beginner'; // Default if null
 
-  // Normalize experience level string to match constant suffixes
-  let normalizedLevelKey: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' = 'BEGINNER';
+  let normalizedLevel: 'Beginner' | 'Intermediate' | 'Advanced' = 'Beginner';
   if (level.includes('intermediate')) {
-    normalizedLevelKey = 'INTERMEDIATE';
+    normalizedLevel = 'Intermediate';
   } else if (level.includes('advanced')) {
-    normalizedLevelKey = 'ADVANCED';
+    normalizedLevel = 'Advanced';
   }
 
-  // Map specific FitnessGoal types to their corresponding guidelines
-  if (focus === 'Muscle Gain: General') {
-    if (normalizedLevelKey === 'BEGINNER') return MUSCLE_GAIN_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return MUSCLE_GAIN_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return MUSCLE_GAIN_ADVANCED_GUIDELINES;
-  } else if (focus === 'Muscle Gain: Hypertrophy Focus') {
-    if (normalizedLevelKey === 'BEGINNER') return MUSCLE_GAIN_HYPERTROPHY_FOCUS_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return MUSCLE_GAIN_HYPERTROPHY_FOCUS_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return MUSCLE_GAIN_HYPERTROPHY_FOCUS_ADVANCED_GUIDELINES;
-  } else if (focus === 'Strength Gain: General') {
-    if (normalizedLevelKey === 'BEGINNER') return STRENGTH_GAIN_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return STRENGTH_GAIN_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return STRENGTH_GAIN_ADVANCED_GUIDELINES;
-  } else if (focus === 'Strength Gain: Powerlifting Peak') {
-    if (normalizedLevelKey === 'BEGINNER') return STRENGTH_GAIN_POWERLIFTING_PEAK_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return STRENGTH_GAIN_POWERLIFTING_PEAK_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return STRENGTH_GAIN_POWERLIFTING_PEAK_ADVANCED_GUIDELINES;
-  } else if (focus === 'Endurance Improvement: Gym Cardio') {
-    if (normalizedLevelKey === 'BEGINNER') return ENDURANCE_IMPROVEMENT_GYM_CARDIO_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return ENDURANCE_IMPROVEMENT_GYM_CARDIO_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return ENDURANCE_IMPROVEMENT_GYM_CARDIO_ADVANCED_GUIDELINES;
-  } else if (focus === 'Sport-Specific S&C: Explosive Power') {
-    if (normalizedLevelKey === 'BEGINNER') return SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return SPORT_SPECIFIC_SC_EXPLOSIVE_POWER_ADVANCED_GUIDELINES;
-  } else if (focus === 'General Fitness: Foundational Strength') {
-    if (normalizedLevelKey === 'BEGINNER') return GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_ADVANCED_GUIDELINES;
-  } else if (focus === 'Weight Loss: Gym Based') {
-    if (normalizedLevelKey === 'BEGINNER') return WEIGHT_LOSS_GYM_BASED_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return WEIGHT_LOSS_GYM_BASED_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return WEIGHT_LOSS_GYM_BASED_ADVANCED_GUIDELINES;
-  } else if (focus === 'Bodyweight Mastery') {
-    if (normalizedLevelKey === 'BEGINNER') return BODYWEIGHT_MASTERY_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return BODYWEIGHT_MASTERY_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return BODYWEIGHT_MASTERY_ADVANCED_GUIDELINES;
-  } else if (focus === 'Recomposition: Lean Mass & Fat Loss') {
-    if (normalizedLevelKey === 'BEGINNER') return RECOMPOSITION_LEAN_MASS_FAT_LOSS_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return RECOMPOSITION_LEAN_MASS_FAT_LOSS_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return RECOMPOSITION_LEAN_MASS_FAT_LOSS_ADVANCED_GUIDELINES;
-  }
+  const guideline = await getProgramGuideline(focus, normalizedLevel);
 
-  // Legacy support for old string-based matching (for backward compatibility)
-  const focusLower = focus.toLowerCase();
-  if (focusLower.includes('muscle gain') || focusLower.includes('bodybuilding')) {
-    if (normalizedLevelKey === 'BEGINNER') return MUSCLE_GAIN_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return MUSCLE_GAIN_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return MUSCLE_GAIN_ADVANCED_GUIDELINES;
-  } else if (focusLower.includes('strength gain') || focusLower.includes('powerlifting') || focusLower.includes('beginner strength')) {
-    if (normalizedLevelKey === 'BEGINNER') return STRENGTH_GAIN_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return STRENGTH_GAIN_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return STRENGTH_GAIN_ADVANCED_GUIDELINES;
-  } else if (focusLower.includes('endurance')) {
-    if (normalizedLevelKey === 'BEGINNER') return ENDURANCE_IMPROVEMENT_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return ENDURANCE_IMPROVEMENT_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return ENDURANCE_IMPROVEMENT_ADVANCED_GUIDELINES;
-  } else if (focusLower.includes('sport performance') || focusLower.includes('athletic performance')) {
-    if (normalizedLevelKey === 'BEGINNER') return SPORT_PERFORMANCE_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return SPORT_PERFORMANCE_INTERMEDIATE_GUIDELINES;
-    return SPORT_PERFORMANCE_ADVANCED_GUIDELINES;
-  } else if (focusLower.includes('general fitness') || focusLower.includes('weight loss')) {
-    if (normalizedLevelKey === 'BEGINNER') return GENERAL_FITNESS_BEGINNER_GUIDELINES;
-    if (normalizedLevelKey === 'INTERMEDIATE') return GENERAL_FITNESS_INTERMEDIATE_GUIDELINES;
-    if (normalizedLevelKey === 'ADVANCED') return GENERAL_FITNESS_ADVANCED_GUIDELINES;
+  if (guideline) {
+    return guideline;
   }
-
-  // Fallback if no specific match is found
+  
   console.warn(
     `No specific guidelines found for focus "${focus}" and level "${level}". Falling back to General Fitness Foundational Strength Beginner.`
   );
-  return GENERAL_FITNESS_FOUNDATIONAL_STRENGTH_BEGINNER_GUIDELINES;
+
+  // Fallback to a default guideline from Sanity
+  const fallbackGuideline = await getProgramGuideline('General Fitness: Foundational Strength', 'Beginner');
+
+  return fallbackGuideline ?? "No fallback guideline found. Please ensure 'General Fitness: Foundational Strength - Beginner' exists in the CMS.";
 }
 
 /**
@@ -783,6 +666,25 @@ async function constructEnhancedLLMPrompt(
 
   console.log(`🔨 Constructing ${complexity} complexity LLM prompt...`)
 
+  // Fetch all scientific guidelines from Sanity concurrently
+  const [
+    volumeFramework,
+    autoregulation,
+    periodization,
+    weakPointIntervention,
+    fatigueManagement,
+    exerciseSelection,
+    neuralCoachingCues,
+  ] = await Promise.all([
+    getScientificGuideline('volume-framework-guidelines'),
+    getScientificGuideline('autoregulation-guidelines'),
+    getScientificGuideline('periodization-guidelines'),
+    getScientificGuideline('weak-point-intervention-guidelines'),
+    getScientificGuideline('fatigue-management-guidelines'),
+    getScientificGuideline('exercise-selection-guidelines'),
+    getScientificGuideline('neural-coaching-cues'),
+  ]);
+
   // ═══════════════════════════════════════════════════════════════════════════════
   //                            PROMPT CONSTRUCTION
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -802,22 +704,22 @@ async function constructEnhancedLLMPrompt(
 ═══════════════════════════════════════════════════════════════════════════════
 
 VOLUME FRAMEWORK GUIDELINES:
-${VOLUME_FRAMEWORK_GUIDELINES}
+${volumeFramework}
 
 AUTOREGULATION GUIDELINES:
-${AUTOREGULATION_GUIDELINES}
+${autoregulation}
 
 PERIODIZATION GUIDELINES:
-${PERIODIZATION_GUIDELINES}
+${periodization}
 
 WEAK POINT INTERVENTION GUIDELINES:
-${WEAK_POINT_INTERVENTION_GUIDELINES}
+${weakPointIntervention}
 
 FATIGUE MANAGEMENT GUIDELINES:
-${FATIGUE_MANAGEMENT_GUIDELINES}
+${fatigueManagement}
 
 EXERCISE SELECTION GUIDELINES:
-${EXERCISE_SELECTION_GUIDELINES}`
+${exerciseSelection}`
 
     userAnalysisDepth = `
 ═══════════════════════════════════════════════════════════════════════════════
@@ -940,19 +842,19 @@ ${userAnalysisDepth}
 ${requirementsDetail}
 
 AUTOREGULATION GUIDELINES:
-${AUTOREGULATION_GUIDELINES}
+${autoregulation}
 
 PERIODIZATION GUIDELINES:
-${PERIODIZATION_GUIDELINES}
+${periodization}
 
 WEAK POINT INTERVENTION GUIDELINES:
-${WEAK_POINT_INTERVENTION_GUIDELINES}
+${weakPointIntervention}
 
 FATIGUE MANAGEMENT GUIDELINES:
-${FATIGUE_MANAGEMENT_GUIDELINES}
+${fatigueManagement}
 
 EXERCISE SELECTION GUIDELINES:
-${EXERCISE_SELECTION_GUIDELINES}
+${exerciseSelection}
 
 ═══════════════════════════════════════════════════════════════════════════════
                                 USER ANALYSIS
@@ -1060,7 +962,7 @@ NEURAL'S COACHING VOICE REQUIREMENTS:
 - **ExerciseDetail.notes**: For anchor lifts and key exercises, provide concise form cues or scientific rationale. Mark anchor lifts clearly.
 
 NEURAL'S COACHING CUES (integrate appropriately):
-${NEURAL_COACHING_CUES}
+${neuralCoachingCues}
 
 TECHNICAL REQUIREMENTS:
 ${!hasPaidAccess ? `
@@ -1100,7 +1002,7 @@ ${!hasPaidAccess ? `
 `}
 
 NEURAL'S COACHING CUES (integrate appropriately):
-${NEURAL_COACHING_CUES}
+${neuralCoachingCues}
 
 Return ONLY valid JSON matching the TrainingProgram interface. No additional text.`
 

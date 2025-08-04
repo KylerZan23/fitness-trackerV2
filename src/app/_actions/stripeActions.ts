@@ -2,6 +2,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { getStripeCustomerId, updateStripeCustomerId } from '@/lib/data/stripe';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { getServerEnv } from '@/lib/env';
@@ -27,13 +28,13 @@ export async function createCheckoutSession(priceId: string) {
     apiVersion: '2024-09-30.acacia' as any, // Workaround for a type definition issue
   });
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('stripe_customer_id')
-    .eq('id', user.id)
-    .single();
+  const { success, customerId, error } = await getStripeCustomerId(user.id);
 
-  let stripeCustomerId = profile?.stripe_customer_id;
+  if (!success) {
+    return { error: error || 'Failed to get Stripe customer ID.' };
+  }
+
+  let stripeCustomerId = customerId;
 
   // If the user doesn't have a Stripe customer ID, create one.
   if (!stripeCustomerId) {
@@ -43,10 +44,7 @@ export async function createCheckoutSession(priceId: string) {
     });
     stripeCustomerId = customer.id;
 
-    await supabase
-      .from('profiles')
-      .update({ stripe_customer_id: stripeCustomerId })
-      .eq('id', user.id);
+    await updateStripeCustomerId(user.id, stripeCustomerId);
   }
 
   try {
@@ -78,14 +76,10 @@ export async function createCustomerPortalSession() {
     return { error: 'You must be logged in.' };
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('stripe_customer_id')
-    .eq('id', user.id)
-    .single();
+  const { success, customerId, error } = await getStripeCustomerId(user.id);
 
-  if (!profile?.stripe_customer_id) {
-    return { error: 'Stripe customer not found.' };
+  if (!success || !customerId) {
+    return { error: error || 'Stripe customer not found.' };
   }
 
   const { STRIPE_SECRET_KEY } = getServerEnv();
@@ -102,7 +96,7 @@ export async function createCustomerPortalSession() {
   });
 
   const portalSession = await stripe.billingPortal.sessions.create({
-    customer: profile.stripe_customer_id,
+    customer: customerId,
     return_url: `${headers().get('origin')}/profile`,
   });
 

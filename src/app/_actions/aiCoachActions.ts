@@ -1,7 +1,13 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
+import {
+    getLinkedWorkouts,
+    getUserActivitySummary,
+    getCachedAICoachRecommendation,
+    cacheAICoachRecommendation,
+} from '@/lib/data/ai-coach';
+
 import { getUserProfile } from '@/lib/db/index'
 import { fetchCurrentWeekGoalsWithProgress } from '@/lib/db/goals'
 import { getActiveTrainingProgram, type TrainingProgramWithId } from '@/lib/db/program'
@@ -140,18 +146,11 @@ async function getProgramAdherenceData(
       : todaysWorkout?.focus || 'Workout Planned'
     
     // Query workout_groups for adherence data
-    const { data: linkedWorkouts, error } = await supabase
-      .from('workout_groups')
-      .select('linked_program_phase_index, linked_program_week_index, linked_program_day_of_week, created_at')
-      .eq('user_id', userId)
-      .eq('linked_program_id', activeProgram.id)
-      .eq('linked_program_phase_index', currentPhaseIndex)
-      .eq('linked_program_week_index', currentWeekIndex)
-      .order('created_at', { ascending: false })
-    
-    if (error) {
-      console.error('Error fetching linked workouts for adherence:', error)
-      return null
+    const { success, data: linkedWorkouts, error } = await getLinkedWorkouts(userId, activeProgram.id, currentPhaseIndex, currentWeekIndex);
+
+    if (!success) {
+        console.error('Error fetching linked workouts for adherence:', error);
+        return null;
     }
     
     // Calculate adherence metrics
@@ -212,24 +211,16 @@ export async function getAIWeeklyReview(): Promise<
 
     // Fetch activity data for both current week (7 days) and previous week (14 days total for comparison)
     const [currentWeekResult, previousWeekResult] = await Promise.all([
-      supabase.rpc('get_user_activity_summary', {
-        user_id_param: user.id,
-        period_days_param: 7
-      }),
-      supabase.rpc('get_user_activity_summary', {
-        user_id_param: user.id,
-        period_days_param: 14
-      })
-    ])
+      getUserActivitySummary(user.id, 7),
+      getUserActivitySummary(user.id, 14)
+    ]);
 
-    if (currentWeekResult.error) {
-      console.error('Error fetching current week activity summary:', currentWeekResult.error)
-      return { error: 'Unable to fetch your current week activity data. Please try again.' }
+    if (!currentWeekResult.success) {
+      return { error: currentWeekResult.error || 'Unable to fetch your current week activity data. Please try again.' };
     }
 
-    if (previousWeekResult.error) {
-      console.error('Error fetching previous week activity summary:', previousWeekResult.error)
-      return { error: 'Unable to fetch your previous week activity data. Please try again.' }
+    if (!previousWeekResult.success) {
+      return { error: previousWeekResult.error || 'Unable to fetch your previous week activity data. Please try again.' };
     }
 
     const activityData = currentWeekResult.data
@@ -309,24 +300,16 @@ export async function getAIWeeklyReview(): Promise<
     console.log(`AI Weekly Review: Checking cache for key: ${cacheKey}`)
 
     // Check for cached response
-    const { data: cachedEntry, error: cacheSelectError } = await supabase
-      .from('ai_coach_cache')
-      .select('recommendation, expires_at')
-      .eq('cache_key', cacheKey)
-      .single()
-
-    if (cacheSelectError && cacheSelectError.code !== 'PGRST116') {
-      console.warn('AI Weekly Review: Error fetching from cache:', cacheSelectError.message)
-    }
+    const { data: cachedEntry } = await getCachedAICoachRecommendation(cacheKey);
 
     if (cachedEntry && new Date(cachedEntry.expires_at) > new Date()) {
-      console.log('AI Weekly Review: Returning valid recommendation from cache.')
-      const weeklyReview = cachedEntry.recommendation as AIWeeklyReview
-      return weeklyReview
+        console.log('AI Weekly Review: Returning valid recommendation from cache.');
+        const weeklyReview = cachedEntry.recommendation as AIWeeklyReview;
+        return weeklyReview;
     } else if (cachedEntry) {
-      console.log('AI Weekly Review: Cache entry found but expired.')
+        console.log('AI Weekly Review: Cache entry found but expired.');
     } else {
-      console.log('AI Weekly Review: No cache entry found.')
+        console.log('AI Weekly Review: No cache entry found.');
     }
 
     // Format program adherence context for the prompt
@@ -443,32 +426,7 @@ Return ONLY the JSON object, no additional text.`
     console.log('Successfully generated weekly review:', weeklyReview)
 
     // Cache the new weekly review response
-    const now = new Date()
-    const expiresAt = new Date(now.getTime() + AI_COACH_CACHE_DURATION_MINUTES * 60 * 1000)
-
-    console.log(
-      `AI Weekly Review: Storing new recommendation in cache. Key: ${cacheKey}, Expires: ${expiresAt.toISOString()}`
-    )
-
-    const { error: cacheUpsertError } = await supabase.from('ai_coach_cache').upsert(
-      {
-        cache_key: cacheKey,
-        user_id: user.id,
-        recommendation: weeklyReview,
-        hashed_data_input: hashedDataInput,
-        created_at: now.toISOString(),
-        expires_at: expiresAt.toISOString(),
-      },
-      {
-        onConflict: 'cache_key',
-      }
-    )
-
-    if (cacheUpsertError) {
-      console.error('AI Weekly Review: Failed to store recommendation in cache:', cacheUpsertError.message)
-    } else {
-      console.log('AI Weekly Review: Recommendation stored in cache successfully.')
-    }
+    await cacheAICoachRecommendation(cacheKey, user.id, weeklyReview, hashedDataInput);
 
     return weeklyReview
 
@@ -646,17 +604,10 @@ export async function getAICoachRecommendation(): Promise<
         )
       }
 
-      const { data: summaryData, error: summaryError } = await supabase.rpc(
-        'get_user_activity_summary',
-        { user_id_param: userId, period_days_param: 30 }
-      )
+      const { success, data: summaryData, error: summaryError } = await getUserActivitySummary(userId, 30);
 
-      if (summaryError) {
-        console.error(
-          `getAICoachRecommendation: Error fetching activity summary for user ${userId}`,
-          summaryError
-        )
-        return { error: 'Failed to load your activity data. Please try again later.' }
+      if (!success) {
+        return { error: summaryError || 'Failed to load your activity data. Please try again later.' };
       }
       summary = summaryData as UserActivitySummary
 
@@ -709,24 +660,16 @@ export async function getAICoachRecommendation(): Promise<
     const cacheKey = `aiCoach:u${userId}:d${hashedDataInput}`
 
     console.log(`AI Coach: Checking cache for key: ${cacheKey}`)
-    const { data: cachedEntry, error: cacheSelectError } = await supabase
-      .from('ai_coach_cache')
-      .select('recommendation, expires_at')
-      .eq('cache_key', cacheKey)
-      .single()
-
-    if (cacheSelectError && cacheSelectError.code !== 'PGRST116') {
-      console.warn('AI Coach: Error fetching from cache:', cacheSelectError.message)
-    }
+    const { data: cachedEntry } = await getCachedAICoachRecommendation(cacheKey);
 
     if (cachedEntry && new Date(cachedEntry.expires_at) > new Date()) {
-      console.log('AI Coach: Returning valid recommendation from cache.')
-      const recommendation = JSON.parse(JSON.stringify(cachedEntry.recommendation)) as AICoachRecommendation
-      return { ...recommendation, cacheKey }
+        console.log('AI Coach: Returning valid recommendation from cache.');
+        const recommendation = JSON.parse(JSON.stringify(cachedEntry.recommendation)) as AICoachRecommendation;
+        return { ...recommendation, cacheKey };
     } else if (cachedEntry) {
-      console.log('AI Coach: Cache entry found but expired.')
+        console.log('AI Coach: Cache entry found but expired.');
     } else {
-      console.log('AI Coach: No cache entry found.')
+        console.log('AI Coach: No cache entry found.');
     }
 
     // If cache miss or expired, proceed to generate new recommendation
@@ -945,31 +888,7 @@ Now, generate the recommendation based on all the above data and instructions.
       // --- End of Replacement: LLM Call Logic ---
 
       // If LLM call was successful and advice is populated:
-      const now = new Date()
-      const expiresAt = new Date(now.getTime() + AI_COACH_CACHE_DURATION_MINUTES * 60 * 1000)
-
-      console.log(
-        `AI Coach: Storing new recommendation in cache. Key: ${cacheKey}, Expires: ${expiresAt.toISOString()}`
-      )
-      const { error: cacheUpsertError } = await supabase.from('ai_coach_cache').upsert(
-        {
-          cache_key: cacheKey,
-          user_id: userId,
-          recommendation: advice, // advice from LLM (or placeholder)
-          hashed_data_input: hashedDataInput,
-          created_at: now.toISOString(),
-          expires_at: expiresAt.toISOString(),
-        },
-        {
-          onConflict: 'cache_key',
-        }
-      )
-
-      if (cacheUpsertError) {
-        console.error('AI Coach: Failed to store recommendation in cache:', cacheUpsertError.message)
-      } else {
-        console.log('AI Coach: Recommendation stored in cache successfully.')
-      }
+      await cacheAICoachRecommendation(cacheKey, userId, advice, hashedDataInput);
 
       return { ...advice, cacheKey } // Return the newly fetched advice with cache key
     } catch (error: any) {

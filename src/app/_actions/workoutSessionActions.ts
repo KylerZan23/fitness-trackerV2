@@ -1,6 +1,11 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import {
+    createPendingSession,
+    verifyPendingSession,
+    getAndClearPendingSession,
+} from '@/lib/data/workout-session';
+import { getAuthenticatedUser } from '@/lib/data/auth';
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
@@ -30,23 +35,11 @@ export async function startWorkoutSession(
       hasReadiness: !!readiness
     })
 
-    const supabase = await createClient()
-    
-    // Get user with detailed logging
-    const {
-      data: { user },
-      error: authError
-    } = await supabase.auth.getUser()
-
-    if (authError) {
-      console.error('❌ Auth error in startWorkoutSession:', authError)
-      return { success: false, error: `Authentication error: ${authError.message}` }
+    const authResult = await getAuthenticatedUser();
+    if (!authResult.success || !authResult.user) {
+        return { success: false, error: authResult.error || 'User not authenticated' };
     }
-
-    if (!user) {
-      console.error('❌ No user found in startWorkoutSession')
-      return { success: false, error: 'User not authenticated' }
-    }
+    const { user } = authResult;
 
     console.log('✅ User authenticated:', {
       userId: user.id,
@@ -75,61 +68,20 @@ export async function startWorkoutSession(
       has_readiness: !!readiness
     })
 
-    const { data, error } = await supabase
-      .from('pending_workout_sessions')
-      .insert({
-        user_id: user.id,
-        workout_data: workout,
-        context_data: context,
-        readiness_data: readiness,
-      })
-      .select('id')
-      .single()
+    const { success, data, error } = await createPendingSession(user.id, workout, context, readiness);
 
-    if (error) {
-      console.error('❌ Database error creating pending workout session:', {
-        error: error,
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      })
-      return {
-        success: false,
-        error: `Database error: ${error.message} (Code: ${error.code})`,
-      }
+    if (!success || !data) {
+        return { success: false, error: error || 'Failed to create session - no ID returned' };
     }
 
-    if (!data || !data.id) {
-      console.error('❌ No data returned from session creation')
-      return { success: false, error: 'Failed to create session - no ID returned' }
-    }
-
-    console.log('✅ Session created successfully:', {
-      sessionId: data.id,
-      userId: user.id
-    })
-
-    // Verify the session was actually created by attempting to read it back
-    const { data: verifyData, error: verifyError } = await supabase
-      .from('pending_workout_sessions')
-      .select('id, created_at')
-      .eq('id', data.id)
-      .eq('user_id', user.id)
-      .single()
-
-    if (verifyError || !verifyData) {
-      console.error('❌ Session verification failed:', {
-        verifyError,
-        sessionId: data.id,
-        userId: user.id
-      })
-      return { success: false, error: 'Session created but verification failed - possible RLS issue' }
+    const verification = await verifyPendingSession(data.id, user.id);
+    if (!verification.success) {
+        return { success: false, error: verification.error };
     }
 
     console.log('✅ Session verified successfully:', {
-      sessionId: verifyData.id,
-      createdAt: verifyData.created_at
+      sessionId: verification.data?.id,
+      createdAt: verification.data?.created_at
     })
 
     revalidatePath('/program')
@@ -158,23 +110,11 @@ export async function getPendingWorkoutSession(
 }> {
   console.log('🔍 getPendingWorkoutSession called with sessionId:', sessionId)
 
-  const supabase = await createClient()
-  
-  // Get user with detailed logging
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser()
-
-  if (authError) {
-    console.error('❌ Auth error in getPendingWorkoutSession:', authError)
-    return { success: false, error: `Authentication error: ${authError.message}` }
-  }
-
-  if (!user) {
-    console.error('❌ No user found in getPendingWorkoutSession')
-    return { success: false, error: 'User not authenticated' }
-  }
+  const authResult = await getAuthenticatedUser();
+    if (!authResult.success || !authResult.user) {
+        return { success: false, error: authResult.error || 'User not authenticated' };
+    }
+  const { user } = authResult;
 
   console.log('✅ User authenticated for session retrieval:', {
     userId: user.id,
@@ -183,108 +123,10 @@ export async function getPendingWorkoutSession(
   })
 
   // First, let's see if any sessions exist for this user at all
-  const { data: allUserSessions, error: countError } = await supabase
-    .from('pending_workout_sessions')
-    .select('id, created_at')
-    .eq('user_id', user.id)
+  const { success, data: sessionData, error } = await getAndClearPendingSession(sessionId, user.id);
 
-  if (countError) {
-    console.error('❌ Error checking user sessions:', countError)
-  } else {
-    console.log('📊 User session summary:', {
-      totalSessions: allUserSessions?.length || 0,
-      sessionIds: allUserSessions?.map(s => s.id) || [],
-      searchingFor: sessionId
-    })
-  }
-
-  // Now check if the specific session exists for any user (without user_id filter)
-  const { data: globalSession, error: globalError } = await supabase
-    .from('pending_workout_sessions')
-    .select('id, user_id, created_at')
-    .eq('id', sessionId)
-    .maybeSingle()
-
-  if (globalError) {
-    console.error('❌ Error checking global session:', globalError)
-  } else if (globalSession) {
-    console.log('🌍 Global session found:', {
-      sessionId: globalSession.id,
-      sessionUserId: globalSession.user_id,
-      currentUserId: user.id,
-      userIdMatch: globalSession.user_id === user.id,
-      createdAt: globalSession.created_at
-    })
-  } else {
-    console.log('❌ No global session found with ID:', sessionId)
-  }
-
-  // Retrieve the data with the user_id filter
-  console.log('🔍 Attempting to retrieve session with filters:', {
-    sessionId,
-    userId: user.id
-  })
-
-  const { data: sessionData, error: selectError } = await supabase
-    .from('pending_workout_sessions')
-    .select('workout_data, context_data, readiness_data, created_at, user_id')
-    .eq('id', sessionId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (selectError) {
-    console.error('❌ Error fetching pending session:', {
-      error: selectError,
-      code: selectError.code,
-      message: selectError.message,
-      details: selectError.details,
-      hint: selectError.hint,
-      sessionId: sessionId,
-      userId: user.id
-    })
-    
-    // Additional debugging based on error code
-    if (selectError.code === 'PGRST116') {
-      console.error('💡 PGRST116 Analysis: Query returned 0 rows. This means either:')
-      console.error('   1. Session with this ID does not exist')
-      console.error('   2. Session exists but belongs to different user')
-      console.error('   3. RLS policy is blocking access')
-      console.error('   4. Session was already deleted')
-    }
-    
-    return { success: false, error: 'Workout session not found or expired.' }
-  }
-
-  if (!sessionData) {
-    console.error('❌ No session data returned despite no error')
-    return { success: false, error: 'Workout session not found or expired.' }
-  }
-
-  console.log('✅ Session data retrieved successfully:', {
-    sessionId,
-    userId: sessionData.user_id,
-    createdAt: sessionData.created_at,
-    hasWorkoutData: !!sessionData.workout_data,
-    hasContextData: !!sessionData.context_data,
-    hasReadinessData: !!sessionData.readiness_data
-  })
-
-  // Now, delete the record since it has been fetched
-  console.log('🗑️ Attempting to delete session after successful retrieval')
-  
-  const { error: deleteError } = await supabase
-    .from('pending_workout_sessions')
-    .delete()
-    .eq('id', sessionId)
-
-  if (deleteError) {
-    console.warn('⚠️ Failed to delete pending session after fetch:', {
-      error: deleteError,
-      sessionId: sessionId
-    })
-    // Log the error but don't fail the operation, as the user already has the data
-  } else {
-    console.log('✅ Session deleted successfully after retrieval')
+  if (!success || !sessionData) {
+    return { success: false, error: error || 'Workout session not found or expired.' };
   }
 
   return {

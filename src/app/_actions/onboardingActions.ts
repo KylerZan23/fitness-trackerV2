@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { updateUserProfileWithOnboarding, getOnboardingStatus } from '@/lib/data/onboarding';
 import { type OnboardingData } from '@/lib/types/onboarding'
 import { generateTrainingProgram } from './aiProgramActions'
 import { mapGoalToTrainingFocus } from '@/lib/utils/goalToFocusMapping'
@@ -140,17 +141,13 @@ export async function saveOnboardingData(
     }
 
     // Update the user's profile with onboarding data
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update(updateData)
-      .eq('id', user.id)
+    const result = await updateUserProfileWithOnboarding(user.id, updateData);
 
-    if (updateError) {
-      console.error('Error updating profile with onboarding data:', updateError)
+    if (!result.success) {
       return {
         success: false,
-        error: 'Failed to save your onboarding data. Please try again.',
-      }
+        error: result.error || 'Failed to save your onboarding data. Please try again.',
+      };
     }
 
     console.log('Onboarding data saved successfully for user:', user.id)
@@ -190,18 +187,13 @@ export async function checkOnboardingStatus(): Promise<{ completed: boolean } | 
 
     console.log('Checking onboarding status for user:', user.id)
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('onboarding_completed')
-      .eq('id', user.id)
-      .single()
+    const result = await getOnboardingStatus(user.id);
 
-    if (profileError) {
-      console.error('Error checking onboarding status:', profileError)
-      return { success: false, error: 'Failed to check onboarding status. Please try again.' }
+    if (!result.success) {
+      return { success: false, error: result.error || 'Failed to check onboarding status. Please try again.' };
     }
 
-    return { completed: profile?.onboarding_completed || false }
+    return { completed: result.completed || false };
   } catch (error) {
     console.error('ERROR in checkOnboardingStatus:', error)
     return { success: false, error: 'An unexpected error occurred. Please try again.' }

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { getSubscriptionData } from '@/lib/data/subscription';
 import { hasActiveSubscription } from '@/lib/permissions'
 
 export async function checkSubscriptionStatus(): Promise<{
@@ -27,13 +28,9 @@ export async function checkSubscriptionStatus(): Promise<{
     const userHasAccess = await hasActiveSubscription(user.id)
     
     // Get detailed subscription info
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('is_premium, trial_ends_at')
-      .eq('id', user.id)
-      .single()
+    const result = await getSubscriptionData(user.id);
 
-    if (error || !profile) {
+    if (!result.success || !result.data) {
       return {
         hasAccess: userHasAccess,
         isPremium: false,
@@ -44,7 +41,7 @@ export async function checkSubscriptionStatus(): Promise<{
     }
 
     const now = new Date()
-    const trialEndsAt = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
+    const trialEndsAt = result.data.trial_ends_at ? new Date(result.data.trial_ends_at) : null
     const isTrialActive = trialEndsAt ? trialEndsAt > now : false
     const daysRemaining = trialEndsAt && isTrialActive 
       ? Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
@@ -52,9 +49,9 @@ export async function checkSubscriptionStatus(): Promise<{
 
     return {
       hasAccess: userHasAccess,
-      isPremium: profile.is_premium || false,
+      isPremium: result.data.is_premium || false,
       isTrialActive,
-      trialEndsAt: profile.trial_ends_at,
+      trialEndsAt: result.data.trial_ends_at,
       daysRemaining
     }
   } catch (error) {

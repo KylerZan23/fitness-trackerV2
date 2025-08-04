@@ -1,6 +1,40 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+
+import {
+  getCommunityGroupsData,
+  getCommunityGroupData,
+  createGroupAndAddAdmin,
+  joinGroup,
+  leaveGroup,
+  getGroupMembership,
+  createPostData,
+  getGroupPostsData,
+  getAllPostsData,
+  getGroupDetailsAndPostsData,
+  getGlobalPostsCountData,
+  getGroupPostsCountData,
+  getPostData,
+  createCommentData,
+  getPostCommentsData,
+  updateCommentData,
+  deleteCommentData,
+  getPostCommentsCountData,
+  getExistingVote,
+  deleteVote,
+  updateVote,
+  createVote,
+  getPostVoteCountsData,
+  getUserVoteOnPostData,
+  getFollowingIds,
+  getWorkoutGroupsData,
+  getUserProfilesData,
+  getWorkoutsData,
+  getPREventsData,
+  getLikesData,
+  getCommentsData,
+  getExpertQAPostsData,
+} from '@/lib/data/community';
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { isReadOnlyMode, hasProAccess } from '@/lib/subscription'
@@ -41,43 +75,12 @@ const voteSchema = z.object({
 
 // Action to get all community groups
 export async function getCommunityGroups() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('community_groups')
-    .select(`
-      *,
-      members:community_group_members(count),
-      created_by_user:profiles!community_groups_created_by_fkey(name, profile_picture_url)
-    `)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error("Error fetching community groups:", error)
-    return { success: false, error: "Failed to load communities." }
-  }
-
-  return { success: true, data }
+  return await getCommunityGroupsData();
 }
 
 // Action to get a specific community group with posts
 export async function getCommunityGroup(groupId: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('community_groups')
-    .select(`
-      *,
-      members:community_group_members(count),
-      created_by_user:profiles!community_groups_created_by_fkey(name, profile_picture_url)
-    `)
-    .eq('id', groupId)
-    .single()
-
-  if (error) {
-    console.error("Error fetching community group:", error)
-    return { success: false, error: "Failed to load community." }
-  }
-
-  return { success: true, data }
+  return await getCommunityGroupData(groupId);
 }
 
 // Action to create a new community group
@@ -112,21 +115,15 @@ export async function createCommunityGroup(formData: FormData) {
 
   // --- REFACTORED PART ---
   // Call the transactional RPC function instead of two separate inserts
-  const { data: newGroupId, error } = await supabase.rpc('create_group_and_add_admin', {
-    group_name: name,
-    group_description: description,
-    group_type_param: groupType,
-    creator_id: user.id
-  })
+  const result = await createGroupAndAddAdmin(name, description, groupType, user.id);
 
-  if (error) {
-    console.error("Error creating community group via RPC:", error)
-    return { success: false, error: "Failed to create group." }
+  if (!result.success) {
+    return { success: false, error: result.error || "Failed to create group." };
   }
   // --- END REFACTORED PART ---
 
   revalidatePath('/community')
-  return { success: true, message: "Group created successfully!", data: { id: newGroupId } }
+  return { success: true, message: "Group created successfully!", data: { id: result.data } }
 }
 
 // Action to join a community group
@@ -138,20 +135,10 @@ export async function joinCommunityGroup(groupId: string) {
     return { success: false, error: "You must be logged in to join a group." }
   }
 
-  const { error } = await supabase
-    .from('community_group_members')
-    .insert({
-      group_id: groupId,
-      user_id: user.id,
-      role: 'member',
-    })
+  const result = await joinGroup(groupId, user.id);
 
-  if (error) {
-    if (error.code === '23505') { // Unique constraint violation
-      return { success: false, error: "You are already a member of this group." }
-    }
-    console.error("Error joining community group:", error)
-    return { success: false, error: "Failed to join group." }
+  if (!result.success) {
+    return { success: false, error: result.error || "Failed to join group." };
   }
 
   revalidatePath('/community')
@@ -168,15 +155,10 @@ export async function leaveCommunityGroup(groupId: string) {
     return { success: false, error: "You must be logged in to leave a group." }
   }
 
-  const { error } = await supabase
-    .from('community_group_members')
-    .delete()
-    .eq('group_id', groupId)
-    .eq('user_id', user.id)
+  const result = await leaveGroup(groupId, user.id);
 
-  if (error) {
-    console.error("Error leaving community group:", error)
-    return { success: false, error: "Failed to leave group." }
+  if (!result.success) {
+    return { success: false, error: result.error || "Failed to leave group." };
   }
 
   revalidatePath('/community')
@@ -193,23 +175,7 @@ export async function checkGroupMembership(groupId: string) {
     return { success: false, isMember: false }
   }
 
-  const { data, error } = await supabase
-    .from('community_group_members')
-    .select('role')
-    .eq('group_id', groupId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-    console.error("Error checking group membership:", error)
-    return { success: false, isMember: false }
-  }
-
-  return { 
-    success: true, 
-    isMember: !!data,
-    role: data?.role || null
-  }
+  return await getGroupMembership(groupId, user.id);
 }
 
 // Action to create a new post
@@ -259,17 +225,16 @@ export async function createPost(formData: FormData) {
     }
   }
 
-  const { error } = await supabase.from('community_posts').insert({
+  const result = await createPostData({
     user_id: user.id,
     title,
     content,
     group_id: groupId,
     content_type: contentType,
-  })
+  });
 
-  if (error) {
-    console.error("Error creating post:", error)
-    return { success: false, error: "Failed to create post." }
+  if (!result.success) {
+    return { success: false, error: result.error || "Failed to create post." };
   }
 
   revalidatePath('/community')
@@ -281,49 +246,12 @@ export async function createPost(formData: FormData) {
 
 // Action to get posts for a specific group with pagination
 export async function getGroupPosts(groupId: string, page: number = 1, limit: number = 20) {
-  const supabase = await createClient()
-  const offset = (page - 1) * limit
-
-  const { data, error } = await supabase
-    .from('community_posts')
-    .select(`
-      *,
-      user:profiles!community_posts_user_id_fkey(name, profile_picture_url)
-    `)
-    .eq('group_id', groupId)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1) // Apply pagination
-
-  if (error) {
-    console.error("Error fetching group posts:", error)
-    return { success: false, error: "Failed to load posts." }
-  }
-
-  return { success: true, data }
+  return await getGroupPostsData(groupId, page, limit);
 }
 
 // Action to get all posts (global feed) with pagination
 export async function getAllPosts(page: number = 1, limit: number = 20) {
-  const supabase = await createClient()
-  const offset = (page - 1) * limit
-
-  const { data, error } = await supabase
-    .from('community_posts')
-    .select(`
-      *,
-      user:profiles!community_posts_user_id_fkey(name, profile_picture_url),
-      group:community_groups(name)
-    `)
-    .is('group_id', null) // Only global posts
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1) // Apply pagination
-
-  if (error) {
-    console.error("Error fetching posts:", error)
-    return { success: false, error: "Failed to load posts." }
-  }
-
-  return { success: true, data }
+  return await getAllPostsData(page, limit);
 }
 
 // Action to get group details and posts with pagination
@@ -338,81 +266,17 @@ export async function getGroupDetailsAndPosts(groupId: string, page: number = 1,
     return { success: false, error: "Please log in to view communities." }
   }
   
-  // First get the group details
-  const { data: groupData, error: groupError } = await supabase
-    .from('community_groups')
-    .select(`
-      id,
-      name,
-      description
-    `)
-    .eq('id', groupId)
-    .single()
-
-  if (groupError) {
-    console.error("Error fetching group details:", groupError)
-    return { success: false, error: "Community not found." }
-  }
-
-  // Then get paginated posts for the group
-  const offset = (page - 1) * limit
-  const { data: postsData, error: postsError } = await supabase
-    .from('community_posts')
-    .select(`
-      id,
-      title,
-      content,
-      created_at,
-      user:profiles!community_posts_user_id_fkey(name, profile_picture_url)
-    `)
-    .eq('group_id', groupId)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
-
-  if (postsError) {
-    console.error("Error fetching group posts:", postsError)
-    return { success: false, error: "Failed to load posts." }
-  }
-
-  // Combine the data
-  const combinedData = {
-    ...groupData,
-    posts: postsData || []
-  }
-
-  return { success: true, data: combinedData }
+  return await getGroupDetailsAndPostsData(groupId, page, limit);
 }
 
 // Helper function to get total count of global posts
 export async function getGlobalPostsCount() {
-  const supabase = await createClient()
-  const { count, error } = await supabase
-    .from('community_posts')
-    .select('*', { count: 'exact', head: true })
-    .is('group_id', null)
-
-  if (error) {
-    console.error("Error counting global posts:", error)
-    return { success: false, error: "Failed to count posts." }
-  }
-
-  return { success: true, count: count || 0 }
+  return await getGlobalPostsCountData();
 }
 
 // Helper function to get total count of posts in a group
 export async function getGroupPostsCount(groupId: string) {
-  const supabase = await createClient()
-  const { count, error } = await supabase
-    .from('community_posts')
-    .select('*', { count: 'exact', head: true })
-    .eq('group_id', groupId)
-
-  if (error) {
-    console.error("Error counting group posts:", error)
-    return { success: false, error: "Failed to count posts." }
-  }
-
-  return { success: true, count: count || 0 }
+  return await getGroupPostsCountData(groupId);
 }
 
 // Comment-related actions
@@ -438,25 +302,21 @@ export async function createComment(formData: FormData) {
   const { content, postId } = validatedFields.data
 
   // Verify the post exists
-  const { data: post, error: postError } = await supabase
-    .from('community_posts')
-    .select('id, group_id')
-    .eq('id', postId)
-    .single()
+  const postResult = await getPostData(postId);
 
-  if (postError || !post) {
-    return { success: false, error: "Post not found." }
+  if (!postResult.success || !postResult.data) {
+    return { success: false, error: "Post not found." };
   }
+  const post = postResult.data;
 
-  const { error } = await supabase.from('community_comments').insert({
+  const result = await createCommentData({
     user_id: user.id,
     post_id: postId,
     content,
-  })
+  });
 
-  if (error) {
-    console.error("Error creating comment:", error)
-    return { success: false, error: "Failed to create comment." }
+  if (!result.success) {
+    return { success: false, error: result.error || "Failed to create comment." };
   }
 
   revalidatePath('/community')
@@ -468,27 +328,7 @@ export async function createComment(formData: FormData) {
 
 // Action to get comments for a specific post
 export async function getPostComments(postId: string) {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('community_comments')
-    .select(`
-      id,
-      content,
-      created_at,
-      updated_at,
-      user_id,
-      user:profiles!community_comments_user_id_fkey(name, profile_picture_url)
-    `)
-    .eq('post_id', postId)
-    .order('created_at', { ascending: true })
-
-  if (error) {
-    console.error("Error fetching comments:", error)
-    return { success: false, error: "Failed to load comments." }
-  }
-
-  return { success: true, data: data || [] }
+  return await getPostCommentsData(postId);
 }
 
 // Action to update a comment
@@ -511,15 +351,10 @@ export async function updateComment(formData: FormData) {
 
   const { content, commentId } = validatedFields.data
 
-  const { error } = await supabase
-    .from('community_comments')
-    .update({ content })
-    .eq('id', commentId)
-    .eq('user_id', user.id) // Ensure user can only update their own comments
+  const result = await updateCommentData(commentId, user.id, content);
 
-  if (error) {
-    console.error("Error updating comment:", error)
-    return { success: false, error: "Failed to update comment." }
+  if (!result.success) {
+    return { success: false, error: result.error || "Failed to update comment." };
   }
 
   revalidatePath('/community')
@@ -535,15 +370,10 @@ export async function deleteComment(commentId: string) {
     return { success: false, error: "You must be logged in to delete comments." }
   }
 
-  const { error } = await supabase
-    .from('community_comments')
-    .delete()
-    .eq('id', commentId)
-    .eq('user_id', user.id) // Ensure user can only delete their own comments
+  const result = await deleteCommentData(commentId, user.id);
 
-  if (error) {
-    console.error("Error deleting comment:", error)
-    return { success: false, error: "Failed to delete comment." }
+  if (!result.success) {
+    return { success: false, error: result.error || "Failed to delete comment." };
   }
 
   revalidatePath('/community')
@@ -552,18 +382,7 @@ export async function deleteComment(commentId: string) {
 
 // Helper function to get comment count for a post
 export async function getPostCommentsCount(postId: string) {
-  const supabase = await createClient()
-  const { count, error } = await supabase
-    .from('community_comments')
-    .select('*', { count: 'exact', head: true })
-    .eq('post_id', postId)
-
-  if (error) {
-    console.error("Error counting comments:", error)
-    return { success: false, error: "Failed to count comments." }
-  }
-
-  return { success: true, count: count || 0 }
+  return await getPostCommentsCountData(postId);
 }
 
 // Vote-related actions
@@ -589,79 +408,47 @@ export async function voteOnPost(formData: FormData) {
   const { postId, voteType } = validatedFields.data
 
   // Check if user has already voted on this post
-  const { data: existingVote, error: fetchError } = await supabase
-    .from('community_post_votes')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('post_id', postId)
-    .single()
+  const { success: fetchSuccess, data: existingVote, error: fetchError } = await getExistingVote(user.id, postId);
 
-  if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found"
-    console.error("Error checking existing vote:", fetchError)
-    return { success: false, error: "Failed to check existing vote." }
+  if (!fetchSuccess) {
+    return { success: false, error: fetchError || "Failed to check existing vote." };
   }
 
   if (existingVote) {
     // If user already voted the same way, remove the vote (toggle off)
     if (existingVote.vote_type === voteType) {
-      const { error: deleteError } = await supabase
-        .from('community_post_votes')
-        .delete()
-        .eq('id', existingVote.id)
-
-      if (deleteError) {
-        console.error("Error removing vote:", deleteError)
-        return { success: false, error: "Failed to remove vote." }
+      const { success, error } = await deleteVote(existingVote.id);
+      if (!success) {
+        return { success: false, error: error || "Failed to remove vote." };
       }
-
-      return { success: true, message: "Vote removed successfully!" }
+      return { success: true, message: "Vote removed successfully!" };
     } else {
       // If user voted differently, update the vote
-      const { error: updateError } = await supabase
-        .from('community_post_votes')
-        .update({ vote_type: voteType })
-        .eq('id', existingVote.id)
-
-      if (updateError) {
-        console.error("Error updating vote:", updateError)
-        return { success: false, error: "Failed to update vote." }
+      const { success, error } = await updateVote(existingVote.id, voteType);
+      if (!success) {
+        return { success: false, error: error || "Failed to update vote." };
       }
-
-      return { success: true, message: "Vote updated successfully!" }
+      return { success: true, message: "Vote updated successfully!" };
     }
   } else {
     // Create new vote
-    const { error: insertError } = await supabase
-      .from('community_post_votes')
-      .insert({
-        user_id: user.id,
-        post_id: postId,
-        vote_type: voteType,
-      })
-
-    if (insertError) {
-      console.error("Error creating vote:", insertError)
-      return { success: false, error: "Failed to create vote." }
+    const { success, error } = await createVote(user.id, postId, voteType);
+    if (!success) {
+        return { success: false, error: error || "Failed to create vote." };
     }
-
-    return { success: true, message: "Vote created successfully!" }
+    return { success: true, message: "Vote created successfully!" };
   }
 }
 
 // Action to get vote counts for a post
 export async function getPostVoteCounts(postId: string) {
-  const supabase = await createClient()
-  
-  const { data, error } = await supabase.rpc('get_post_vote_counts', {
-    post_uuid: postId
-  })
+  const { success, data, error } = await getPostVoteCountsData(postId);
 
-  if (error) {
-    console.error("Error getting vote counts:", error)
-    return { success: false, error: "Failed to get vote counts." }
+  if (!success) {
+    return { success: false, error: error || "Failed to get vote counts." };
   }
 
-  const counts = data?.[0] || { upvotes: 0, downvotes: 0, total_votes: 0 }
+  const counts = data?.[0] || { upvotes: 0, downvotes: 0, total_votes: 0 };
   
   return { 
     success: true, 
@@ -670,7 +457,7 @@ export async function getPostVoteCounts(postId: string) {
       downvotes: Number(counts.downvotes),
       totalVotes: Number(counts.total_votes)
     }
-  }
+  };
 }
 
 // Action to get user's vote on a specific post
@@ -682,19 +469,13 @@ export async function getUserVoteOnPost(postId: string) {
     return { success: true, data: null } // Not logged in, no vote
   }
 
-  const { data, error } = await supabase
-    .from('community_post_votes')
-    .select('vote_type')
-    .eq('user_id', user.id)
-    .eq('post_id', postId)
-    .single()
+  const { success, data, error } = await getUserVoteOnPostData(user.id, postId);
 
-  if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-    console.error("Error getting user vote:", error)
-    return { success: false, error: "Failed to get user vote." }
+  if (!success) {
+    return { success: false, error: error || "Failed to get user vote." };
   }
 
-  return { success: true, data: data?.vote_type || null }
+  return { success: true, data: data?.vote_type || null };
 } 
 
 /**
@@ -714,77 +495,36 @@ export async function getFollowedUsersActivities(limit: number = 20): Promise<{
     }
 
     // Get the list of users that the current user follows
-    const { data: following, error: followingError } = await supabase
-      .from('user_followers')
-      .select('following_id')
-      .eq('follower_id', user.id)
+    const { success: followingSuccess, data: followingIds, error: followingError } = await getFollowingIds(user.id);
 
-    if (followingError) {
-      console.error('Error fetching following list:', followingError)
-      return { success: false, error: 'Failed to fetch following list' }
+    if (!followingSuccess || !followingIds) {
+      return { success: false, error: followingError || 'Failed to fetch following list' };
     }
 
-    if (!following || following.length === 0) {
-      return { success: true, data: [] }
+    if (followingIds.length === 0) {
+      return { success: true, data: [] };
     }
 
-    const followingIds = following.map(f => f.following_id)
+    const [
+      workoutGroupsResult,
+      userProfilesResult,
+      workoutsResult,
+      prEventsResult
+    ] = await Promise.all([
+      getWorkoutGroupsData(followingIds, limit),
+      getUserProfilesData(followingIds),
+      getWorkoutsData(followingIds, limit * 5),
+      getPREventsData(followingIds, limit * 10)
+    ]);
 
-    // Get workout groups with user profiles
-    const { data: workoutGroups, error: groupsError } = await supabase
-      .from('workout_groups')
-      .select(`
-        id,
-        name,
-        duration,
-        created_at,
-        user_id
-      `)
-      .in('user_id', followingIds)
-      .order('created_at', { ascending: false })
-      .limit(limit)
-
-    if (groupsError) {
-      console.error('Error fetching workout groups:', groupsError)
-      return { success: false, error: 'Failed to fetch workout groups' }
+    if (!workoutGroupsResult.success || !userProfilesResult.success || !workoutsResult.success || !prEventsResult.success) {
+      return { success: false, error: 'Failed to fetch activity data.' };
     }
 
-    // Get user profiles for the workout groups
-    const { data: userProfiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, name, profile_picture_url')
-      .in('id', followingIds)
-
-    if (profilesError) {
-      console.error('Error fetching user profiles:', profilesError)
-      return { success: false, error: 'Failed to fetch user profiles' }
-    }
-
-    // Get workouts for these groups to calculate stats
-    const { data: workouts, error: workoutsError } = await supabase
-      .from('workouts')
-      .select('id, exercise_name, sets, reps, weight, duration, workout_group_id, user_id, created_at')
-      .in('user_id', followingIds)
-      .order('created_at', { ascending: false })
-      .limit(limit * 5) // Get more to account for grouping
-
-    if (workoutsError) {
-      console.error('Error fetching workouts:', workoutsError)
-      return { success: false, error: 'Failed to fetch activities' }
-    }
-
-    // Get community feed events for PRs from the same time period
-    const { data: prEvents, error: prEventsError } = await supabase
-      .from('community_feed_events')
-      .select('user_id, event_type, metadata, created_at')
-      .in('user_id', followingIds)
-      .eq('event_type', 'NEW_PB')
-      .order('created_at', { ascending: false })
-      .limit(limit * 10) // Get more PR events to match with workouts
-
-    if (prEventsError) {
-      console.error('Error fetching PR events:', prEventsError)
-    }
+    const workoutGroups = workoutGroupsResult.data;
+    const userProfiles = userProfilesResult.data;
+    const workouts = workoutsResult.data;
+    const prEvents = prEventsResult.data;
 
     // Create lookup maps
     const profilesMap = new Map(userProfiles?.map(p => [p.id, p]) || [])
@@ -962,16 +702,13 @@ export async function getFollowedUsersActivities(limit: number = 20): Promise<{
       const activityIds = limitedActivities.map(activity => activity.id)
       
       // Get likes data
-      const { data: likesData } = await supabase
-        .from('activity_likes')
-        .select('activity_id, user_id')
-        .in('activity_id', activityIds)
+      const [likesResult, commentsResult] = await Promise.all([
+        getLikesData(activityIds),
+        getCommentsData(activityIds)
+      ]);
 
-      // Get comments count
-      const { data: commentsData } = await supabase
-        .from('activity_comments')
-        .select('activity_id, id')
-        .in('activity_id', activityIds)
+      const likesData = likesResult.data;
+      const commentsData = commentsResult.data;
 
       // Add social data to activities
       limitedActivities.forEach(activity => {
@@ -1039,18 +776,17 @@ export async function createExpertQAPost(formData: FormData) {
     }
   }
 
-  const { error } = await supabase.from('community_posts').insert({
+  const result = await createPostData({
     user_id: user.id,
     title,
     content,
     group_id: groupId,
     content_type: 'expert_qa',
-    tags: ['expert-qa'], // Add expert-qa tag for easy filtering
-  })
+    tags: ['expert-qa'],
+  });
 
-  if (error) {
-    console.error("Error creating Expert Q&A post:", error)
-    return { success: false, error: "Failed to create Expert Q&A post." }
+  if (!result.success) {
+    return { success: false, error: result.error || "Failed to create Expert Q&A post." };
   }
 
   // Revalidate the community pages
@@ -1077,35 +813,7 @@ export async function getExpertQAPosts(page: number = 1, limit: number = 20, gro
     return { success: false, error: "Expert Q&A content is only available to Pro subscribers.", data: [] }
   }
 
-  const offset = (page - 1) * limit
-  let query = supabase
-    .from('community_posts')
-    .select(`
-      id,
-      title,
-      content,
-      created_at,
-      content_type,
-      tags,
-      user:profiles!community_posts_user_id_fkey(id, name, profile_picture_url)
-    `)
-    .eq('content_type', 'expert_qa')
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
-
-  // Filter by group if specified
-  if (groupId) {
-    query = query.eq('group_id', groupId)
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error("Error fetching Expert Q&A posts:", error)
-    return { success: false, error: "Failed to load Expert Q&A content." }
-  }
-
-  return { success: true, data: data || [] }
+  return await getExpertQAPostsData(page, limit, groupId);
 }
 
 // Action to check if user can view Expert Q&A content
