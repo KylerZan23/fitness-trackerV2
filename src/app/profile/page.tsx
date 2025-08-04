@@ -198,6 +198,9 @@ export default function ProfilePage() {
       const result = await createCustomerPortalSession()
       if (result.url) {
         window.location.href = result.url
+      } else if (result.redirectToPricing) {
+        // Redirect to pricing page if no Stripe customer exists
+        window.location.href = '/pricing'
       } else {
         console.error(result.error)
       }
@@ -289,13 +292,16 @@ export default function ProfilePage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Subscription Management</h3>
             <p className="text-gray-600 mb-4">
-              Manage your subscription, update payment methods, and view billing history.
+              {profile.is_premium 
+                ? "Manage your subscription, update payment methods, and view billing history."
+                : "Upgrade to premium to access advanced features, AI coaching, and unlimited programs."
+              }
             </p>
             <Button 
               onClick={handleManageSubscription}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              Manage Subscription
+              {profile.is_premium ? "Manage Subscription" : "Upgrade to Premium"}
             </Button>
           </div>
           

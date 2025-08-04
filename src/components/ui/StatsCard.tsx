@@ -1,17 +1,33 @@
-import React from 'react'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { TrendingUp, Activity, Clock, Zap, Target, Trophy, Dumbbell, BarChart3 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export interface StatsCardProps {
-  title: string
-  value: string | number
-  unit?: string
-  subtitle?: string
-  icon?: React.ReactNode
-  trend?: 'up' | 'down' | 'neutral'
-  trendValue?: string
-  className?: string
-  isLoading?: boolean
+// Define a mapping for icons based on title or a specific prop
+const iconMap = {
+  'Total Workouts': Activity,
+  'Personal Records': Trophy,
+  'Avg Duration': Clock,
+  '7-Day Volume': Zap,
+  'Squat': Target,
+  'Bench Press': Dumbbell,
+  'Deadlift': TrendingUp,
+  'Overhead Press': BarChart3,
+};
+
+type ColorScheme = 'blue' | 'green' | 'purple' | 'orange' | 'red' | 'yellow';
+
+interface StatsCardProps {
+  title: string;
+  value: string | number;
+  unit?: string;
+  subtitle?: string;
+  icon?: React.ElementType | React.ReactNode;
+  trend?: 'up' | 'down' | 'neutral';
+  trendValue?: string;
+  className?: string;
+  isLoading?: boolean;
+  colorScheme?: ColorScheme;
 }
 
 export function StatsCard({
@@ -19,90 +35,134 @@ export function StatsCard({
   value,
   unit,
   subtitle,
-  icon,
+  icon: IconComponent,
   trend,
   trendValue,
-  className,
-  isLoading = false
+  className = '',
+  isLoading = false,
+  colorScheme = 'purple',
 }: StatsCardProps) {
-  // Loading skeleton
-  if (isLoading) {
-    return (
-      <div className={cn(
-        "bg-white border border-gray-200 rounded-xl p-6 shadow-sm",
-        className
-      )}>
-        <div className="animate-pulse">
-          <div className="flex items-center justify-between mb-3">
-            <div className="h-4 bg-gray-200 rounded w-20"></div>
-            <div className="w-8 h-8 bg-gray-200 rounded-lg"></div>
-          </div>
-          <div className="h-8 bg-gray-200 rounded w-16 mb-2"></div>
-          <div className="h-3 bg-gray-200 rounded w-24"></div>
-        </div>
-      </div>
-    )
-  }
+  const colorSchemes: Record<ColorScheme, Record<string, string>> = {
+    blue: {
+      bg: 'from-brand-blue-50 to-brand-blue-100',
+      text: 'text-brand-blue-800',
+      value: 'text-brand-blue-900',
+      iconBg: 'bg-brand-blue-100',
+      iconText: 'text-brand-blue-600',
+      border: 'border-brand-blue-200',
+    },
+    green: {
+      bg: 'from-brand-green-50 to-brand-green-100',
+      text: 'text-brand-green-800',
+      value: 'text-brand-green-900',
+      iconBg: 'bg-brand-green-100',
+      iconText: 'text-brand-green-600',
+      border: 'border-brand-green-200',
+    },
+    purple: {
+      bg: 'from-brand-purple-50 to-brand-purple-100',
+      text: 'text-brand-purple-800',
+      value: 'text-brand-purple-900',
+      iconBg: 'bg-brand-purple-100',
+      iconText: 'text-brand-purple-600',
+      border: 'border-brand-purple-200',
+    },
+    orange: {
+      bg: 'from-brand-orange-50 to-brand-orange-100',
+      text: 'text-brand-orange-800',
+      value: 'text-brand-orange-900',
+      iconBg: 'bg-brand-orange-100',
+      iconText: 'text-brand-orange-600',
+      border: 'border-brand-orange-200',
+    },
+    red: {
+      bg: 'from-red-50 to-red-100',
+      text: 'text-red-800',
+      value: 'text-red-900',
+      iconBg: 'bg-red-100',
+      iconText: 'text-red-600',
+      border: 'border-red-200',
+    },
+    yellow: {
+      bg: 'from-yellow-50 to-yellow-100',
+      text: 'text-yellow-800',
+      value: 'text-yellow-900',
+      iconBg: 'bg-yellow-100',
+      iconText: 'text-yellow-600',
+      border: 'border-yellow-200',
+    },
+  };
 
-  // Trend icon based on direction
-  const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus
-  
-  // Trend color classes
-  const trendColors = {
-    up: 'text-green-600 bg-green-50',
-    down: 'text-red-600 bg-red-50',
-    neutral: 'text-gray-600 bg-gray-50'
-  }
+  const colors = colorSchemes[colorScheme];
+  const FallbackIcon = iconMap[title as keyof typeof iconMap] ?? Activity;
+
+  // Handle both React.ElementType and React.ReactNode
+  const renderIcon = () => {
+    if (IconComponent) {
+      if (React.isValidElement(IconComponent)) {
+        // If it's a JSX element, clone it with our styling
+        return React.cloneElement(IconComponent as React.ReactElement, {
+          className: cn('w-5 h-5', colors.iconText)
+        });
+      } else if (typeof IconComponent === 'function') {
+        // If it's a component type, render it
+        const Icon = IconComponent as React.ElementType;
+        return <Icon className={cn('w-5 h-5', colors.iconText)} />;
+      }
+    }
+    // Fallback to title-based icon
+    const Icon = FallbackIcon;
+    return <Icon className={cn('w-5 h-5', colors.iconText)} />;
+  };
 
   return (
-    <div className={cn(
-      "bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200",
-      className
-    )}>
-      {/* Header with title and icon */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-600 truncate">
-          {title}
-        </h3>
-        {icon && (
-          <div className="w-8 h-8 flex items-center justify-center text-gray-400">
-            {icon}
+    <Card
+      className={cn(
+        'relative p-5 rounded-xl border shadow-sm transition-all duration-300 transform',
+        'hover:-translate-y-1 hover:shadow-lg group',
+        'bg-gradient-to-br',
+        colors.bg,
+        colors.border,
+        className,
+        { 'animate-pulse': isLoading }
+      )}
+    >
+      <CardContent className="p-0">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-3">
+            <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', colors.iconBg)}>
+              {renderIcon()}
+            </div>
+            <h3 className={cn('text-sm font-semibold', colors.text)}>{title}</h3>
           </div>
-        )}
-      </div>
-
-      {/* Main value display */}
-      <div className="flex items-baseline space-x-2 mb-2">
-        <span className="text-2xl font-bold text-gray-900">
-          {typeof value === 'number' ? value.toLocaleString() : value}
-        </span>
-        {unit && (
-          <span className="text-lg font-medium text-gray-500">
-            {unit}
+          {trend && (
+            <div className={cn('flex items-center text-xs font-semibold', {
+              'text-green-600': trend === 'up',
+              'text-red-600': trend === 'down',
+              'text-gray-600': trend === 'neutral',
+            })}>
+              {trendValue && <span>{trendValue}</span>}
+              {trend === 'up' && <TrendingUp className="w-4 h-4 ml-1" />}
+              {trend === 'down' && <TrendingUp className="w-4 h-4 ml-1 transform rotate-180" />}
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-baseline space-x-1.5">
+          <span className={cn('text-4xl font-bold tracking-tight', colors.value)}>
+            {isLoading ? '—' : value}
           </span>
-        )}
-      </div>
-
-      {/* Subtitle and trend */}
-      <div className="flex items-center justify-between">
+          {unit && <span className={cn('text-lg font-medium', colors.text)}>{unit}</span>}
+        </div>
+        
         {subtitle && (
-          <p className="text-xs text-gray-500 truncate">
+          <p className={cn('text-xs mt-1', colors.text, 'opacity-80')}>
             {subtitle}
           </p>
         )}
-        
-        {trend && trendValue && (
-          <div className={cn(
-            "flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium",
-            trendColors[trend]
-          )}>
-            <TrendIcon className="w-3 h-3" />
-            <span>{trendValue}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  )
+      </CardContent>
+    </Card>
+  );
 }
 
 // Specialized stats card for strength metrics
@@ -209,8 +269,8 @@ export function StrengthStatsCard({
               'text-gray-600 bg-gray-50'
             )}>
               {trend === 'up' ? <TrendingUp className="w-3 h-3" /> :
-               trend === 'down' ? <TrendingDown className="w-3 h-3" /> :
-               <Minus className="w-3 h-3" />}
+               trend === 'down' ? <TrendingUp className="w-3 h-3" /> :
+               <TrendingUp className="w-3 h-3" />}
               <span>{trendValue}</span>
             </div>
           )}

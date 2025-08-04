@@ -78,8 +78,13 @@ export async function createCustomerPortalSession() {
 
   const { success, customerId, error } = await getStripeCustomerId(user.id);
 
-  if (!success || !customerId) {
-    return { error: error || 'Stripe customer not found.' };
+  if (!success) {
+    return { error: error || 'Failed to get Stripe customer ID.' };
+  }
+
+  // If no Stripe customer exists, redirect to pricing page
+  if (!customerId) {
+    return { redirectToPricing: true };
   }
 
   const { STRIPE_SECRET_KEY } = getServerEnv();

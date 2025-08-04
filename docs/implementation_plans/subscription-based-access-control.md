@@ -5,24 +5,29 @@ Implement subscription management and trial logic to control access to premium f
 
 ## Database Schema Changes Required
 
-### Add Subscription Fields to Profiles Table
-```sql
--- Add subscription tracking columns to profiles table
-ALTER TABLE public.profiles 
-ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20) DEFAULT 'trial' CHECK (subscription_status IN ('trial', 'active', 'past_due', 'canceled', 'expired')),
-ADD COLUMN IF NOT EXISTS subscription_tier VARCHAR(20) DEFAULT 'free_trial' CHECK (subscription_tier IN ('free_trial', 'monthly', 'annual')),
-ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days'),
-ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255),
-ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255);
+### ✅ Add Subscription Fields to Profiles Table
+**Status**: COMPLETED - Migration `20250129000000_add_stripe_columns_to_profiles.sql` created
 
--- Add comments for documentation
-COMMENT ON COLUMN profiles.subscription_status IS 'Current subscription status: trial, active, past_due, canceled, expired';
-COMMENT ON COLUMN profiles.subscription_tier IS 'Subscription tier: free_trial, monthly, annual';
-COMMENT ON COLUMN profiles.trial_ends_at IS 'When the free trial expires (defaults to 7 days from signup)';
-COMMENT ON COLUMN profiles.subscription_ends_at IS 'When the paid subscription expires';
-COMMENT ON COLUMN profiles.stripe_customer_id IS 'Stripe customer ID for billing';
-COMMENT ON COLUMN profiles.stripe_subscription_id IS 'Stripe subscription ID for active subscriptions';
+The following columns have been added to the profiles table:
+- `stripe_customer_id VARCHAR(255)` - Stripe customer ID for billing
+- `stripe_subscription_id VARCHAR(255)` - Stripe subscription ID for active subscriptions
+
+**To apply this migration:**
+1. Go to your Supabase dashboard
+2. Navigate to the SQL Editor
+3. Run the migration file: `supabase/migrations/20250129000000_add_stripe_columns_to_profiles.sql`
+
+**Additional columns already exist from previous migrations:**
+- `is_premium BOOLEAN` - Premium subscription status
+- `trial_ends_at TIMESTAMPTZ` - Trial expiration date
+- `subscription_tier VARCHAR(20)` - Subscription tier (trial, standard, pro)
+
+```sql
+-- Migration has been created and includes:
+-- - stripe_customer_id and stripe_subscription_id columns
+-- - Proper indexes for performance
+-- - Helper functions for Stripe operations
+-- - Unique constraints to prevent duplicates
 ```
 
 ## Authentication & Access Control

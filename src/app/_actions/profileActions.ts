@@ -26,6 +26,7 @@ export interface ProfileData {
   followers_count: number
   following_count: number
   training_focuses: string[] | null
+  is_premium: boolean
 }
 
 export interface PersonalRecord {
@@ -77,7 +78,7 @@ export async function getUserProfileData(): Promise<{ success: boolean; data?: P
         id, name, email, age, fitness_goals, primary_training_focus, 
         experience_level, professional_title, bio, height_cm, weight_kg, 
         birth_date, profile_picture_url, weight_unit, onboarding_responses, 
-        onboarding_completed, followers_count, following_count
+        onboarding_completed, followers_count, following_count, is_premium
       `)
       .eq('id', user.id)
       .single()
@@ -103,7 +104,8 @@ export async function getUserProfileData(): Promise<{ success: boolean; data?: P
           profile_picture_url: null,
           weight_unit: 'kg' as const,
           onboarding_responses: null,
-          onboarding_completed: false
+          onboarding_completed: false,
+          is_premium: false
         }
         
         // Try to create the profile in the database
