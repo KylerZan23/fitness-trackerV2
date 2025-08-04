@@ -37,17 +37,45 @@ export async function getWorkoutsForLeaderboard(liftType: LeaderboardLift): Prom
   }
 
   try {
-    const { data, error } = await supabase
+    // First get the workouts
+    const { data: workouts, error: workoutsError } = await supabase
       .from('workouts')
-      .select('user_id, exercise_name, weight, reps, created_at, profiles(name, profile_picture_url)')
+      .select('user_id, exercise_name, weight, reps, created_at')
       .ilike('exercise_name', pattern)
 
-    if (error) {
-      console.error('Error fetching leaderboard workouts:', error)
+    if (workoutsError) {
+      console.error('Error fetching leaderboard workouts:', workoutsError)
       return { success: false, error: 'Failed to load leaderboard workouts.' }
     }
 
-    return { success: true, data: data as WorkoutWithProfile[] }
+    if (!workouts || workouts.length === 0) {
+      return { success: true, data: [] }
+    }
+
+    // Get unique user IDs
+    const userIds = [...new Set(workouts.map(w => w.user_id))]
+
+    // Fetch profiles for these users
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, profile_picture_url')
+      .in('id', userIds)
+
+    if (profilesError) {
+      console.error('Error fetching profiles for leaderboard:', profilesError)
+      return { success: false, error: 'Failed to load user profiles.' }
+    }
+
+    // Create a map of user_id to profile
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || [])
+
+    // Combine workouts with profiles
+    const workoutsWithProfiles: WorkoutWithProfile[] = workouts.map(workout => ({
+      ...workout,
+      profiles: profileMap.get(workout.user_id) || null
+    }))
+
+    return { success: true, data: workoutsWithProfiles }
   } catch (error) {
     console.error('Unexpected error in getWorkoutsForLeaderboard:', error)
     return { success: false, error: 'An unexpected error occurred.' }

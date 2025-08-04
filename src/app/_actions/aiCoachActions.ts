@@ -1,6 +1,7 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import { createClient } from '@/utils/supabase/server'
 import {
     getLinkedWorkouts,
     getUserActivitySummary,
@@ -194,7 +195,7 @@ export async function getAIWeeklyReview(): Promise<
 > {
   try {
     const cookieStore = await cookies()
-    const supabase = await createSupabaseServerClient(cookieStore)
+    const supabase = await createClient(cookieStore)
 
     // Authenticate user first
     const {
@@ -445,7 +446,7 @@ export async function getAIWeeklyReviewFollowUp(
 ): Promise<AIWeeklyReviewFollowUp | { error: string }> {
   try {
     const cookieStore = await cookies()
-    const supabase = await createSupabaseServerClient(cookieStore)
+    const supabase = await createClient(cookieStore)
 
     // Authenticate user first
     const {
@@ -547,7 +548,7 @@ export async function getAICoachRecommendation(): Promise<
       JSON.stringify(cookieStore.getAll(), null, 2)
     )
 
-    const supabase = await createSupabaseServerClient(cookieStore)
+    const supabase = await createClient(cookieStore)
 
     const {
       data: { user },

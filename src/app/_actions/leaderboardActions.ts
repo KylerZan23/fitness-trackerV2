@@ -109,6 +109,15 @@ export async function getOneRMLeaderboardData(
 
     const leaderboardEntries: OneRMLeaderboardEntry[] = []
 
+    // Map lift type to response key
+    const liftKeyMap: Record<LeaderboardLift, string> = {
+      squat: 'squat1RMEstimate',
+      bench: 'benchPress1RMEstimate',
+      deadlift: 'deadlift1RMEstimate'
+    }
+
+    const liftKey = liftKeyMap[liftType]
+
     data.forEach(profile => {
       const responses = profile.onboarding_responses
       if (!responses) return

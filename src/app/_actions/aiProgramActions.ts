@@ -19,7 +19,7 @@ import { calculateAllMuscleLandmarks, calculateIndividualVolumeLandmarks } from 
 import { calculateAdaptiveLoad, determineDeloadNeed, analyzeRPETrend } from '@/lib/autoregulation'
 import { enhancedWeakPointAnalysis, type StrengthProfile } from '@/lib/weakPointAnalysis'
 import { ENHANCED_PERIODIZATION_MODELS, generatePhaseProgression } from '@/lib/periodization'
-import { type EnhancedUserData, type UserData } from '@/lib/types/program'
+import { type EnhancedUserData, type UserData, DayOfWeek } from '@/lib/types/program'
 import { 
   ENHANCED_PROGRAM_VALIDATION,
   validateEnhancedProgram,
@@ -545,7 +545,7 @@ interface EnhancedProcessingResult {
   identifiedWeakPoints: string[]
 }
 
-async function processEnhancedUserData(
+export async function processEnhancedUserData(
   profile: UserProfileForGeneration
 ): Promise<EnhancedProcessingResult> {
   const onboarding = profile.onboarding_responses
@@ -1013,7 +1013,7 @@ Return ONLY valid JSON matching the TrainingProgram interface. No additional tex
 /**
  * Enhanced LLM API call with retry logic and progressive simplification
  */
-async function callEnhancedLLMAPI(
+export async function callEnhancedLLMAPI(
   profile: UserProfileForGeneration,
   processingResult: EnhancedProcessingResult,
   hasPaidAccess: boolean = true
@@ -1889,7 +1889,7 @@ Return the adapted TrainingWeek as a valid JSON object:`
 export async function getDailyAdaptedWorkout(
   plannedWorkout: WorkoutDay,
   readiness: { sleep: 'Poor' | 'Average' | 'Great'; energy: 'Sore/Tired' | 'Feeling Good' | 'Ready to Go' }
-): Promise<{ success: boolean; error?: string; adaptedWorkout?: WorkoutDay }> {
+): Promise<{ success: boolean; error?: string; adaptedWorkout?: z.infer<typeof WorkoutDaySchema> }> {
   try {
     console.log('Adapting workout based on readiness:', readiness)
     console.log('Original planned workout:', plannedWorkout)
@@ -1934,7 +1934,7 @@ export async function getDailyAdaptedWorkout(
       }
     }
 
-    const adaptedWorkout: WorkoutDay = validationResult.data
+    const adaptedWorkout = validationResult.data
 
     console.log('Successfully adapted workout:', adaptedWorkout)
 
@@ -2183,7 +2183,7 @@ function extractExercisesFromProgram(program: TrainingProgram): string[] {
       if (week.days) {
         week.days.forEach((workout: WorkoutDay) => {
           if (!workout.isRestDay && workout.exercises) {
-            workout.exercises.forEach((exercise: ExerciseDetail) => {
+            workout.exercises.forEach((exercise: z.infer<typeof ExerciseDetailSchema>) => {
               exercises.push(exercise.name);
             });
           }

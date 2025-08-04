@@ -265,7 +265,7 @@ export async function getUserPersonalRecords(weightUnit: 'kg' | 'lbs' = 'kg'): P
     
     const { data: workouts, error: workoutsError } = await supabase
       .from('workouts')
-      .select('exercise_name, weight, reps, sets, created_at')
+      .select('id, exercise_name, weight, reps, sets, created_at')
       .eq('user_id', user.id)
       .gte('created_at', sixMonthsAgo.toISOString())
       .order('created_at', { ascending: false })
@@ -282,6 +282,7 @@ export async function getUserPersonalRecords(weightUnit: 'kg' | 'lbs' = 'kg'): P
       .single()
 
     const workoutData = (workouts || []).map(w => ({
+      id: w.id,
       exercise_name: w.exercise_name,
       weight: parseFloat(w.weight.toString()),
       reps: w.reps,
