@@ -5,7 +5,8 @@ import { SubscriptionGatedWeek } from './SubscriptionGatedWeek'
 import { Accordion } from '@/components/ui/accordion'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Target, FileText } from 'lucide-react'
+import { PhaseBadge } from '@/components/ui/PhaseBadge'
+import { Calendar, Target, FileText, Clock, Lightbulb } from 'lucide-react'
 
 interface ProgramPhaseDisplayProps {
   phase: TrainingPhase
@@ -55,32 +56,43 @@ export function ProgramPhaseDisplay({
           </div>
         </div>
 
-        {/* Phase Notes */}
-        {phase.notes && (
-          <div className="mt-4 p-3 bg-white rounded-md border">
-            <p className="text-sm text-gray-700">
-              <strong>Phase Notes:</strong> {phase.notes}
-            </p>
+        {/* Phase Type & Goal */}
+        <div className="mt-4 space-y-3">
+          {/* Phase Type Badge */}
+          <div className="flex items-center gap-2">
+            <PhaseBadge 
+              phaseType={phase.phaseType} 
+              phaseName={phase.phaseName}
+              durationWeeks={phase.durationWeeks}
+              size="md"
+            />
           </div>
-        )}
 
-        {/* Phase Objectives */}
-        {phase.objectives && phase.objectives.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <div className="flex items-center space-x-2">
-              <Target className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-semibold text-gray-800">Phase Objectives:</span>
-            </div>
-            <div className="space-y-1">
-              {phase.objectives.map((objective, index) => (
-                <div key={index} className="flex items-start space-x-2">
-                  <div className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
-                  <span className="text-sm text-gray-700">{objective}</span>
+          {/* Phase Goal */}
+          {phase.primaryGoal && (
+            <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-200">
+              <div className="flex items-start gap-2">
+                <Target className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-indigo-800 mb-1">Primary Goal</p>
+                  <p className="text-sm text-indigo-700">{phase.primaryGoal}</p>
                 </div>
-              ))}
+              </div>
+            </div>
+          )}
+
+          {/* Phase Timeline */}
+          <div className="p-3 bg-gray-50 rounded-lg border">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-4 w-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-800">Phase Timeline</span>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <span><strong>{phase.durationWeeks}</strong> weeks total</span>
+              <span><strong>{phase.weeks.length}</strong> training weeks</span>
             </div>
           </div>
-        )}
+        </div>
       </CardHeader>
 
       <CardContent className="p-0">

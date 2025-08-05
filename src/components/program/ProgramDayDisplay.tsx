@@ -12,26 +12,10 @@ interface ProgramDayDisplayProps {
   weekIndex: number
 }
 
-// Helper function to convert DayOfWeek enum to readable string
+// Helper function to ensure consistent day formatting 
 function formatDayOfWeek(dayOfWeek: DayOfWeek): string {
-  switch (dayOfWeek) {
-    case DayOfWeek.MONDAY:
-      return 'Monday'
-    case DayOfWeek.TUESDAY:
-      return 'Tuesday'
-    case DayOfWeek.WEDNESDAY:
-      return 'Wednesday'
-    case DayOfWeek.THURSDAY:
-      return 'Thursday'
-    case DayOfWeek.FRIDAY:
-      return 'Friday'
-    case DayOfWeek.SATURDAY:
-      return 'Saturday'
-    case DayOfWeek.SUNDAY:
-      return 'Sunday'
-    default:
-      return 'Unknown'
-  }
+  // Phoenix Schema uses string literals, so we can return them directly
+  return dayOfWeek;
 }
 
 export function ProgramDayDisplay({
@@ -43,9 +27,13 @@ export function ProgramDayDisplay({
   const dayName = formatDayOfWeek(day.dayOfWeek)
 
   // Check if this day has been completed
+  const dayNumbers: Record<DayOfWeek, number> = {
+    'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4,
+    'Friday': 5, 'Saturday': 6, 'Sunday': 7
+  };
   const isCompleted = completedDays.some(
     cd =>
-      cd.phaseIndex === phaseIndex && cd.weekIndex === weekIndex && cd.dayOfWeek === day.dayOfWeek
+      cd.phaseIndex === phaseIndex && cd.weekIndex === weekIndex && cd.dayOfWeek === dayNumbers[day.dayOfWeek]
   )
 
   // Check if this workout was missed (past date and not completed)
@@ -60,7 +48,7 @@ export function ProgramDayDisplay({
     
     // If this is week 0 (current week), check if the day has passed
     if (weekIndex === 0) {
-      return day.dayOfWeek < currentDayOfWeek
+      return dayNumbers[day.dayOfWeek] < currentDayOfWeek
     }
     
     // If this is a past week (weekIndex > 0), it's missed
@@ -103,21 +91,15 @@ export function ProgramDayDisplay({
             )}
           </div>
 
-          {day.estimatedDurationMinutes && (
+          {day.estimatedDuration && (
             <div className="flex items-center space-x-2 text-gray-600">
               <Clock className="h-4 w-4" />
-              <span className="text-sm font-medium">{day.estimatedDurationMinutes} minutes</span>
+              <span className="text-sm font-medium">{day.estimatedDuration}</span>
             </div>
           )}
         </div>
 
-        {day.notes && (
-          <div className="mt-3 p-3 bg-blue-50 rounded-md">
-            <p className="text-sm text-gray-700 italic">
-              <strong>Notes:</strong> {day.notes}
-            </p>
-          </div>
-        )}
+
       </div>
 
       {/* Rest Day Display */}
@@ -132,19 +114,9 @@ export function ProgramDayDisplay({
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Warm-up */}
-          {day.warmUp && day.warmUp.length > 0 && (
-            <ExerciseListDisplay exercises={day.warmUp} listTitle="🔥 Warm-up" />
-          )}
-
           {/* Main Exercises */}
           {day.exercises && day.exercises.length > 0 && (
             <ExerciseListDisplay exercises={day.exercises} listTitle="💪 Main Workout" />
-          )}
-
-          {/* Cool-down */}
-          {day.coolDown && day.coolDown.length > 0 && (
-            <ExerciseListDisplay exercises={day.coolDown} listTitle="🧘 Cool-down" />
           )}
         </div>
       )}

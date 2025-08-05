@@ -1,103 +1,281 @@
-/**
- * TypeScript interfaces for AI-generated training programs
- * These structures define the schema for LLM JSON output and database storage
- */
+// src/lib/types/program.ts
 
-/**
- * Days of the week enum for consistency
- */
-export enum DayOfWeek {
-  MONDAY = 1,
-  TUESDAY = 2,
-  WEDNESDAY = 3,
-  THURSDAY = 4,
-  FRIDAY = 5,
-  SATURDAY = 6,
-  SUNDAY = 7,
-}
+import { z } from 'zod';
 
-/**
- * Common workout focus areas
- */
-export type WorkoutFocus =
-  | 'Upper Body'
-  | 'Lower Body'
-  | 'Push'
-  | 'Pull'
-  | 'Legs'
-  | 'Full Body'
-  | 'Cardio'
-  | 'Core'
-  | 'Arms'
-  | 'Back'
-  | 'Chest'
-  | 'Shoulders'
-  | 'Glutes'
-  | 'Recovery/Mobility'
-  | 'Sport-Specific'
-  | 'Rest Day'
-  | 'Lower Body Endurance'
-  | 'Squat'
-  | 'Bench'
-  | 'Deadlift'
-  | 'Overhead Press'
+// Base Enums and Types
+export const DayOfWeekEnum = z.enum([
+  'Monday', 
+  'Tuesday', 
+  'Wednesday', 
+  'Thursday', 
+  'Friday', 
+  'Saturday', 
+  'Sunday'
+]);
+export type DayOfWeek = z.infer<typeof DayOfWeekEnum>;
 
-/**
- * Individual exercise detail within a workout
- */
-export interface ExerciseDetail {
-  /** Name of the exercise */
-  name: string
+export const ExerciseTierEnum = z.enum([
+  'Anchor',
+  'Primary', 
+  'Secondary',
+  'Accessory'
+]);
+export type ExerciseTier = z.infer<typeof ExerciseTierEnum>;
 
-  /** Number of sets to perform */
-  sets: number
+export const ProgressionStrategyEnum = z.enum([
+  'Linear',
+  'Double Progression',
+  'Reverse Pyramid',
+  'Wave Loading',
+  'Autoregulated'
+]);
+export type ProgressionStrategy = z.infer<typeof ProgressionStrategyEnum>;
 
-  /** Number of repetitions (can be a range like "8-12" or specific number) */
-  reps: string | number
+// Zod Schema for a single exercise
+export const ExerciseDetailSchema = z.object({
+  name: z.string().min(1, { message: "Exercise name is required." }),
+  tier: ExerciseTierEnum,
+  sets: z.number().int().positive(),
+  reps: z.string().min(1).describe("Rep range, e.g., '8-10' or '5'"),
+  rpe: z.string().describe("Rate of Perceived Exertion, e.g., '7-8' or '@8'"),
+  rest: z.string().min(1).describe("Rest period, e.g., '90-120s' or '2-3min'"),
+  notes: z.string().optional().describe("Specific form cues or rationale."),
+  isAnchorLift: z.boolean().default(false).describe("True if this is the designated anchor lift"),
+});
+export type ExerciseDetail = z.infer<typeof ExerciseDetailSchema>;
 
-  /** Rest period between sets (e.g., "60-90 seconds", "2-3 minutes") */
-  rest: string
+// Zod Schema for a single workout day
+export const WorkoutDaySchema = z.object({
+  dayOfWeek: DayOfWeekEnum,
+  focus: z.string().min(1).describe("e.g., 'Upper Body - Push', 'Lower Body', or 'Rest'"),
+  isRestDay: z.boolean(),
+  exercises: z.array(ExerciseDetailSchema),
+  estimatedDuration: z.string().optional().describe("Expected workout duration, e.g., '60-75min'"),
+});
+export type WorkoutDay = z.infer<typeof WorkoutDaySchema>;
 
-  /** Optional tempo prescription (e.g., "3-1-2-1" for eccentric-pause-concentric-pause) */
-  tempo?: string
+// Zod Schema for a single training week
+export const TrainingWeekSchema = z.object({
+  weekNumber: z.number().int().positive(),
+  phaseWeek: z.number().int().positive().describe("Week number within the current phase"),
+  progressionStrategy: ProgressionStrategyEnum,
+  intensityFocus: z.string().min(1).describe("e.g., 'Volume Accumulation', 'Intensity', 'Deload'"),
+  days: z.array(WorkoutDaySchema).length(7, { message: "A week must have exactly 7 days." }),
+  weeklyVolumeLandmark: z.string().optional().describe("MEV/MAV/MRV classification for this week"),
+});
+export type TrainingWeek = z.infer<typeof TrainingWeekSchema>;
 
-  /** Optional Rate of Perceived Exertion (1-10 scale) */
-  rpe?: number
+// Zod Schema for a training phase
+export const TrainingPhaseSchema = z.object({
+  phaseName: z.string().min(1).describe("e.g., 'Volume Accumulation', 'Intensification', 'Realization'"),
+  phaseType: z.enum(['Accumulation', 'Intensification', 'Realization', 'Deload']),
+  durationWeeks: z.number().int().positive(),
+  primaryGoal: z.string().min(1).describe("Primary adaptation goal for this phase"),
+  weeks: z.array(TrainingWeekSchema),
+});
+export type TrainingPhase = z.infer<typeof TrainingPhaseSchema>;
 
-  /** Optional exercise-specific notes or form cues */
-  notes?: string
+// Zod Schema for the entire training program
+export const TrainingProgramSchema = z.object({
+  programName: z.string().min(1),
+  description: z.string().min(1),
+  durationWeeksTotal: z.number().int().positive(),
+  coachIntro: z.string().min(1).describe("Personalized intro from the AI coach."),
+  generalAdvice: z.string().min(1).describe("Scientific rationale for the program design."),
+  periodizationModel: z.string().min(1).describe("e.g., 'Linear', 'Undulating', 'Block'"),
+  phases: z.array(TrainingPhaseSchema).min(1),
+  // Metadata for scientific validation
+  totalVolumeProgression: z.string().optional().describe("Overall volume progression strategy"),
+  anchorLifts: z.array(z.string()).optional().describe("List of designated anchor lifts"),
+});
+export type TrainingProgram = z.infer<typeof TrainingProgramSchema>;
 
-  /** Optional weight/load specification */
-  weight?: string
+// Helper schemas for the generation pipeline
+export const ProgramScaffoldSchema = z.object({
+  programName: z.string().min(1),
+  description: z.string().min(1),
+  durationWeeksTotal: z.number().int().positive(),
+  periodizationModel: z.string().min(1),
+  phases: z.array(z.object({
+    phaseName: z.string().min(1),
+    phaseType: z.enum(['Accumulation', 'Intensification', 'Realization', 'Deload']),
+    durationWeeks: z.number().int().positive(),
+    primaryGoal: z.string().min(1),
+    weeks: z.array(z.object({
+      weekNumber: z.number().int().positive(),
+      phaseWeek: z.number().int().positive(),
+      intensityFocus: z.string().min(1),
+      progressionStrategy: ProgressionStrategyEnum,
+    }))
+  }))
+});
+export type ProgramScaffold = z.infer<typeof ProgramScaffoldSchema>;
 
-  /** Optional exercise category for organization */
-  category?: 'Compound' | 'Isolation' | 'Cardio' | 'Mobility' | 'Core' | 'Warm-up' | 'Cool-down' | 'Power'
+export const NarrativeContentSchema = z.object({
+  coachIntro: z.string().min(1),
+  generalAdvice: z.string().min(1),
+});
+export type NarrativeContent = z.infer<typeof NarrativeContentSchema>;
 
-  /** Optional exercise tier for enhanced programs */
-  tier?: 'Tier_1' | 'Tier_2' | 'Tier_3'
+// Database storage interface for training programs
+export const StoredTrainingProgramSchema = TrainingProgramSchema.extend({
+  id: z.string(),
+  userId: z.string(),
+  createdAt: z.date().or(z.string()),
+  updatedAt: z.date().or(z.string()),
+  isActive: z.boolean(),
+  status: z.enum(['draft', 'active', 'completed', 'paused', 'archived']),
+  currentWeek: z.number().int().positive().optional(),
+  currentPhase: z.number().int().positive().optional(),
+});
+export type StoredTrainingProgram = z.infer<typeof StoredTrainingProgramSchema>;
 
-  /** Optional muscle groups targeted by this exercise */
-  muscleGroups?: string[]
+// Workout completion tracking schemas
+export const ExerciseCompletionSchema = z.object({
+  exerciseName: z.string().min(1),
+  setsCompleted: z.number().int().positive(),
+  repsCompleted: z.array(z.union([z.number(), z.string()])),
+  weightUsed: z.array(z.string()).optional(),
+  notes: z.string().optional(),
+  completedAsPrescribed: z.boolean(),
+});
+export type ExerciseCompletion = z.infer<typeof ExerciseCompletionSchema>;
 
-  /** Optional weak point that this exercise targets */
-  weakPointTarget?: string
+export const WorkoutCompletionSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  programId: z.string(),
+  weekNumber: z.number().int().positive(),
+  dayOfWeek: DayOfWeekEnum,
+  completedAt: z.date().or(z.string()),
+  exercisesCompleted: z.array(ExerciseCompletionSchema),
+  notes: z.string().optional(),
+  rating: z.number().int().min(1).max(10).optional(),
+  actualDurationMinutes: z.number().int().positive().optional(),
+});
+export type WorkoutCompletion = z.infer<typeof WorkoutCompletionSchema>;
 
-  /** Optional stimulus-to-fatigue ratio */
-  stimulusToFatigueRatio?: 'High' | 'Moderate' | 'Low'
+// Daily Readiness tracking schemas
+export const DailyReadinessDataSchema = z.object({
+  sleep: z.enum(['Poor', 'Average', 'Great']),
+  energy: z.enum(['Sore/Tired', 'Feeling Good', 'Ready to Go']),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  timestamp: z.date().or(z.string()),
+});
+export type DailyReadinessData = z.infer<typeof DailyReadinessDataSchema>;
 
-  /** Optional scientific rationale for exercise selection */
-  scientificRationale?: string
-}
+// Enhanced User Profiling Schemas for Science-Based Training
+export const VolumeParametersSchema = z.object({
+  trainingAge: z.number().int().positive().describe("Training age in years"),
+  recoveryCapacity: z.number().int().min(1).max(10).describe("Recovery capacity rating (1-10)"),
+  volumeTolerance: z.number().min(0.5).max(2.0).describe("Volume tolerance coefficient"),
+  stressLevel: z.number().int().min(1).max(10).describe("Current life stress level (1-10)"),
+});
+export type VolumeParameters = z.infer<typeof VolumeParametersSchema>;
 
+export const VolumeLandmarksSchema = z.object({
+  MEV: z.number().int().positive().describe("Minimum Effective Volume"),
+  MAV: z.number().int().positive().describe("Maximum Adaptive Volume"),
+  MRV: z.number().int().positive().describe("Maximum Recoverable Volume"),
+});
+export type VolumeLandmarks = z.infer<typeof VolumeLandmarksSchema>;
 
+export const RecoveryProfileSchema = z.object({
+  fatigueThreshold: z.number().int().min(1).max(10),
+  recoveryRate: z.number().min(0.5).max(2.0),
+  sleepQuality: z.number().int().min(1).max(10),
+  recoveryModalities: z.array(z.string()).optional(),
+});
+export type RecoveryProfile = z.infer<typeof RecoveryProfileSchema>;
 
+export const WeakPointAnalysisSchema = z.object({
+  strengthRatios: z.record(z.string(), z.number()),
+  weakPoints: z.array(z.string()),
+  correctionExercises: z.record(z.string(), z.array(z.string())),
+  weakPointPriority: z.record(z.string(), z.number().int().min(1).max(10)).optional(),
+});
+export type WeakPointAnalysis = z.infer<typeof WeakPointAnalysisSchema>;
 
+export const RPEProfileSchema = z.object({
+  sessionRPETargets: z.record(z.string(), z.tuple([z.number(), z.number()])),
+  autoregulationRules: z.object({
+    readyToGo: z.number(),
+    feelingGood: z.number(),
+    soreTired: z.number(),
+  }),
+  rpeAccuracy: z.number().int().min(1).max(10).optional(),
+  exerciseRPEPreferences: z.record(z.string(), z.tuple([z.number(), z.number()])).optional(),
+});
+export type RPEProfile = z.infer<typeof RPEProfileSchema>;
 
+export const PeriodizationModelSchema = z.object({
+  type: z.enum(['linear', 'undulating', 'block', 'conjugate', 'autoregulated']),
+  phases: z.array(z.object({
+    name: z.string().min(1),
+    duration: z.number().int().positive(),
+    focus: z.enum(['hypertrophy', 'strength', 'power', 'endurance', 'deload']),
+    intensityRange: z.tuple([z.number(), z.number()]),
+    volumeMultiplier: z.number().positive(),
+  })),
+  adaptationTargets: z.object({
+    strength: z.record(z.string(), z.number()).optional(),
+    hypertrophy: z.record(z.string(), z.number()).optional(),
+    power: z.record(z.string(), z.number()).optional(),
+    endurance: z.record(z.string(), z.number()).optional(),
+  }),
+  deloadProtocol: z.object({
+    frequency: z.number().int().positive(),
+    type: z.enum(['volume', 'intensity', 'complete']),
+    reductionPercentage: z.number().int().min(1).max(100),
+  }),
+});
+export type PeriodizationModel = z.infer<typeof PeriodizationModelSchema>;
 
-/**
- * A workout session. This is the new primary building block of a program.
- */
-export interface TrainingSession {
+export const EnhancedUserDataSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  email: z.string().email(),
+  age: z.number().int().positive().optional(),
+  height_cm: z.number().positive().optional(),
+  weight_kg: z.number().positive().optional(),
+  fitness_goals: z.string().optional(),
+  primary_training_focus: z.string().optional(),
+  experience_level: z.string().optional(),
+  weight_unit: z.enum(['kg', 'lbs']),
+  squat1RMEstimate: z.number().positive().optional(),
+  benchPress1RMEstimate: z.number().positive().optional(),
+  deadlift1RMEstimate: z.number().positive().optional(),
+  overheadPress1RMEstimate: z.number().positive().optional(),
+  equipment: z.array(z.string()).optional(),
+  trainingFrequencyDays: z.number().int().positive().optional(),
+  sessionDuration: z.string().optional(),
+  exercisePreferences: z.string().optional(),
+  injuriesLimitations: z.string().optional(),
+  volumeParameters: VolumeParametersSchema,
+  volumeLandmarks: z.record(z.string(), VolumeLandmarksSchema),
+  recoveryProfile: RecoveryProfileSchema,
+  weakPointAnalysis: WeakPointAnalysisSchema,
+  rpeProfile: RPEProfileSchema,
+  periodizationModel: PeriodizationModelSchema,
+  trainingHistory: z.object({
+    totalTrainingTime: z.number().positive(),
+    injuryHistory: z.array(z.string()),
+    peakPerformances: z.record(z.string(), z.number()),
+    trainingResponseProfile: z.record(z.string(), z.enum(['poor', 'average', 'excellent'])),
+  }).optional(),
+  lifestyleFactors: z.object({
+    occupationType: z.enum(['sedentary', 'active', 'physical']),
+    averageSleepHours: z.number().min(0).max(24),
+    stressManagement: z.array(z.string()),
+    nutritionAdherence: z.number().int().min(1).max(10),
+  }).optional(),
+});
+export type EnhancedUserData = z.infer<typeof EnhancedUserDataSchema>;
+
+// Legacy type exports for backward compatibility
+export type UserData = EnhancedUserData;
+export type WorkoutFocus = string;
+export type TrainingSession = {
   week?: number;
   dayOfWeek?: number | string;
   focus?: string;
@@ -109,533 +287,100 @@ export interface TrainingSession {
     rest: string;
     rpe?: string | number;
   }[];
-}
+};
 
-/**
- * Complete AI-generated training program using the new flexible structure.
- */
-export interface TrainingProgram {
-  /** Optional program name/title */
-  programName?: string;
-
-  /** Optional detailed program description */
-  description?: string;
-  
-  /** Optional program length description (e.g., "4 Weeks") */
-  programLength?: string;
-
-  /** Optional training frequency in days per week */
-  trainingFrequencyDays?: number;
-
-  /** Array of training sessions */
-  sessions?: TrainingSession[];
-
-  /** Optional general advice and guidelines */
-  generalAdvice?: string;
-
-  /** NEW: A personalized introduction from Neural. */
-  coachIntro?: string;
-
-  /** When the program was generated */
-  generatedAt?: Date | string;
-
-  /** AI model used for generation */
-aiModelUsed?: string;
-
-  /** Program difficulty level */
-  difficultyLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
-
-  /** Required equipment */
-  requiredEquipment?: string[];
-
-  /** Program tags for categorization */
-  tags?: string[];
-
-  /** Version number for program updates */
-  version?: string;
-}
-
-/**
- * Database storage interface for training programs
- * Extends TrainingProgram with database-specific fields
- */
-export interface StoredTrainingProgram extends TrainingProgram {
-  /** Database ID */
-  id: string
-
-  /** User ID who owns this program */
-  userId: string
-
-  /** Database created timestamp */
-  createdAt: Date | string
-
-  /** Database updated timestamp */
-  updatedAt: Date | string
-
-  /** Whether this program is currently active for the user */
-  isActive: boolean
-
-  /** Program status */
-  status: 'draft' | 'active' | 'completed' | 'paused' | 'archived'
-
-  /** User's progress through the program */
-  currentWeek?: number
-
-  /** User's progress through the current phase */
-  currentPhase?: number
-}
-
-/**
- * Workout completion tracking interface
- */
-export interface WorkoutCompletion {
-  /** Database ID */
-  id: string
-
-  /** User ID */
-  userId: string
-
-  /** Program ID this workout belongs to */
-  programId: string
-
-  /** Week number */
-  weekNumber: number
-
-  /** Day of week */
-  dayOfWeek: DayOfWeek
-
-  /** Date the workout was completed */
-  completedAt: Date | string
-
-  /** Exercises completed with actual performance */
-  exercisesCompleted: ExerciseCompletion[]
-
-  /** User notes about the workout */
-  notes?: string
-
-  /** Overall workout rating (1-10) */
-  rating?: number
-
-  /** Duration of actual workout in minutes */
-  actualDurationMinutes?: number
-}
-
-/**
- * Individual exercise completion tracking
- */
-export interface ExerciseCompletion {
-  /** Exercise name */
-  exerciseName: string
-
-  /** Actual sets completed */
-  setsCompleted: number
-
-  /** Actual reps per set */
-  repsCompleted: (number | string)[]
-
-  /** Actual weight used */
-  weightUsed?: string[]
-
-  /** User notes for this exercise */
-  notes?: string
-
-  /** Whether the exercise was completed as prescribed */
-  completedAsPrescribed: boolean
-}
-
-/**
- * Daily Readiness tracking interfaces
- */
-export interface DailyReadinessData {
-  /** Sleep quality rating */
-  sleep: 'Poor' | 'Average' | 'Great'
-  
-  /** Energy/soreness level */
-  energy: 'Sore/Tired' | 'Feeling Good' | 'Ready to Go'
-  
-  /** Date when readiness was recorded (YYYY-MM-DD format) */
-  date: string
-  
-  /** Timestamp when readiness was recorded */
-  timestamp: Date | string
-}
-
-/**
- * Props for Daily Readiness Modal component
- */
+// Props interfaces for components
 export interface DailyReadinessModalProps {
-  /** Whether the modal is open */
-  isOpen: boolean
-  
-  /** Callback when modal is closed */
-  onClose: () => void
-  
-  /** Callback when readiness data is submitted */
-  onSubmit: (readiness: DailyReadinessData) => void
-  
-  /** Whether the form is being submitted */
-  isSubmitting?: boolean
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (readiness: DailyReadinessData) => void;
+  isSubmitting?: boolean;
 }
 
-/**
- * Service for tracking daily readiness completion
- */
 export interface DailyReadinessService {
-  /** Check if user has completed readiness for today */
-  hasCompletedToday: () => boolean
-  
-  /** Record that user has completed readiness for today */
-  markCompletedToday: (readiness: DailyReadinessData) => void
-  
-  /** Get today's readiness data if available */
-  getTodaysReadiness: () => DailyReadinessData | null
-  
-  /** Clear all stored readiness data */
-  clearAll: () => void
+  hasCompletedToday: () => boolean;
+  markCompletedToday: (readiness: DailyReadinessData) => void;
+  getTodaysReadiness: () => DailyReadinessData | null;
+  clearAll: () => void;
 }
 
-/**
- * Enhanced User Profiling Data Structures for Science-Based Training
- * These interfaces support advanced training periodization and individualization
- */
+// Test function to validate schema structure
+export function validatePhoenixSchema() {
+  const sampleExercise: ExerciseDetail = {
+    name: "Barbell Squat",
+    tier: "Anchor",
+    sets: 3,
+    reps: "5",
+    rpe: "8",
+    rest: "3-5min",
+    notes: "Focus on depth and form",
+    isAnchorLift: true,
+  };
 
-/**
- * Base user data interface consolidating existing profile information
- */
-export interface UserData {
-  /** Unique user identifier */
-  id: string
-  
-  /** User's display name */
-  name: string
-  
-  /** User's email address */
-  email: string
-  
-  /** User's age in years */
-  age?: number
-  
-  /** User's height in centimeters */
-  height_cm?: number
-  
-  /** User's weight in kilograms */
-  weight_kg?: number
-  
-  /** Primary fitness goals */
-  fitness_goals?: string
-  
-  /** Primary training focus area */
-  primary_training_focus?: string
-  
-  /** Training experience level (beginner/intermediate/advanced) */
-  experience_level?: string
-  
-  /** Preferred weight unit for display */
-  weight_unit: 'kg' | 'lbs'
-  
-  /** Current 1RM estimates for major lifts */
-  squat1RMEstimate?: number
-  benchPress1RMEstimate?: number
-  deadlift1RMEstimate?: number
-  overheadPress1RMEstimate?: number
-  
-  /** Available training equipment */
-  equipment?: string[]
-  
-  /** Training frequency per week */
-  trainingFrequencyDays?: number
-  
-  /** Preferred session duration */
-  sessionDuration?: string
-  
-  /** Exercise preferences and limitations */
-  exercisePreferences?: string
-  injuriesLimitations?: string
-}
+  const sampleWorkoutDay: WorkoutDay = {
+    dayOfWeek: "Monday",
+    focus: "Lower Body - Squat",
+    isRestDay: false,
+    exercises: [sampleExercise],
+    estimatedDuration: "60-75min",
+  };
 
-/**
- * Volume parameters for individualized training load management
- * Based on training age, recovery capacity, and stress levels
- */
-export interface VolumeParameters {
-  /** 
-   * Training age in years - influences volume tolerance and adaptation rate
-   * Beginners: 0-2 years, Intermediate: 2-5 years, Advanced: 5+ years
-   */
-  trainingAge: number
-  
-  /** 
-   * Recovery capacity rating (1-10 scale)
-   * Factors: sleep quality, nutrition, stress levels, age
-   * 1-3: Poor recovery, 4-6: Average recovery, 7-10: Excellent recovery
-   */
-  recoveryCapacity: number
-  
-  /** 
-   * Volume tolerance coefficient (0.5-2.0)
-   * Individual response to training volume
-   * <1.0: Low tolerance, 1.0: Average, >1.0: High tolerance
-   */
-  volumeTolerance: number
-  
-  /** 
-   * Current life stress level (1-10 scale)
-   * Influences recovery and volume recommendations
-   * 1-3: Low stress, 4-6: Moderate stress, 7-10: High stress
-   */
-  stressLevel: number
-}
+  const sampleWeek: TrainingWeek = {
+    weekNumber: 1,
+    phaseWeek: 1,
+    progressionStrategy: "Linear",
+    intensityFocus: "Volume Accumulation",
+    days: [
+      sampleWorkoutDay,
+      { ...sampleWorkoutDay, dayOfWeek: "Tuesday", focus: "Upper Body - Push", exercises: [] },
+      { ...sampleWorkoutDay, dayOfWeek: "Wednesday", focus: "Rest", isRestDay: true, exercises: [] },
+      { ...sampleWorkoutDay, dayOfWeek: "Thursday", focus: "Lower Body - Deadlift", exercises: [] },
+      { ...sampleWorkoutDay, dayOfWeek: "Friday", focus: "Upper Body - Pull", exercises: [] },
+      { ...sampleWorkoutDay, dayOfWeek: "Saturday", focus: "Rest", isRestDay: true, exercises: [] },
+      { ...sampleWorkoutDay, dayOfWeek: "Sunday", focus: "Rest", isRestDay: true, exercises: [] },
+    ],
+    weeklyVolumeLandmark: "MAV",
+  };
 
-/**
- * Volume landmarks for each muscle group based on scientific literature
- * MEV = Minimum Effective Volume, MAV = Maximum Adaptive Volume, MRV = Maximum Recoverable Volume
- */
-export interface VolumeLandmarks {
-  /** 
-   * Minimum Effective Volume - minimum weekly sets needed for muscle growth
-   * Based on muscle group size and recovery characteristics
-   */
-  MEV: number
-  
-  /** 
-   * Maximum Adaptive Volume - optimal weekly sets for maximum gains
-   * Sweet spot between stimulus and recovery demands
-   */
-  MAV: number
-  
-  /** 
-   * Maximum Recoverable Volume - maximum weekly sets before negative returns
-   * Beyond this point, recovery becomes impaired
-   */
-  MRV: number
-}
+  const samplePhase: TrainingPhase = {
+    phaseName: "Volume Accumulation",
+    phaseType: "Accumulation",
+    durationWeeks: 4,
+    primaryGoal: "Build foundational strength and muscle mass",
+    weeks: [sampleWeek],
+  };
 
-/**
- * Individual recovery profile for training load management
- * Tracks fatigue accumulation and recovery patterns
- */
-export interface RecoveryProfile {
-  /** 
-   * Fatigue threshold (1-10 scale)
-   * Point at which performance significantly decreases
-   * Individual variation in fatigue tolerance
-   */
-  fatigueThreshold: number
-  
-  /** 
-   * Recovery rate coefficient (0.5-2.0)
-   * How quickly the individual recovers from training stress
-   * <1.0: Slow recovery, 1.0: Average, >1.0: Fast recovery
-   */
-  recoveryRate: number
-  
-  /** 
-   * Sleep quality assessment (1-10 scale)
-   * Critical factor in recovery and adaptation
-   * Influences volume recommendations and deload timing
-   */
-  sleepQuality: number
-  
-  /** 
-   * Preferred recovery modalities
-   * Methods that work best for this individual
-   */
-  recoveryModalities?: string[]
-}
+  const sampleProgram: TrainingProgram = {
+    programName: "Phoenix Strength Program",
+    description: "A comprehensive 4-week strength training program",
+    durationWeeksTotal: 4,
+    coachIntro: "Welcome to your personalized strength journey!",
+    generalAdvice: "This program follows scientific periodization principles.",
+    periodizationModel: "Linear",
+    phases: [samplePhase],
+    totalVolumeProgression: "Progressive overload with volume accumulation",
+    anchorLifts: ["Barbell Squat", "Deadlift", "Bench Press"],
+  };
 
-/**
- * Weak point analysis for targeted training interventions
- * Identifies strength imbalances and corrective strategies
- */
-export interface WeakPointAnalysis {
-  /** 
-   * Strength ratios between major lifts
-   * Used to identify imbalances and weak points
-   * Format: { 'squat:deadlift': 0.85, 'bench:squat': 0.65, etc. }
-   */
-  strengthRatios: Record<string, number>
-  
-  /** 
-   * Identified weak points requiring targeted attention
-   * Could be muscle groups, movement patterns, or specific lifts
-   */
-  weakPoints: string[]
-  
-  /** 
-   * Recommended corrective exercises for each weak point
-   * Specific exercises to address identified deficiencies
-   */
-  correctionExercises: Record<string, string[]>
-  
-  /** 
-   * Priority level for each weak point (1-10 scale)
-   * Determines focus allocation in program design
-   */
-  weakPointPriority?: Record<string, number>
-}
-
-/**
- * RPE (Rate of Perceived Exertion) profile for autoregulation
- * Manages training intensity based on daily readiness and fatigue
- */
-export interface RPEProfile {
-  /** 
-   * Target session RPE ranges for different training phases
-   * Format: { 'hypertrophy': [6, 8], 'strength': [7, 9], 'peaking': [8, 10] }
-   */
-  sessionRPETargets: Record<string, [number, number]>
-  
-  /** 
-   * Autoregulation rules based on daily readiness
-   * Adjusts prescribed loads based on subjective readiness
-   */
-  autoregulationRules: {
-    /** RPE adjustment when feeling great (+1 to prescribed RPE) */
-    readyToGo: number
-    /** RPE adjustment when feeling average (no change) */
-    feelingGood: number
-    /** RPE adjustment when feeling poor (-1 to prescribed RPE) */
-    soreTired: number
-  }
-  
-  /** 
-   * Individual RPE calibration
-   * How accurately the user estimates RPE vs actual performance
-   */
-  rpeAccuracy?: number
-  
-  /** 
-   * Exercise-specific RPE preferences
-   * Some exercises may require different RPE targets
-   */
-  exerciseRPEPreferences?: Record<string, [number, number]>
-}
-
-/**
- * Periodization model for long-term training planning
- * Defines the overall structure and progression strategy
- */
-export interface PeriodizationModel {
-  /** 
-   * Type of periodization model being used
-   * Each model has different characteristics and applications
-   */
-  type: 'linear' | 'undulating' | 'block' | 'conjugate' | 'autoregulated'
-  
-  /** 
-   * Training phases with their duration and focus
-   * Sequential phases building toward specific adaptations
-   */
-  phases: {
-    /** Phase name/identifier */
-    name: string
-    /** Duration in weeks */
-    duration: number
-    /** Primary adaptation focus */
-    focus: 'hypertrophy' | 'strength' | 'power' | 'endurance' | 'deload'
-    /** Intensity range for this phase */
-    intensityRange: [number, number]
-    /** Volume multiplier relative to baseline */
-    volumeMultiplier: number
-  }[]
-  
-  /** 
-   * Specific adaptation targets for each training quality
-   * Measurable goals for different aspects of fitness
-   */
-  adaptationTargets: {
-    /** Strength improvement targets (% increase) */
-    strength?: Record<string, number>
-    /** Hypertrophy targets (muscle mass increase) */
-    hypertrophy?: Record<string, number>
-    /** Power development targets */
-    power?: Record<string, number>
-    /** Endurance improvement targets */
-    endurance?: Record<string, number>
-  }
-  
-  /** 
-   * Deload frequency and structure
-   * Planned recovery periods to prevent overreaching
-   */
-  deloadProtocol: {
-    /** How often deloads occur (every X weeks) */
-    frequency: number
-    /** Type of deload (volume reduction, intensity reduction, etc.) */
-    type: 'volume' | 'intensity' | 'complete'
-    /** Magnitude of reduction (e.g., 40% volume reduction) */
-    reductionPercentage: number
-  }
-}
-
-/**
- * Enhanced user data interface extending base UserData with advanced profiling
- * Combines all science-based training parameters for individualized programming
- */
-export interface EnhancedUserData extends UserData {
-  /** 
-   * Volume management parameters
-   * Determines appropriate training loads and progression rates
-   */
-  volumeParameters: VolumeParameters
-  
-  /** 
-   * Volume landmarks for major muscle groups
-   * Muscle-specific training volume guidelines
-   */
-  volumeLandmarks: Record<string, VolumeLandmarks>
-  
-  /** 
-   * Individual recovery characteristics
-   * Guides rest periods, deload timing, and volume adjustments
-   */
-  recoveryProfile: RecoveryProfile
-  
-  /** 
-   * Weak point analysis results
-   * Identifies areas needing targeted attention
-   */
-  weakPointAnalysis: WeakPointAnalysis
-  
-  /** 
-   * RPE-based autoregulation settings
-   * Enables daily training adjustments based on readiness
-   */
-  rpeProfile: RPEProfile
-  
-  /** 
-   * Long-term periodization strategy
-   * Overall training plan structure and progression
-   */
-  periodizationModel: PeriodizationModel
-  
-  /** 
-   * Training history metrics
-   * Past performance data for informed decision making
-   */
-  trainingHistory?: {
-    /** Total training months/years */
-    totalTrainingTime: number
-    /** Previous injuries or setbacks */
-    injuryHistory: string[]
-    /** Best lifts achieved historically */
-    peakPerformances: Record<string, number>
-    /** Response to different training styles */
-    trainingResponseProfile: Record<string, 'poor' | 'average' | 'excellent'>
-  }
-  
-  /** 
-   * Lifestyle factors affecting training
-   * External factors that influence recovery and performance
-   */
-  lifestyleFactors?: {
-    /** Occupation type (sedentary, active, physical) */
-    occupationType: 'sedentary' | 'active' | 'physical'
-    /** Average sleep hours per night */
-    averageSleepHours: number
-    /** Stress management practices */
-    stressManagement: string[]
-    /** Nutritional adherence level */
-    nutritionAdherence: number
+  // Validate using Zod schemas
+  try {
+    const validatedExercise = ExerciseDetailSchema.parse(sampleExercise);
+    const validatedDay = WorkoutDaySchema.parse(sampleWorkoutDay);
+    const validatedWeek = TrainingWeekSchema.parse(sampleWeek);
+    const validatedPhase = TrainingPhaseSchema.parse(samplePhase);
+    const validatedProgram = TrainingProgramSchema.parse(sampleProgram);
+    
+    console.log("✅ Phoenix Schema validation successful");
+    return {
+      success: true,
+      exercise: validatedExercise,
+      day: validatedDay,
+      week: validatedWeek,
+      phase: validatedPhase,
+      program: validatedProgram,
+    };
+  } catch (error) {
+    console.error("❌ Phoenix Schema validation failed:", error);
+    return { success: false, error };
   }
 }

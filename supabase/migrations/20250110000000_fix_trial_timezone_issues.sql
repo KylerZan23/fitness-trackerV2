@@ -7,19 +7,25 @@
 --------------------------------------------------
 
 -- Update users who have NULL trial_ends_at to get a proper 7-day trial
-UPDATE profiles 
-SET trial_ends_at = NOW() + INTERVAL '7 days',
-    is_premium = COALESCE(is_premium, FALSE)
-WHERE trial_ends_at IS NULL 
-  AND (is_premium IS NULL OR is_premium = FALSE);
+-- Only run if the columns exist
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'trial_ends_at') THEN
+        UPDATE profiles 
+        SET trial_ends_at = NOW() + INTERVAL '7 days',
+            is_premium = COALESCE(is_premium, FALSE)
+        WHERE trial_ends_at IS NULL 
+          AND (is_premium IS NULL OR is_premium = FALSE);
 
--- Fix users who have trial_ends_at in the past but should still have access
--- (This handles cases where timezone issues caused premature expiration)
-UPDATE profiles 
-SET trial_ends_at = NOW() + INTERVAL '7 days'
-WHERE trial_ends_at < NOW() 
-  AND is_premium = FALSE 
-  AND created_at > NOW() - INTERVAL '14 days'; -- Only fix recent signups
+        -- Fix users who have trial_ends_at in the past but should still have access
+        -- (This handles cases where timezone issues caused premature expiration)
+        UPDATE profiles 
+        SET trial_ends_at = NOW() + INTERVAL '7 days'
+        WHERE trial_ends_at < NOW() 
+          AND is_premium = FALSE 
+          AND created_at > NOW() - INTERVAL '14 days'; -- Only fix recent signups
+    END IF;
+END $$;
 
 --------------------------------------------------
 -- 2. Improve the has_active_access function for better timezone handling
@@ -75,9 +81,15 @@ GRANT EXECUTE ON FUNCTION start_user_trial(UUID) TO anon;
 --------------------------------------------------
 
 -- Add a check constraint to prevent setting trial_ends_at in the past
-ALTER TABLE profiles 
-ADD CONSTRAINT check_trial_ends_at_future 
-CHECK (trial_ends_at IS NULL OR trial_ends_at > NOW() AT TIME ZONE 'UTC');
+-- Only add if the column exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'trial_ends_at') THEN
+        ALTER TABLE profiles 
+        ADD CONSTRAINT check_trial_ends_at_future 
+        CHECK (trial_ends_at IS NULL OR trial_ends_at > NOW() AT TIME ZONE 'UTC');
+    END IF;
+END $$;
 
 --------------------------------------------------
 -- 5. Create a function to get trial status with detailed information

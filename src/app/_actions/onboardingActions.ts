@@ -58,7 +58,7 @@ export async function finalizeOnboardingAndGenerateProgram(
 
     // Now generate the training program
     console.log('Starting program generation for user:', user.id)
-    const programResult = await generateTrainingProgram(user, formData)
+    const programResult = await generateTrainingProgram(user.id, formData)
     
     if (!programResult.success) {
       console.error('Program generation failed:', programResult.error)

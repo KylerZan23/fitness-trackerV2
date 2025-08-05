@@ -66,7 +66,24 @@ global.Response = global.Response || class Response {
 }
 
 // Mock Supabase
-jest.mock('@/lib/supabase', () => ({
+jest.mock('@/utils/supabase/client', () => ({
+  supabase: {
+    auth: {
+      getUser: jest.fn(),
+      signInWithPassword: jest.fn(),
+      signUp: jest.fn(),
+      signOut: jest.fn(),
+    },
+    from: jest.fn(() => ({
+      select: jest.fn(),
+      insert: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    })),
+  },
+}))
+
+jest.mock('@/utils/supabase/server', () => ({
   supabase: {
     auth: {
       getUser: jest.fn(),

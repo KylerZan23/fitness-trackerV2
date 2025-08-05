@@ -154,7 +154,7 @@ export default function OnboardingPage() {
       }
 
       // This server action now correctly triggers the background generation.
-      const result = await generateTrainingProgram(user, onboardingData);
+      const result = await generateTrainingProgram(user.id, onboardingData);
 
       if ('error' in result) {
         throw new Error(result.error);
@@ -180,7 +180,7 @@ export default function OnboardingPage() {
       console.error("Error during program generation and polling setup:", error);
       if (pollingInterval) clearInterval(pollingInterval);
       setIsProcessing(false);
-      router.push(`/program?onboarding=completed&error=${encodeURIComponent(error.message)}`);
+      router.push(`/program?onboarding=completed&error=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`);
     }
   };
 

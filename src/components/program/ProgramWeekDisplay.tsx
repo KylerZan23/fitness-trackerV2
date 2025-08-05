@@ -10,7 +10,9 @@ import {
 } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, Target, Lightbulb } from 'lucide-react'
+import { ProgressionBadge } from '@/components/ui/ProgressionBadge'
+import { VolumeIndicator } from '@/components/ui/VolumeIndicator'
+import { Calendar, Target, Lightbulb, TrendingUp, BarChart3 } from 'lucide-react'
 
 interface ProgramWeekDisplayProps {
   week: TrainingWeek
@@ -21,18 +23,8 @@ interface ProgramWeekDisplayProps {
 
 // Helper function to get day name for accordion trigger
 function getDayDisplayName(dayOfWeek: DayOfWeek, focus?: string): string {
-  const dayNames = {
-    [DayOfWeek.MONDAY]: 'Monday',
-    [DayOfWeek.TUESDAY]: 'Tuesday',
-    [DayOfWeek.WEDNESDAY]: 'Wednesday',
-    [DayOfWeek.THURSDAY]: 'Thursday',
-    [DayOfWeek.FRIDAY]: 'Friday',
-    [DayOfWeek.SATURDAY]: 'Saturday',
-    [DayOfWeek.SUNDAY]: 'Sunday',
-  }
-
-  const dayName = dayNames[dayOfWeek] || 'Unknown'
-  return focus ? `${dayName}: ${focus}` : dayName
+  // Phoenix Schema uses string literals, so we can use them directly
+  return focus ? `${dayOfWeek}: ${focus}` : dayOfWeek
 }
 
 export function ProgramWeekDisplay({
@@ -50,52 +42,55 @@ export function ProgramWeekDisplay({
             <Calendar className="h-5 w-5 text-blue-600" />
             <h4 className="text-lg font-semibold text-gray-900">
               Week {week.weekNumber}
-              {week.weekInPhase && (
+              {week.phaseWeek && (
                 <span className="text-gray-600 font-normal">
                   {' '}
-                  (Week {week.weekInPhase} in phase)
+                  (Week {week.phaseWeek} in phase)
                 </span>
               )}
             </h4>
           </div>
         </div>
 
-        {/* Week Notes */}
-        {week.notes && (
-          <div className="mb-3 p-3 bg-white rounded-md border">
-            <p className="text-sm text-gray-700">
-              <strong>Week Notes:</strong> {week.notes}
-            </p>
+        {/* Progression Strategy & Training Details */}
+        <div className="mb-3 space-y-3">
+          {/* Progression Strategy */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-gray-800">Progression:</span>
+              <ProgressionBadge 
+                strategy={week.progressionStrategy as any} 
+                weekNumber={week.weekNumber} 
+                size="sm" 
+              />
+            </div>
           </div>
-        )}
 
-        {/* Weekly Goals */}
-        {week.weeklyGoals && week.weeklyGoals.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Target className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-gray-800">Weekly Goals:</span>
+          {/* Intensity Focus & Volume Landmark */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2 mb-1">
+                <BarChart3 className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">Intensity Focus</span>
+              </div>
+              <p className="text-sm text-blue-900 font-medium">{week.intensityFocus}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {week.weeklyGoals.map((goal, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
-                  {goal}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {week.coachTip && (
-          <div className="mt-3 p-3 bg-indigo-50 rounded-md border border-indigo-200">
-            <div className="flex items-start space-x-2">
-              <Lightbulb className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-gray-800">
-                <strong>Neural's Tip:</strong> {week.coachTip}
-              </p>
-            </div>
+            {week.weeklyVolumeLandmark && (
+              <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-800">Volume Landmark</span>
+                </div>
+                <VolumeIndicator 
+                  landmark={week.weeklyVolumeLandmark} 
+                  size="md" 
+                />
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Days Accordion */}
@@ -122,9 +117,9 @@ export function ProgramWeekDisplay({
                           Rest Day
                         </Badge>
                       )}
-                      {day.estimatedDurationMinutes && !day.isRestDay && (
+                      {day.estimatedDuration && !day.isRestDay && (
                         <Badge variant="outline" className="text-xs">
-                          {day.estimatedDurationMinutes}min
+                          {day.estimatedDuration}
                         </Badge>
                       )}
                     </div>

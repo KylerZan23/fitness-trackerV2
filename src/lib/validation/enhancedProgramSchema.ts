@@ -8,7 +8,7 @@
  */
 
 import { z } from 'zod'
-import { DayOfWeek, type WorkoutFocus, type VolumeLandmarks } from '@/lib/types/program'
+import { DayOfWeekEnum, type WorkoutFocus, type VolumeLandmarks } from '@/lib/types/program'
 import { MUSCLE_GROUP_BASE_VOLUMES } from '@/lib/volumeCalculations'
 import { STRENGTH_RATIO_STANDARDS } from '@/lib/weakPointAnalysis'
 
@@ -240,7 +240,7 @@ const EnhancedExerciseDetailSchema = z.object({
 })
 
 const EnhancedWorkoutDaySchema = z.object({
-  dayOfWeek: z.nativeEnum(DayOfWeek),
+  dayOfWeek: DayOfWeekEnum,
   focus: z.string().optional(),
   exercises: z.array(EnhancedExerciseDetailSchema),
   warmUp: z.array(EnhancedExerciseDetailSchema).optional(),

@@ -80,29 +80,28 @@ export async function runProgramGenerationPipeline(
       })
       .eq('id', programId)
     
-    // Fetch the program record with user data
+    // Fetch the program record to get the user_id
     const { data: programRecord, error: fetchError } = await supabase
       .from('training_programs')
-      .select(`
-        id,
-        user_id,
-        onboarding_data_snapshot,
-        profiles!inner(
-          name,
-          age,
-          weight_unit,
-          primary_training_focus,
-          experience_level
-        )
-      `)
+      .select('id, user_id, onboarding_data_snapshot')
       .eq('id', programId)
       .single()
-    
+
     if (fetchError || !programRecord) {
       throw new Error(`Failed to fetch program record: ${fetchError?.message || 'Record not found'}`)
     }
+
+    // Fetch the user's profile using the user_id from the program record
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('name, age, weight_unit, primary_training_focus, experience_level')
+      .eq('id', programRecord.user_id)
+      .single()
+
+    if (profileError || !profile) {
+      throw new Error(`Failed to fetch profile: ${profileError?.message || 'Profile not found'}`)
+    }
     
-    const profile = programRecord.profiles as any
     const onboardingData = programRecord.onboarding_data_snapshot as OnboardingData
     
     if (!onboardingData) {
@@ -164,7 +163,7 @@ export async function runProgramGenerationPipeline(
       generation_error: null,
       program_details: validatedProgram,
       ai_model_version: validatedProgram.aiModelUsed || 'gpt-4o',
-      weak_point_analysis: processingResult.weakPointAnalysis,
+
       periodization_model: processingResult.periodizationModel,
       generation_metadata: {
         processingTimestamp: new Date().toISOString(),
@@ -366,7 +365,7 @@ async function constructSimplifiedLLMPrompt(
     - ONE phase with durationWeeks: 1
     - ONE week in that phase
     - Standard training week tailored to their goals
-    - Use proper dayOfWeek numbers: 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday
+    - Use proper dayOfWeek strings: "Monday", "Tuesday", etc.
     `;
   }
   // --- END: ADD THIS BLOCK ---
@@ -403,11 +402,12 @@ STRENGTH PROFILE (${weightUnit}):
 - Overhead Press 1RM: ${onboarding.overheadPress1RMEstimate || 'Not provided'}
 
 REQUIREMENTS:
-1. Respect volume landmarks (start at MEV, progress to MAV, never exceed MRV)
-2. Include anchor lifts as first exercise on training days
-3. Use appropriate RPE targets (6-8 RPE typically)
+1.  **Volume Compliance:** Respect volume landmarks (start at MEV, progress to MAV, never exceed MRV). The \`startingPercentageMAV\` must be between 30 and 80.
+2.  **Anchor Lifts:** Each non-rest day must have a designated anchor lift. Set the \`category\` of the first exercise to \`'Anchor_Lift'\`.
+3.  **RPE Targets:** Use appropriate RPE targets (6-8 RPE typically).
+4.  **Autoregulation Protocol:** The \`programOverview\` must include a complete \`autoregulationProtocol\` object.
 ${weakPointAnalysis && weakPointAnalysis.primaryWeakPoints.length > 0 ? 
-  `4. Address weak points: ${weakPointAnalysis.primaryWeakPoints.join(', ')}` : ''}
+  `5. Address weak points: ${weakPointAnalysis.primaryWeakPoints.join(', ')}` : ''}
 
 ${programLengthInstruction} // <-- Inject the new instruction here
 
@@ -452,6 +452,52 @@ interface TrainingProgram {
   requiredEquipment?: string[];
   tags?: string[];
   version?: string;
+  programOverview: ProgramOverview;
+  volumeCompliance: VolumeCompliance;
+}
+
+interface ProgramOverview {
+  scientificRationale: ScientificRationale;
+  periodizationModel: 'Linear Progression' | 'Daily Undulating Periodization' | 'Block Periodization' | 'Conjugate Method' | 'Autoregulated Progression';
+  volumeDistribution: VolumeDistribution;
+  autoregulationProtocol: AutoregulationProtocol;
+  targetPopulation: 'Beginner' | 'Intermediate' | 'Advanced';
+  primaryGoal: string;
+  secondaryGoals?: string[];
+}
+
+interface VolumeDistribution {
+  chest: { weeklyVolume: number; percentageOfMAV: number; };
+  back: { weeklyVolume: number; percentageOfMAV: number; };
+  shoulders: { weeklyVolume: number; percentageOfMAV: number; };
+  arms: { weeklyVolume: number; percentageOfMAV: number; };
+  quads: { weeklyVolume: number; percentageOfMAV: number; };
+  hamstrings: { weeklyVolume: number; percentageOfMAV: number; };
+  glutes: { weeklyVolume: number; percentageOfMAV: number; };
+  calves: { weeklyVolume: number; percentageOfMAV: number; };
+  abs: { weeklyVolume: number; percentageOfMAV: number; };
+}
+
+interface AutoregulationProtocol {
+  phaseRPETargets: {
+    accumulation: { min: number; max: number; target: number; };
+    intensification: { min: number; max: number; target: number; };
+    realization: { min: number; max: number; target: number; };
+    deload: { min: number; max: number; target: number; };
+  };
+  adjustmentGuidelines: {
+    highReadiness: string;
+    normalReadiness: string;
+    lowReadiness: string;
+    veryLowReadiness: string;
+  };
+  recoveryMarkers: string[];
+  fatigueIndicators: string[];
+}
+
+interface VolumeCompliance {
+  individualVolumeLandmarks: Record<string, { MEV: number; MAV: number; MRV: number; }>;
+  weeklyVolumeTracking: VolumeDistribution[];
 }
 
 interface TrainingPhase {
@@ -462,6 +508,27 @@ interface TrainingPhase {
   objectives?: string[];
   phaseNumber?: number;
   progressionStrategy?: string;
+  primaryAdaptation: 'hypertrophy' | 'strength' | 'power' | 'endurance' | 'skill_acquisition' | 'recovery' | 'peaking';
+  progressionType: 'volume_progression' | 'intensity_progression' | 'density_progression' | 'frequency_progression' | 'complexity_progression';
+  phaseProgression: PhaseProgression;
+  scientificRationale: ScientificRationale;
+}
+
+interface PhaseProgression {
+  periodizationModel: 'Linear Progression' | 'Daily Undulating Periodization' | 'Block Periodization' | 'Conjugate Method' | 'Autoregulated Progression';
+  primaryAdaptation: 'hypertrophy' | 'strength' | 'power' | 'endurance' | 'skill_acquisition' | 'recovery' | 'peaking';
+  progressionType: 'volume_progression' | 'intensity_progression' | 'density_progression' | 'frequency_progression' | 'complexity_progression';
+  adaptationFocus: string[];
+  volumeProgression: { startingPercentageMAV: number; endingPercentageMAV: number; progressionRate: 'conservative' | 'moderate' | 'aggressive'; };
+  intensityProgression: { startingIntensity: number; endingIntensity: number; progressionPattern: 'linear' | 'step' | 'wave' | 'autoregulated'; };
+  deloadProtocol: { trigger: 'scheduled' | 'performance_based' | 'fatigue_based'; volumeReduction: number; intensityReduction: number; durationDays: number; };
+}
+
+interface ScientificRationale {
+  principle: string;
+  evidence: string;
+  application: string;
+  citations?: string[];
 }
 
 interface TrainingWeek {
@@ -475,7 +542,7 @@ interface TrainingWeek {
 }
 
 interface WorkoutDay {
-  dayOfWeek: number; // 1-7 (Monday=1)
+  dayOfWeek: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
   focus?: "Upper Body" | "Lower Body" | "Push" | "Pull" | "Legs" | "Full Body" | "Cardio" | "Core" | "Arms" | "Back" | "Chest" | "Shoulders" | "Glutes" | "Recovery/Mobility" | "Sport-Specific" | "Rest Day" | "Lower Body Endurance" | "Squat" | "Bench" | "Deadlift" | "Overhead Press";
   exercises: ExerciseDetail[];
   warmUp?: ExerciseDetail[];

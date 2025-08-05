@@ -11,7 +11,9 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Lightbulb, Target, Brain, Zap, Info } from 'lucide-react'
+import { TierBadge } from '@/components/ui/TierBadge'
+import { RPEIndicator } from '@/components/ui/RPEIndicator'
+import { Lightbulb, Target, Brain, Zap, Info, Clock } from 'lucide-react'
 
 interface ExerciseListDisplayProps {
   exercises: ExerciseDetail[]
@@ -27,9 +29,10 @@ interface ExerciseListDisplayProps {
 }
 
 const TIER_COLORS = {
-  'Tier_1': 'bg-purple-100 text-purple-800 border-purple-200',
-  'Tier_2': 'bg-blue-100 text-blue-800 border-blue-200',
-  'Tier_3': 'bg-gray-100 text-gray-800 border-gray-200'
+  'Anchor': 'bg-purple-100 text-purple-800 border-purple-200',
+  'Primary': 'bg-blue-100 text-blue-800 border-blue-200',
+  'Secondary': 'bg-green-100 text-green-800 border-green-200',
+  'Accessory': 'bg-gray-100 text-gray-800 border-gray-200'
 }
 
 const SFR_COLORS = {
@@ -75,13 +78,13 @@ export function ExerciseListDisplay({
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <div className="font-semibold text-gray-900">{exercise.name}</div>
-                          {exercise.weakPointTarget && (
+                          {exercise.isAnchorLift && (
                             <Tooltip>
                               <TooltipTrigger>
-                                <Target className="h-3 w-3 text-orange-500" />
+                                <Target className="h-3 w-3 text-purple-500" />
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Targets weak point: {exercise.weakPointTarget}</p>
+                                <p>Anchor Lift - Core movement for this program</p>
                               </TooltipContent>
                             </Tooltip>
                           )}
@@ -97,35 +100,11 @@ export function ExerciseListDisplay({
                         )}
 
                         <div className="flex flex-wrap gap-1">
-                          {exercise.category && (
-                            <Badge variant="secondary" className="text-xs">
-                              {exercise.category}
-                            </Badge>
-                          )}
-                          
-                          {showEnhanced && rationale && (
-                            <>
-                              <Badge className={`text-xs ${TIER_COLORS[rationale.tier]}`}>
-                                {rationale.tier}
-                              </Badge>
-                              <Badge className={`text-xs ${SFR_COLORS[rationale.stimulusToFatigueRatio]}`}>
-                                {rationale.stimulusToFatigueRatio} SFR
-                              </Badge>
-                            </>
-                          )}
-
-                          {exercise.muscleGroups && exercise.muscleGroups.length > 0 && (
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <Badge variant="outline" className="text-xs">
-                                  {exercise.muscleGroups.length} muscles
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Targets: {exercise.muscleGroups.join(', ')}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
+                          <TierBadge 
+                            tier={exercise.tier} 
+                            isAnchorLift={exercise.isAnchorLift} 
+                            size="sm" 
+                          />
                         </div>
                       </div>
                     </TableCell>
@@ -135,43 +114,27 @@ export function ExerciseListDisplay({
                         <div className="font-medium text-gray-900">
                           {exercise.sets} × {exercise.reps}
                         </div>
-                        {exercise.weight && (
-                          <div className="text-gray-600 text-xs">{exercise.weight}</div>
-                        )}
+
                       </div>
                     </TableCell>
 
                     <TableCell>
-                      <div className="text-sm text-gray-700">{exercise.rest}</div>
+                      <div className="flex items-center gap-1 text-sm text-gray-700">
+                        <Clock className="h-3 w-3" />
+                        {exercise.rest}
+                      </div>
                     </TableCell>
 
                     <TableCell>
                       <div className="space-y-1 text-xs">
-                        {exercise.tempo && (
-                          <div className="text-gray-600">
-                            <span className="font-medium">Tempo:</span> {exercise.tempo}
-                          </div>
-                        )}
+
                         {exercise.rpe && (
                           <div className="flex items-center gap-1">
-                            <span className="font-medium text-gray-600">RPE:</span> 
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${
-                                exercise.rpe >= 8 ? 'bg-red-50 text-red-700' :
-                                exercise.rpe >= 6 ? 'bg-yellow-50 text-yellow-700' :
-                                'bg-green-50 text-green-700'
-                              }`}
-                            >
-                              {exercise.rpe}/10
-                            </Badge>
+                            <span className="font-medium text-gray-600 text-xs">RPE:</span> 
+                            <RPEIndicator rpe={exercise.rpe} size="sm" showIcon={false} />
                           </div>
                         )}
-                        {exercise.stimulusToFatigueRatio && (
-                          <div className="text-gray-600">
-                            <span className="font-medium">SFR:</span> {exercise.stimulusToFatigueRatio}
-                          </div>
-                        )}
+
                       </div>
                     </TableCell>
 

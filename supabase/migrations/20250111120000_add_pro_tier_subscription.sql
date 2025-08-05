@@ -16,13 +16,19 @@ COMMENT ON COLUMN public.profiles.subscription_tier IS 'Subscription tier: trial
 --------------------------------------------------
 -- Map existing premium users to standard tier
 -- Trial users remain as trial
-UPDATE public.profiles 
-SET subscription_tier = CASE 
-  WHEN is_premium = true THEN 'standard'
-  WHEN trial_ends_at IS NOT NULL AND trial_ends_at > NOW() THEN 'trial'
-  ELSE 'trial'
-END
-WHERE subscription_tier = 'trial'; -- Only update if not already set
+-- Only run if the required columns exist
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'is_premium') THEN
+        UPDATE public.profiles 
+        SET subscription_tier = CASE 
+          WHEN is_premium = true THEN 'standard'
+          WHEN trial_ends_at IS NOT NULL AND trial_ends_at > NOW() THEN 'trial'
+          ELSE 'trial'
+        END
+        WHERE subscription_tier = 'trial'; -- Only update if not already set
+    END IF;
+END $$;
 
 --------------------------------------------------
 -- 3. Create index for efficient subscription tier queries
@@ -33,27 +39,33 @@ CREATE INDEX IF NOT EXISTS idx_profiles_subscription_tier ON public.profiles(sub
 -- 4. Update helper functions for multi-tier support
 --------------------------------------------------
 -- Update existing function to support Pro tier
-CREATE OR REPLACE FUNCTION has_active_access(user_id UUID)
-RETURNS BOOLEAN AS $$
-DECLARE
-    user_record RECORD;
+-- Only create if the required columns exist
+DO $$
 BEGIN
-    -- Get user's subscription status
-    SELECT is_premium, trial_ends_at, subscription_tier
-    INTO user_record
-    FROM profiles
-    WHERE id = user_id;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'is_premium') THEN
+        EXECUTE 'CREATE OR REPLACE FUNCTION has_active_access(user_id UUID)
+        RETURNS BOOLEAN AS $func$
+        DECLARE
+            user_record RECORD;
+        BEGIN
+            -- Get user''s subscription status
+            SELECT is_premium, trial_ends_at, subscription_tier
+            INTO user_record
+            FROM profiles
+            WHERE id = user_id;
 
-    -- Return true if:
-    -- 1. User has premium subscription (standard or pro)
-    -- 2. User has active trial
-    RETURN (
-        user_record.is_premium = true OR 
-        user_record.subscription_tier IN ('standard', 'pro') OR
-        (user_record.trial_ends_at IS NOT NULL AND user_record.trial_ends_at > NOW())
-    );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+            -- Return true if:
+            -- 1. User has premium subscription (standard or pro)
+            -- 2. User has active trial
+            RETURN (
+                user_record.is_premium = true OR 
+                user_record.subscription_tier IN (''standard'', ''pro'') OR
+                (user_record.trial_ends_at IS NOT NULL AND user_record.trial_ends_at > NOW())
+            );
+        END;
+        $func$ LANGUAGE plpgsql SECURITY DEFINER';
+    END IF;
+END $$;
 
 -- Create new function to check Pro tier access specifically
 CREATE OR REPLACE FUNCTION has_pro_access(user_id UUID)
@@ -124,8 +136,8 @@ ON public.user_advanced_analytics(user_id, week_start);
 CREATE INDEX IF NOT EXISTS idx_advanced_analytics_user_muscle_week 
 ON public.user_advanced_analytics(user_id, muscle_group, week_start);
 
--- Enable RLS on the materialized view
-ALTER TABLE public.user_advanced_analytics ENABLE ROW LEVEL SECURITY;
+-- Note: RLS is not supported on materialized views, so we skip this
+-- ALTER TABLE public.user_advanced_analytics ENABLE ROW LEVEL SECURITY;
 
 -- RLS policy: Users can only see their own analytics data
 CREATE POLICY "Users can view own advanced analytics"

@@ -141,7 +141,7 @@ async function getProgramAdherenceData(
     const currentWeek = currentPhase.weeks[currentWeekIndex]
     
     // Find today's planned workout
-    const todaysWorkout = currentWeek.days.find(day => day.dayOfWeek === currentDayOfWeek)
+    const todaysWorkout = currentWeek.days.find(day => Number(day.dayOfWeek) === currentDayOfWeek)
     const todaysPlannedWorkout = todaysWorkout?.isRestDay 
       ? 'Rest Day' 
       : todaysWorkout?.focus || 'Workout Planned'
