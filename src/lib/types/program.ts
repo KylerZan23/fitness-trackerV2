@@ -89,129 +89,70 @@ export interface ExerciseDetail {
   scientificRationale?: string
 }
 
+
+
+
+
+
 /**
- * A single day's workout within a training week
+ * A workout session. This is the new primary building block of a program.
  */
-export interface WorkoutDay {
-  /** Day of the week (1-7, Monday = 1) */
-  dayOfWeek: DayOfWeek
-
-  /** Optional workout focus/theme */
-  focus?: WorkoutFocus
-
-  /** Main exercises for the workout */
-  exercises: ExerciseDetail[]
-
-  /** Optional warm-up exercises */
-  warmUp?: ExerciseDetail[]
-
-  /** Optional cool-down exercises */
-  coolDown?: ExerciseDetail[]
-
-  /** Optional day-specific notes or instructions */
-  notes?: string
-
-  /** Estimated workout duration in minutes */
-  estimatedDurationMinutes?: number
-
-  /** Whether this is a rest day */
-  isRestDay?: boolean
+export interface TrainingSession {
+  week?: number;
+  dayOfWeek?: number | string;
+  focus?: string;
+  exercises?: {
+    name: string;
+    sets: string | number;
+    reps?: string | number;
+    duration?: string;
+    rest: string;
+    rpe?: string | number;
+  }[];
 }
 
 /**
- * A single training week within a phase
- */
-export interface TrainingWeek {
-  /** Week number within the overall program */
-  weekNumber: number
-
-  /** Array of workout days for this week */
-  days: WorkoutDay[]
-
-  /** Optional week-specific notes or focus */
-  notes?: string
-
-  /** Week number within the current phase */
-  weekInPhase?: number
-
-  /** Optional weekly goals or targets */
-  weeklyGoals?: string[]
-
-  /** Progression strategy for this week - how to progress from previous week */
-  progressionStrategy?: string
-
-  /** NEW: A specific tip from Neural for the week. */
-  coachTip?: string
-}
-
-/**
- * A training phase (collection of weeks with similar focus)
- */
-export interface TrainingPhase {
-  /** Name/title of the phase */
-  phaseName: string
-
-  /** Duration of this phase in weeks */
-  durationWeeks: number
-
-  /** Array of training weeks in this phase */
-  weeks: TrainingWeek[]
-
-  /** Optional phase-specific notes or objectives */
-  notes?: string
-
-  /** Phase objectives or goals */
-  objectives?: string[]
-
-  /** Phase number within the overall program */
-  phaseNumber?: number
-
-  /** Overall progression strategy for this phase */
-  progressionStrategy?: string
-}
-
-/**
- * Complete AI-generated training program
+ * Complete AI-generated training program using the new flexible structure.
  */
 export interface TrainingProgram {
-  /** Program name/title */
-  programName: string
+  /** Optional program name/title */
+  programName?: string;
 
-  /** Detailed program description */
-  description: string
+  /** Optional detailed program description */
+  description?: string;
+  
+  /** Optional program length description (e.g., "4 Weeks") */
+  programLength?: string;
 
-  /** Total duration of the program in weeks */
-  durationWeeksTotal: number
+  /** Optional training frequency in days per week */
+  trainingFrequencyDays?: number;
 
-  /** Array of training phases */
-  phases: TrainingPhase[]
+  /** Array of training sessions */
+  sessions?: TrainingSession[];
 
   /** Optional general advice and guidelines */
-  generalAdvice?: string
+  generalAdvice?: string;
 
   /** NEW: A personalized introduction from Neural. */
-  coachIntro?: string
+  coachIntro?: string;
 
   /** When the program was generated */
-  generatedAt: Date | string
+  generatedAt?: Date | string;
 
   /** AI model used for generation */
-  aiModelUsed?: string
+aiModelUsed?: string;
 
   /** Program difficulty level */
-  difficultyLevel?: 'Beginner' | 'Intermediate' | 'Advanced'
-
-  /** Target training frequency per week */
-  trainingFrequency?: number
+  difficultyLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
 
   /** Required equipment */
-  requiredEquipment?: string[]
+  requiredEquipment?: string[];
 
   /** Program tags for categorization */
-  tags?: string[]
+  tags?: string[];
 
   /** Version number for program updates */
-  version?: string
+  version?: string;
 }
 
 /**

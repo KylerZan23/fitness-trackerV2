@@ -1186,24 +1186,35 @@ export async function generateTrainingProgram(
         }
       }
 
-      // Create a new training program entry with pending status
-      const { data: newProgram, error: insertError } = await supabase
-        .from('training_programs')
-        .insert({
-          user_id: userId,
-          onboarding_data_snapshot: profile.onboarding_responses,
-          generation_status: 'pending',
-          program_details: {}, // Empty placeholder, will be filled by background process
-        })
-        .select('id')
-        .single()
+      // Determine if this is a free trial user
+      const isFreeTrial = !hasPaidAccess;
 
-      if (insertError || !newProgram) {
-        console.error('Error creating program record:', insertError)
-        return { error: 'Failed to initialize program generation. Please try again.', success: false }
+      // Call the lightweight initiate-generation edge function to create the program entry
+      const { data: functionResponse, error: functionError } = await supabase.functions.invoke('initiate-generation', {
+        body: {
+          onboardingData: profile.onboarding_responses,
+          isFreeTrial: isFreeTrial
+        }
+      });
+
+      if (functionError) {
+        console.error('Failed to call initiate-generation function:', functionError);
+        return { 
+          error: 'Failed to initialize program generation. Please try again.', 
+          success: false 
+        };
       }
 
-      console.log(`✅ Created program record with ID: ${newProgram.id}`)
+      if (!functionResponse?.success || !functionResponse?.programId) {
+        console.error('Initiate-generation function returned unexpected response:', functionResponse);
+        return { 
+          error: 'Failed to initialize program generation. Please try again.', 
+          success: false 
+        };
+      }
+
+      const newProgramId = functionResponse.programId;
+      console.log(`✅ Created program record with ID: ${newProgramId}`);
 
       // Invoke the Supabase Edge Function to start background generation
       try {
@@ -1220,7 +1231,7 @@ export async function generateTrainingProgram(
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ programId: newProgram.id })
+          body: JSON.stringify({ programId: newProgramId })
         });
 
         if (!response.ok) {
@@ -1229,7 +1240,7 @@ export async function generateTrainingProgram(
           throw new Error(`Edge Function call failed: ${errorData.error || response.statusText}${errorDetails}`)
         }
 
-        console.log(`🚀 Successfully triggered background generation for program ${newProgram.id}`)
+        console.log(`🚀 Successfully triggered background generation for program ${newProgramId}`)
         
         revalidatePath("/dashboard");
         return { 
@@ -1247,7 +1258,7 @@ export async function generateTrainingProgram(
             generation_status: 'failed',
             generation_error: `Edge Function call failed: ${edgeError.message}`
           })
-          .eq('id', newProgram.id)
+          .eq('id', newProgramId)
         
         return { error: 'Failed to start program generation. Please try again.', success: false }
       }
@@ -1291,28 +1302,35 @@ export async function generateTrainingProgram(
         }
       }
 
-      // Create a new training program entry with a 'pending' status.
-      // This record will be updated by the background Edge Function.
-      const { data: newProgram, error: insertError } = await supabase
-        .from('training_programs')
-        .insert({
-          user_id: user.id,
-          onboarding_data_snapshot: onboardingData,
-          generation_status: 'pending',
-          program_details: {}, // Placeholder, will be filled by the background process.
-        })
-        .select('id')
-        .single();
+      // Determine if this is a free trial user
+      const isFreeTrial = !hasPaidAccess && !(await isReadOnlyMode(user.id));
 
-      if (insertError || !newProgram) {
-        console.error('Error creating new program record:', insertError);
+      // Call the lightweight initiate-generation edge function to create the program entry
+      const { data: functionResponse, error: functionError } = await supabase.functions.invoke('initiate-generation', {
+        body: {
+          onboardingData: onboardingData,
+          isFreeTrial: isFreeTrial
+        }
+      });
+
+      if (functionError) {
+        console.error('Failed to call initiate-generation function:', functionError);
         return { 
           error: 'Failed to initialize program generation. Please try again.', 
           success: false 
         };
       }
 
-      console.log(`✅ Created new program record with ID: ${newProgram.id} for user ${user.id}`);
+      if (!functionResponse?.success || !functionResponse?.programId) {
+        console.error('Initiate-generation function returned unexpected response:', functionResponse);
+        return { 
+          error: 'Failed to initialize program generation. Please try again.', 
+          success: false 
+        };
+      }
+
+      const newProgramId = functionResponse.programId;
+      console.log(`✅ Created new program record with ID: ${newProgramId} for user ${user.id}`);
 
       // Asynchronously invoke the Supabase Edge Function to start the actual generation.
       try {
@@ -1329,7 +1347,7 @@ export async function generateTrainingProgram(
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ programId: newProgram.id })
+          body: JSON.stringify({ programId: newProgramId })
         });
 
         if (!response.ok) {
@@ -1338,7 +1356,7 @@ export async function generateTrainingProgram(
           throw new Error(`Edge Function call failed: ${errorData.error || response.statusText}${errorDetails}`)
         }
 
-        console.log(`🚀 Successfully triggered background generation for program ${newProgram.id}`);
+        console.log(`🚀 Successfully triggered background generation for program ${newProgramId}`);
         
         revalidatePath("/dashboard");
         return { 
@@ -1355,7 +1373,7 @@ export async function generateTrainingProgram(
             generation_status: 'failed',
             generation_error: `Failed to invoke generation function: ${edgeError.message}`
           })
-          .eq('id', newProgram.id);
+          .eq('id', newProgramId);
         
         return { 
           error: 'Failed to start the program generation process. Please try again.', 
@@ -2352,25 +2370,26 @@ export async function finalizeOnboardingAndGenerateProgram(
                       new Date(subscription.trial_end) > new Date();
   // --- END: ADD THIS BLOCK ---
 
-  // 1. Create the program entry with 'pending' status and get its ID
-  const { data: newProgram, error: programError } = await supabase
-    .from("training_programs")
-    .insert({
-      user_id: userId,
-      generation_status: "pending",
-      onboarding_data_snapshot: onboardingData,
-      program_details: {}, // Empty placeholder, will be filled by background process
-    })
-    .select("id") // <-- Ensure you are selecting the 'id'
-    .single();   // <-- Use .single() to get a single object back
+  // 1. Call the lightweight initiate-generation edge function to create the program entry
+  const { data: functionResponse, error: functionError } = await supabase.functions.invoke('initiate-generation', {
+    body: {
+      onboardingData: onboardingData,
+      isFreeTrial: isFreeTrial
+    }
+  });
 
-  if (programError || !newProgram) {
-    console.error("Failed to create pending program entry:", programError);
+  if (functionError) {
+    console.error("Failed to call initiate-generation function:", functionError);
+    return { success: false, error: "Failed to initialize program generation." };
+  }
+
+  if (!functionResponse?.success || !functionResponse?.programId) {
+    console.error("Initiate-generation function returned unexpected response:", functionResponse);
     return { success: false, error: "Failed to initialize program." };
   }
 
-  // This is the ID of the program you just created
-  const programId = newProgram.id;
+  // This is the ID of the program that was just created
+  const programId = functionResponse.programId;
 
   // 2. Invoke the edge function with the NEWLY required programId
   try {

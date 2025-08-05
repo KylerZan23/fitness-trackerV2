@@ -4,11 +4,11 @@ import { OnboardingData } from "@/lib/types/onboarding";
 /**
  * Utility function to finalize onboarding and create a training program record.
  * 
- * This function ONLY creates the database record with 'pending' status.
- * The actual program generation is handled by a database trigger.
+ * This function calls the lightweight initiate-generation edge function to create the database record.
+ * The actual program generation is handled separately by the generate-program edge function.
  */
 export async function finalizeOnboardingAndGenerateProgram(
-  input: { onboardingData: OnboardingData },
+  input: { onboardingData: OnboardingData; isFreeTrial?: boolean },
   userId: string
 ): Promise<{
   data?: { id: string };
@@ -17,28 +17,30 @@ export async function finalizeOnboardingAndGenerateProgram(
   const supabase = await createClient();
 
   try {
-    // Create the program entry with 'pending' status and get its ID
-    const { data: newProgram, error: programError } = await supabase
-      .from("training_programs")
-      .insert({
-        user_id: userId,
-        generation_status: "pending",
-        onboarding_data_snapshot: input.onboardingData,
-        program_details: {}, // Empty placeholder, will be filled by background process
-      })
-      .select("id")
-      .single();
+    // Call the lightweight initiate-generation edge function
+    const { data: functionResponse, error: functionError } = await supabase.functions.invoke('initiate-generation', {
+      body: {
+        onboardingData: input.onboardingData,
+        isFreeTrial: input.isFreeTrial || false
+      }
+    });
 
-    if (programError || !newProgram) {
-      console.error("Failed to create pending program entry:", programError);
+    if (functionError) {
+      console.error("Failed to call initiate-generation function:", functionError);
+      return { error: "Failed to initialize program generation." };
+    }
+
+    if (!functionResponse?.success || !functionResponse?.programId) {
+      console.error("Initiate-generation function returned unexpected response:", functionResponse);
       return { error: "Failed to initialize program." };
     }
 
-    console.log(`✅ Created new program record with ID: ${newProgram.id} for user ${userId}`);
+    const programId = functionResponse.programId;
+    console.log(`✅ Created new program record with ID: ${programId} for user ${userId}`);
 
-    // Return the program ID - the Edge Function invocation is handled by database trigger
+    // Return the program ID
     return { 
-      data: { id: newProgram.id }
+      data: { id: programId }
     };
   } catch (error: any) {
     console.error("Error in finalizeOnboardingAndGenerateProgram:", error);

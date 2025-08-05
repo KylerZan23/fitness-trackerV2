@@ -25,7 +25,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Loader2, Calendar, Target, Clock, TrendingUp, Play, BarChart3, Settings, HelpCircle, ChevronUp, BookOpen, Activity, Info, Star, MessageSquare, ChevronRight, Eye, Brain, Lightbulb } from 'lucide-react'
-import { ProgramPhaseDisplay } from '@/components/program/ProgramPhaseDisplay'
+
 import { WeeklyCheckInModal } from '@/components/program/WeeklyCheckInModal'
 import { DailyReadinessModal } from '@/components/program/DailyReadinessModal'
 
@@ -53,28 +53,18 @@ const calculateProgramProgress = (
   let totalWorkouts = 0
   let completedWorkouts = 0
 
-  // Count total workout days (excluding rest days)
-  programData.phases.forEach((phase, phaseIndex) => {
-    phase.weeks.forEach((week, weekIndex) => {
-      week.days.forEach((day) => {
-        if (!day.isRestDay) {
-          totalWorkouts++
-          
-          // Check if this workout is completed
-          const isCompleted = completedDays.some(
-            cd =>
-              cd.phaseIndex === phaseIndex &&
-              cd.weekIndex === weekIndex &&
-              cd.dayOfWeek === day.dayOfWeek
-          )
-          
-          if (isCompleted) {
-            completedWorkouts++
-          }
-        }
-      })
+  // NEW: Iterate over sessions instead of phases/weeks
+  if (programData.sessions) {
+    programData.sessions.forEach((session) => {
+      // Assuming every session is a workout day for now
+      totalWorkouts++
+
+      // This logic needs to be adapted. We don't have a direct equivalent
+      // to the old completedDays structure. For now, let's assume no days are completed
+      // to avoid crashing. We will need to redefine how completion is tracked.
     })
-  })
+  }
+
 
   const completionPercentage = totalWorkouts > 0 ? Math.round((completedWorkouts / totalWorkouts) * 100) : 0
 
@@ -282,26 +272,14 @@ function ProgramPageContent() {
   )
 
   const findTodaysWorkout = (program: TrainingProgram) => {
+    if (!program.sessions) return null
+
     const today = new Date()
     const jsDay = today.getDay() // 0 = Sunday, 1 = Monday, etc.
-    
-    // Convert JavaScript day (0-6, Sunday=0) to our DayOfWeek enum (1-7, Monday=1)
     const todayDayOfWeek = jsDay === 0 ? 7 : jsDay
-    
-    // For simplicity, we'll look at the first phase and current week
-    const firstPhase = program.phases[0]
-    if (!firstPhase || !firstPhase.weeks || firstPhase.weeks.length === 0) {
-      return null
-    }
-    
-    // Use the first week for now - in the future, this should be based on program progress
-    const currentWeek = firstPhase.weeks[0]
-    if (!currentWeek || !currentWeek.days) {
-      return null
-    }
-    
-    // Find today's workout
-    const todayWorkout = currentWeek.days.find(day => day.dayOfWeek === todayDayOfWeek)
+
+    // Find a session that matches today's day of the week
+    const todayWorkout = program.sessions.find(session => session.dayOfWeek === todayDayOfWeek)
     
     return todayWorkout || null
   }
@@ -309,39 +287,18 @@ function ProgramPageContent() {
   const checkIfWeekCompleted = (
     program: TrainingProgram,
     completedDays: CompletedDayIdentifier[],
-    phaseIndex: number = 0,
-    weekIndex: number = 0
+    weekNumber: number,
   ): boolean => {
-    const phase = program.phases[phaseIndex]
-    if (!phase || !phase.weeks || phase.weeks.length <= weekIndex) {
-      return false
-    }
-
-    const week = phase.weeks[weekIndex]
-    const workoutDays = week.days.filter(day => !day.isRestDay)
-    
-    const completedWorkoutsInWeek = completedDays.filter(
-      cd => cd.phaseIndex === phaseIndex && cd.weekIndex === weekIndex
-    )
-
-    return completedWorkoutsInWeek.length >= workoutDays.length
+    // This function needs to be entirely rewritten to work with the new `sessions` structure.
+    // For now, returning false to prevent crashes.
+    return false
   }
 
   const shouldShowWeeklyCheckIn = (
     program: TrainingProgram,
     completedDays: CompletedDayIdentifier[]
   ): { show: boolean; weekNumber: number } => {
-    // Check if first week is completed
-    const firstWeekCompleted = checkIfWeekCompleted(program, completedDays, 0, 0)
-    
-    if (firstWeekCompleted) {
-      // Check if we've already shown the check-in for this week
-      const hasShownCheckIn = localStorage.getItem('weeklyCheckInShown-week-1')
-      if (!hasShownCheckIn) {
-        return { show: true, weekNumber: 1 }
-      }
-    }
-    
+    // This also needs a complete rewrite.
     return { show: false, weekNumber: 0 }
   }
 
@@ -1203,7 +1160,7 @@ function ProgramPageContent() {
                   <Target className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{programData.durationWeeksTotal} weeks</h3>
+                  <h3 className="font-semibold text-gray-900">{programData.programLength}</h3>
                   <p className="text-sm text-gray-600">Program duration</p>
                 </div>
               </div>
@@ -1240,12 +1197,12 @@ function ProgramPageContent() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
                     <div className="bg-white/80 rounded-lg p-4 text-center">
                       <p className="text-sm font-medium text-gray-600">Duration</p>
-                      <p className="text-xl font-bold text-blue-900">{programData.durationWeeksTotal} weeks</p>
+                      <p className="text-xl font-bold text-blue-900">{programData.programLength}</p>
                     </div>
-                    {programData.trainingFrequency && (
+                    {programData.trainingFrequencyDays && (
                       <div className="bg-white/80 rounded-lg p-4 text-center">
                         <p className="text-sm font-medium text-gray-600">Frequency</p>
-                        <p className="text-xl font-bold text-green-900">{programData.trainingFrequency}x/week</p>
+                        <p className="text-xl font-bold text-green-900">{programData.trainingFrequencyDays}x/week</p>
                       </div>
                     )}
                     {programData.difficultyLevel && (
@@ -1260,16 +1217,20 @@ function ProgramPageContent() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                     <Calendar className="h-5 w-5 mr-2" />
-                    Training Phases
+                    Workout Sessions
                   </h3>
-                  {programData.phases.map((phase, phaseIndex) => (
-                    <ProgramPhaseDisplay
-                      key={`phase-${phaseIndex}`}
-                      phase={phase}
-                      phaseIndex={phaseIndex}
-                      completedDays={completedDays}
-                      allPhases={programData.phases}
-                    />
+                  {programData.sessions?.map((session, index) => (
+                    <div key={`session-${index}`} className="border-t pt-4">
+                      <h4 className="font-bold">Week {session.week}, Day {session.dayOfWeek}</h4>
+                      <p>{session.focus}</p>
+                      <ul className="list-disc pl-5 mt-2">
+                        {session.exercises?.map((exercise, exIndex) => (
+                          <li key={exIndex}>
+                            {exercise.name}: {exercise.sets} sets of {exercise.reps || exercise.duration}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
                 </div>
 
