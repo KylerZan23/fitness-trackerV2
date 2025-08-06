@@ -7,7 +7,7 @@
 import { NextRequest } from 'next/server'
 import { requireApiKey, createApiErrorResponse, createApiSuccessResponse, handleCorsPreFlight, parseJsonBody, addCorsHeaders } from '@/lib/auth/apiMiddleware'
 import { validateRequest, GenerateProgramRequestSchema, GenerateProgramResponseSchema } from '@/lib/validation/trainerApiSchemas'
-import { callEnhancedLLMAPI, processEnhancedUserData } from '@/app/_actions/aiProgramActions'
+// import { callEnhancedLLMAPI, processEnhancedUserData } from '@/app/_actions/aiProgramActions' // Removed: program generation actions deleted
 import { ENHANCED_PROGRAM_VALIDATION } from '@/lib/validation/enhancedProgramSchema'
 import type { GenerateProgramRequest, UserBiometrics, TrainingGoals, ExperienceLevel } from '@/lib/types/apiKeys'
 import type { OnboardingData } from '@/lib/types/onboarding'
@@ -123,17 +123,14 @@ export const POST = requireApiKey('program:generate')(async (request: NextReques
     
     console.log(`[${requestId}] Processing enhanced user data...`)
     
-    // Step 1: Process enhanced user data
-    const processingResult = await processEnhancedUserData(userProfile)
+    // TODO: Re-implement program generation when new system is ready
+    console.log(`[${requestId}] Program generation temporarily disabled`)
     
-    console.log(`[${requestId}] Calling enhanced LLM API...`)
-    
-    // Step 2: Call enhanced LLM API
-    const { program: llmResponse, error: llmError, attempts, finalComplexity } = await callEnhancedLLMAPI(
-      userProfile,
-      processingResult,
-      true // Assume paid access for API users
-    )
+    const llmResponse = null
+    const llmError = 'Program generation temporarily unavailable'
+    const attempts = 0
+    const finalComplexity = 'N/A'
+    const processingResult = null
     
     if (llmError || !llmResponse) {
       console.error(`[${requestId}] LLM generation failed:`, llmError)

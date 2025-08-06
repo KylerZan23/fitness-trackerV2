@@ -11,7 +11,7 @@ import {
   endOfMonth,
 } from 'date-fns'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { MuscleGroup } from '@/lib/types'
 
 interface MuscleData {

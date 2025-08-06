@@ -13,7 +13,7 @@ import Link from 'next/link'
 import { loadStripe } from '@stripe/stripe-js'
 import { createCheckoutSession } from '@/app/_actions/stripeActions'
 
-const supabase = createClient()
+  const supabase = await createClient()
 
 export default function PricingPage() {
   const router = useRouter()
@@ -62,8 +62,8 @@ export default function PricingPage() {
         return
       }
 
-      // User is logged in - redirect to program page (trial should auto-start)
-      router.push('/program')
+      // User is logged in - redirect to workouts page (trial should auto-start)
+      router.push('/workouts')
     } catch (err) {
       console.error('Error starting trial:', err)
       router.push('/signup')
@@ -354,8 +354,8 @@ export default function PricingPage() {
 
         {/* Back to app link */}
         <div className="text-center mt-12">
-          <Link href="/program" className="text-blue-600 hover:text-blue-800 font-medium">
-            ← Back to your training program
+          <Link href="/workouts" className="text-blue-600 hover:text-blue-800 font-medium">
+            ← Back to workouts
           </Link>
         </div>
       </div>

@@ -34,7 +34,7 @@ interface SummaryItem {
 
 /**
  * Comprehensive review summary component
- * Shows all user answers in an organized format before program generation
+ * Shows all user answers in an organized format before completing onboarding
  */
 export function ReviewSummary({ 
   answers, 
@@ -58,7 +58,7 @@ export function ReviewSummary({
             Review Your Fitness Profile
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Please review your answers below. You can edit any section before we generate your personalized training program.
+            Please review your answers below. You can edit any section before completing your profile.
           </p>
         </div>
 
@@ -121,11 +121,11 @@ export function ReviewSummary({
             {isGenerating ? (
               <>
                 <Icon name="loader" className="animate-spin w-4 h-4 mr-2" />
-                Generating Your Program...
+                Completing Profile...
               </>
             ) : (
               <>
-                Generate My Training Program
+                Complete Profile
                 <Icon name="arrow-right" className="w-4 h-4 ml-2" />
               </>
             )}
@@ -138,7 +138,7 @@ export function ReviewSummary({
             <div className="flex items-center">
               <Icon name="alert-triangle" className="w-5 h-5 text-yellow-600 mr-2" />
               <p className="text-sm text-yellow-800">
-                Please answer at least 40% of the questions to generate a quality training program.
+                Please answer at least 40% of the questions to complete your profile.
                 You're currently at {completionStats.percentage}%.
               </p>
             </div>

@@ -30,7 +30,7 @@ ChartJS.register(
   Legend
 )
 
-const supabase = createClient()
+  const supabase = await createClient()
 
 interface PRData {
   exercise_name: string

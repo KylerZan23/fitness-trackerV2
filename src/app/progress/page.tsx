@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { getUserProfile } from '@/lib/db/index'
 import { TrendingUp, BarChart3, Activity, Zap, Brain } from 'lucide-react'
 
@@ -294,10 +294,10 @@ export default function ProgressPage() {
           <StrengthVitalsGrid>
             <StrengthStatsCard
               liftName="Squat"
-              e1rmValue={strengthLevels.squat?.value || null}
+              e1rmValue={typeof strengthLevels.squat === 'object' && strengthLevels.squat?.value || null}
               unit={profile?.weight_unit || 'kg'}
-              confidence={strengthLevels.squat?.confidence}
-              lastTested={strengthLevels.squat?.date ? new Date(strengthLevels.squat.date).toLocaleDateString() : undefined}
+              confidence={typeof strengthLevels.squat === 'object' && strengthLevels.squat?.confidence}
+              lastTested={typeof strengthLevels.squat === 'object' && strengthLevels.squat?.date ? new Date(strengthLevels.squat.date).toLocaleDateString() : undefined}
               icon={<BarChart3 className="w-5 h-5" />}
             />
             

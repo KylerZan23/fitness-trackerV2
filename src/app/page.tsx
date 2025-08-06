@@ -5,7 +5,7 @@ import Image, { type StaticImageData } from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Button } from '@/components/ui/button'
 import { Dumbbell } from 'lucide-react'
@@ -347,9 +347,6 @@ const Header = ({ isAuthenticated, profile, onSignOut }: { isAuthenticated: bool
       <nav className="flex items-center space-x-4">
         {isAuthenticated && profile ? (
           <>
-            <Button variant="ghost" asChild>
-              <Link href="/program">My Program</Link>
-            </Button>
             <UserAvatar name={profile.name} email={profile.email} profilePictureUrl={profile.profile_picture_url} />
             <Button variant="secondary" onClick={onSignOut}>Sign Out</Button>
           </>

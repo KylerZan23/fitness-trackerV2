@@ -14,7 +14,7 @@ import { Check, Star, TrendingUp, Dumbbell, Target, ArrowLeft, Lock } from 'luci
 import Link from 'next/link'
 import { loadStripe } from '@stripe/stripe-js'
 
-const supabase = createClient()
+  const supabase = await createClient()
 
 interface WorkoutStats {
   totalWorkouts: number
@@ -112,7 +112,7 @@ export default function UpgradePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link
-              href={from === 'pricing' ? '/pricing' : '/program'}
+              href={from === 'pricing' ? '/pricing' : '/workouts'}
               className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />

@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { updateUserProfileWithOnboarding, getOnboardingStatus } from '@/lib/data/onboarding';
 import { type OnboardingData } from '@/lib/types/onboarding'
-import { generateTrainingProgram } from './aiProgramActions'
+// import { generateTrainingProgram } from './aiProgramActions' // Removed: program generation actions deleted
 import { mapGoalToTrainingFocus } from '@/lib/utils/goalToFocusMapping'
 
 /**
@@ -29,49 +29,25 @@ export interface ActionResponse {
 }
 
 /**
- * Server action to finalize onboarding and generate training program
+ * Server action to finalize onboarding
  * This is the main function for the new simplified signup flow
  */
-export async function finalizeOnboardingAndGenerateProgram(
+export async function finalizeOnboarding(
   formData: FullOnboardingAnswers
 ): Promise<ActionResponse> {
   try {
-    console.log('finalizeOnboardingAndGenerateProgram called')
+    console.log('finalizeOnboarding called')
     
-    // First save the onboarding data
+    // Save the onboarding data
     const saveResult = await saveOnboardingData(formData)
     if (!saveResult.success) {
       return saveResult
     }
 
-    // Get the authenticated user to pass to program generation
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      console.error('Authentication error in finalizeOnboardingAndGenerateProgram:', authError)
-      return { success: false, error: 'Authentication failed. Please log in again.' }
-    }
-
-    // Now generate the training program
-    console.log('Starting program generation for user:', user.id)
-    const programResult = await generateTrainingProgram(user.id, formData)
-    
-    if (!programResult.success) {
-      console.error('Program generation failed:', programResult.error)
-      return { 
-        success: false, 
-        error: programResult.error || 'Failed to generate training program. Please try again.' 
-      }
-    }
-
-    console.log('Onboarding and program generation completed successfully')
+    console.log('Onboarding completed successfully')
     return { success: true }
   } catch (error) {
-    console.error('ERROR in finalizeOnboardingAndGenerateProgram:', error)
+    console.error('ERROR in finalizeOnboarding:', error)
     return { success: false, error: 'An unexpected error occurred while completing onboarding. Please try again.' }
   }
 }
@@ -79,7 +55,7 @@ export async function finalizeOnboardingAndGenerateProgram(
 /**
  * Server action to save user onboarding data and mark onboarding as completed
  * @param formData The full set of onboarding answers, including profile data.
- * @deprecated Use finalizeOnboardingAndGenerateProgram for new flows
+ * @deprecated Use finalizeOnboarding for new flows
  */
 export async function saveOnboardingData(
   formData: FullOnboardingAnswers

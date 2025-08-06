@@ -14,7 +14,7 @@ import { AIWeeklyReviewContent } from '@/components/ai-coach/AIWeeklyReviewConte
 import { AICoachContent } from '@/components/ai-coach/AICoachContent'
 import { WeakPointAnalysisContent } from '@/components/ai-coach/WeakPointAnalysisContent'
 
-const supabase = createClient()
+  const supabase = await createClient()
 
 interface UserProfile {
   id: string

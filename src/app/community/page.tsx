@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { Users, Trophy, Library, Crown } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ActivitiesFeed, Leaderboard, CommunityGroupList, UserSearchBar } from '@/components/community'

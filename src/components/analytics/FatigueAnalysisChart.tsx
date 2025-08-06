@@ -31,7 +31,7 @@ ChartJS.register(
   Legend
 )
 
-const supabase = createClient()
+  const supabase = await createClient()
 
 interface FatigueData {
   muscle_group: string

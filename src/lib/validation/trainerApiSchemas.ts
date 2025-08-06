@@ -187,75 +187,34 @@ export const ProgramMetadataSchema = z.object({
 })
 
 /**
- * Exercise detail schema
- */
-export const ExerciseDetailSchema = z.object({
-  name: z.string().min(1, 'Exercise name is required'),
-  sets: z.number().int().min(1).max(20),
-  reps: z.union([z.string(), z.number()]),
-  rest: z.string().min(1, 'Rest period is required'),
-  tempo: z.string().optional(),
-  rpe: z.number().min(1).max(10).optional(),
-  notes: z.string().optional(),
-  weight: z.string().optional(),
-  category: z.enum(['Compound', 'Isolation', 'Cardio', 'Mobility', 'Core', 'Warm-up', 'Cool-down', 'Power']).optional(),
-  tier: z.enum(['Tier_1', 'Tier_2', 'Tier_3']).optional(),
-  muscleGroups: z.array(z.string()).optional(),
-  weakPointTarget: z.string().optional(),
-  stimulusToFatigueRatio: z.enum(['High', 'Moderate', 'Low']).optional(),
-  scientificRationale: z.string().optional()
-})
-
-/**
- * Workout day schema
- */
-export const WorkoutDaySchema = z.object({
-  dayOfWeek: z.number().int().min(1).max(7),
-  focus: z.string().optional(),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  exercises: z.array(ExerciseDetailSchema).min(1, 'At least one exercise is required'),
-  estimatedDuration: z.string().optional(),
-  targetIntensity: z.string().optional(),
-  warmup: z.array(ExerciseDetailSchema).optional(),
-  cooldown: z.array(ExerciseDetailSchema).optional(),
-  notes: z.string().optional()
-})
-
-/**
- * Training week schema
- */
-export const TrainingWeekSchema = z.object({
-  weekNumber: z.number().int().min(1),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  intensity: z.string().optional(),
-  focus: z.string().optional(),
-  workouts: z.array(WorkoutDaySchema).min(1, 'At least one workout is required'),
-  notes: z.string().optional(),
-  deloadWeek: z.boolean().optional()
-})
-
-/**
- * Complete program schema for response
- */
-export const GeneratedProgramSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1, 'Program name is required'),
-  duration_weeks: z.number().int().min(1).max(52),
-  training_days: z.array(TrainingWeekSchema).min(1, 'At least one training week is required'),
-  metadata: ProgramMetadataSchema
-})
-
-/**
  * Generate program response schema
+ * Uses Neural type system for modern program generation
  */
 export const GenerateProgramResponseSchema = z.object({
-  success: z.boolean(),
-  program: GeneratedProgramSchema.optional(),
-  error: z.string().optional(),
-  generation_time_ms: z.number().int().positive().optional()
-})
+  program: z.object({
+    id: z.string(),
+    userId: z.string(),
+    programName: z.string(),
+    weekNumber: z.number().int().positive(),
+    workouts: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      duration: z.number().positive(),
+      focus: z.string(),
+      warmup: z.array(z.any()),
+      mainExercises: z.array(z.any()),
+      finisher: z.array(z.any()).optional(),
+      totalEstimatedTime: z.number().positive(),
+    })),
+    progressionNotes: z.string(),
+    createdAt: z.string().datetime(),
+    neuralInsights: z.string(),
+  }),
+  reasoning: z.string(),
+  progressionPlan: z.string(),
+  nextWeekPreview: z.string(),
+  metadata: ProgramMetadataSchema.optional(),
+});
 
 /**
  * API response wrapper schema

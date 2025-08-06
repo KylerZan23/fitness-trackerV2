@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { Users, Trophy, Flame, Dumbbell, Clock } from 'lucide-react'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Card, CardContent } from '@/components/ui/card'

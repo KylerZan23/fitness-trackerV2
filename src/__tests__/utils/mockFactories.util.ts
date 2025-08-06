@@ -112,11 +112,11 @@ export const createMockSupabaseClient = (): jest.Mocked<SupabaseClient> =>
       getUser: jest.fn().mockResolvedValue({
         data: { user: null },
         error: null,
-      }),
+      } as any),
       getSession: jest.fn().mockResolvedValue({
         data: { session: null },
         error: null,
-      }),
+      } as any),
     },
     from: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
@@ -126,23 +126,23 @@ export const createMockSupabaseClient = (): jest.Mocked<SupabaseClient> =>
     insert: jest.fn().mockResolvedValue({
       data: [],
       error: null,
-    }),
+    } as any),
     update: jest.fn().mockResolvedValue({
       data: [],
       error: null,
-    }),
+    } as any),
     upsert: jest.fn().mockResolvedValue({
       data: [],
       error: null,
-    }),
+    } as any),
     single: jest.fn().mockResolvedValue({
       data: null,
       error: null,
-    }),
+    } as any),
     rpc: jest.fn().mockResolvedValue({
       data: null,
       error: null,
-    }),
+    } as any),
   } as any as jest.Mocked<SupabaseClient>)
 
 /**
@@ -325,7 +325,8 @@ export const generateOnboardingAnswers = (overrides: Record<string, any> = {}) =
   ...overrides,
 })
 
-export const generateTrainingProgramData = (overrides: Record<string, any> = {}) => ({
+// Removed: generateTrainingProgramData factory - related functionality deleted
+export const __removed_generateTrainingProgramData = (overrides: Record<string, any> = {}) => ({
   programName: 'AI Generated Program',
   description: 'Personalized training program',
   totalWeeks: 12,
@@ -352,9 +353,9 @@ export const generateTrainingProgramData = (overrides: Record<string, any> = {})
  */
 export const setupTestEnvironment = () => {
   // Mock console methods to reduce noise in tests
-  jest.spyOn(console, 'log').mockImplementation()
-  jest.spyOn(console, 'error').mockImplementation()
-  jest.spyOn(console, 'warn').mockImplementation()
+  jest.spyOn(console, 'log').mockImplementation(() => {})
+  jest.spyOn(console, 'error').mockImplementation(() => {})
+  jest.spyOn(console, 'warn').mockImplementation(() => {})
   
   // Reset all mocks before each test
   beforeEach(() => {

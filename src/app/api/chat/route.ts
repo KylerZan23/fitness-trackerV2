@@ -12,8 +12,8 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   const { messages, chatId } = await req.json();
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const cookieStore = await cookies();
+  const supabase = await createClient(cookieStore);
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {

@@ -24,7 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { kgToLbs } from '@/lib/units'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 
 function LeaderboardTable({ lift }: { lift: LeaderboardLift }) {
   const [mode, setMode] = useState<LeaderboardMode>('e1rm')

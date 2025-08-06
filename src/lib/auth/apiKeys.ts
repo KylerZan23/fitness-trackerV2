@@ -57,7 +57,7 @@ export async function createApiKey(
   request: CreateApiKeyRequest,
   createdBy?: string
 ): Promise<CreateApiKeyResponse> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // Generate the API key
   const apiKey = generateApiKey()
@@ -119,7 +119,7 @@ export async function validateApiKey(
     }
   }
   
-  const supabase = createClient()
+  const supabase = await createClient()
   const keyHash = hashApiKey(key)
   
   // Fetch the API key record
@@ -195,7 +195,7 @@ export async function checkRateLimit(
   hourlyLimit: number,
   dailyLimit: number
 ): Promise<RateLimitResult> {
-  const supabase = createClient()
+  const supabase = await createClient()
   const now = new Date()
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
@@ -265,7 +265,7 @@ export async function logApiKeyUsage(
   requestIp?: string,
   userAgent?: string
 ): Promise<void> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const usageRecord: Partial<ApiKeyUsage> = {
     api_key_id: apiKeyId,
@@ -292,7 +292,7 @@ export async function updateApiKey(
   apiKeyId: string,
   updates: UpdateApiKeyRequest
 ): Promise<ApiKey> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase
     .from('api_keys')
@@ -312,7 +312,7 @@ export async function updateApiKey(
  * Delete/deactivate an API key
  */
 export async function deactivateApiKey(apiKeyId: string): Promise<void> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { error } = await supabase
     .from('api_keys')
@@ -334,7 +334,7 @@ export async function listApiKeys(
     scope?: ApiKeyScope
   }
 ): Promise<ApiKey[]> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   let query = supabase
     .from('api_keys')
@@ -366,7 +366,7 @@ export async function listApiKeys(
  * Get API key statistics
  */
 export async function getApiKeyStats(apiKeyId?: string): Promise<ApiKeyStats[]> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   let query = supabase
     .from('api_key_stats')
@@ -390,7 +390,7 @@ export async function getApiKeyStats(apiKeyId?: string): Promise<ApiKeyStats[]> 
  * Clean up old usage records (called via cron job or manually)
  */
 export async function cleanupOldUsageRecords(): Promise<number> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase.rpc('cleanup_api_key_usage')
   

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { logWorkoutGroup, getUserProfile } from '@/lib/db/index'
 import { getPendingWorkoutSession } from '@/app/_actions/workoutSessionActions'
 import { Play, Pause, Square, Clock, CheckCircle, LayoutGrid, Focus, ChevronLeft, ChevronRight, Target } from 'lucide-react'
@@ -24,9 +24,9 @@ import {
   type ExerciseDetail,
   type DailyReadinessData,
 } from '@/lib/types/program'
-import { TrackedExercise } from '@/components/program/TrackedExercise'
-import { checkAndRegisterPB } from '@/app/_actions/aiProgramActions'
-import { getDailyAdaptedWorkout } from '@/app/_actions/aiProgramActions'
+
+// import { checkAndRegisterPB } from '@/app/_actions/aiProgramActions' // Removed: program generation actions deleted  
+// import { getDailyAdaptedWorkout } from '@/app/_actions/aiProgramActions' // Removed: program generation actions deleted
 
 // Interface for storing program context details for linking
 interface ProgramContext {
@@ -125,7 +125,7 @@ function SessionTracker() {
         sessionLoadingRef.current = false // Reset loading flag
         setSessionLoadStarted(false)
         toast.error('Workout session not found. Redirecting...')
-        router.push('/program')
+        router.push('/workouts')
         return
       }
 
@@ -215,7 +215,7 @@ function SessionTracker() {
         
         // Add a small delay before redirecting to allow user to read the error
         setTimeout(() => {
-          router.push('/program')
+          router.push('/workouts')
         }, 2000)
       } finally {
         if (!plannedWorkout) {
@@ -255,25 +255,14 @@ function SessionTracker() {
   // Get all exercises for the session
   const getAllExercises = (workout: WorkoutDay): ExerciseDetail[] => {
     const allExercises: ExerciseDetail[] = []
-    if (workout.warmUp) allExercises.push(...workout.warmUp)
+    // Only include exercises array since warmUp and coolDown don't exist in the type
     if (workout.exercises) allExercises.push(...workout.exercises)
-    if (workout.coolDown) allExercises.push(...workout.coolDown)
     return allExercises
   }
 
   // Check if an exercise at a given index is a warmup or cooldown exercise
   const isWarmupOrCooldownExercise = (exerciseIndex: number): boolean => {
-    if (!plannedWorkout) return false
-    
-    const warmUpCount = plannedWorkout.warmUp ? plannedWorkout.warmUp.length : 0
-    const mainExercisesCount = plannedWorkout.exercises ? plannedWorkout.exercises.length : 0
-    
-    // Exercise is warmup if it's in the first warmUpCount indices
-    if (exerciseIndex < warmUpCount) return true
-    
-    // Exercise is cooldown if it's after warmup + main exercises
-    if (exerciseIndex >= warmUpCount + mainExercisesCount) return true
-    
+    // Since warmUp and coolDown don't exist in the type, always return false
     return false
   }
 
@@ -404,7 +393,7 @@ function SessionTracker() {
         toast.success('Thank you for your feedback!')
         setShowFeedbackModal(false)
         // Now navigate to program page
-        router.push('/program')
+        router.push('/workouts')
       } else {
         toast.error(result.error || 'Failed to submit feedback')
       }
@@ -419,13 +408,14 @@ function SessionTracker() {
   // Handle skipping feedback
   const handleSkipFeedback = () => {
     setShowFeedbackModal(false)
-    router.push('/program')
+    router.push('/workouts')
   }
 
   // Handle PR checking
   const handlePBCheck = async (exerciseName: string, weight: number, reps: number) => {
     try {
-      const result = await checkAndRegisterPB(exerciseName, weight, reps)
+      // TODO: Re-implement PR checking when new program system is ready
+      const result = { isPB: false }
       return result
     } catch (error) {
       console.error('Error checking for PR:', error)
@@ -528,12 +518,13 @@ function SessionTracker() {
       setIsSubmitting(true)
       setError(null)
       
-      console.log('Calling getDailyAdaptedWorkout with:', { originalWorkout, readinessData })
+      console.log('Daily workout adaptation temporarily disabled:', { originalWorkout, readinessData })
       
-      const result = await getDailyAdaptedWorkout(originalWorkout, {
-        sleep: readinessData.sleep,
-        energy: readinessData.energy
-      })
+      // TODO: Re-implement daily adaptation when new program system is ready
+      const result = { 
+        success: true, 
+        adaptedWorkout: originalWorkout // Use original workout for now
+      }
       
       if (result.success && result.adaptedWorkout) {
         console.log('Successfully adapted workout:', result.adaptedWorkout)
@@ -544,7 +535,7 @@ function SessionTracker() {
         // Show success message about adaptation
         toast.success('Workout adapted based on your readiness!')
       } else {
-        console.error('Failed to adapt workout:', result.error)
+        console.error('Failed to adapt workout:', 'Unknown error')
         // Fall back to original workout
         setPlannedWorkout(originalWorkout)
         initializeExerciseTracking(originalWorkout)
@@ -603,7 +594,7 @@ function SessionTracker() {
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
           <h1 className="text-2xl font-semibold mb-4 text-destructive">Error Loading Session</h1>
           <p className="text-destructive mb-4">{error}</p>
-          <Button onClick={() => router.push('/program')}>Back to Program</Button>
+          <Button onClick={() => router.push('/workouts')}>Back to Workouts</Button>
         </div>
       </DashboardLayout>
     )
@@ -632,7 +623,7 @@ function SessionTracker() {
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
           <h1 className="text-2xl font-semibold mb-4">No Workout Data</h1>
           <p className="text-gray-600 mb-4">No planned workout data found. Please start from the program page.</p>
-          <Button onClick={() => router.push('/program')}>Back to Program</Button>
+          <Button onClick={() => router.push('/workouts')}>Back to Workouts</Button>
         </div>
       </DashboardLayout>
     )
@@ -820,26 +811,110 @@ function SessionTracker() {
           {viewMode === 'full' ? (
             // Full view - show all exercises
             allExercises.map((exercise, index) => (
-              <TrackedExercise
-                key={`${exercise.name}-${index}`}
-                exercise={exercise}
-                onSetComplete={(setIndex, weight, reps) => handleSetComplete(index, setIndex, weight, reps)}
-                onSetUncomplete={(setIndex) => handleSetUncomplete(index, setIndex)}
-                onPBCheck={handlePBCheck}
-                isWarmupOrCooldown={isWarmupOrCooldownExercise(index)}
-              />
+              <div key={`${exercise.name}-${index}`} className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">{exercise.name}</h3>
+                  {isWarmupOrCooldownExercise(index) && (
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                      Exercise
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    <strong>Target:</strong> {exercise.sets} sets × {exercise.reps} reps
+                  </p>
+                  {exercise.notes && (
+                    <p className="text-sm text-gray-600">
+                      <strong>Notes:</strong> {exercise.notes}
+                    </p>
+                  )}
+                  <div className="mt-4">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Track your sets:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {Array.from({ length: exercise.sets }, (_, setIndex) => (
+                        <div key={setIndex} className="flex items-center space-x-2 p-2 border rounded">
+                          <span className="text-sm font-medium">Set {setIndex + 1}:</span>
+                          <input
+                            type="number"
+                            placeholder="Weight"
+                            className="w-16 px-2 py-1 text-xs border rounded"
+                            onChange={(e) => {
+                              const weight = parseFloat(e.target.value) || 0;
+                              const currentReps = actualExerciseData[index]?.sets[setIndex]?.reps || 0;
+                              handleSetComplete(index, setIndex, weight, currentReps);
+                            }}
+                          />
+                          <input
+                            type="number"
+                            placeholder="Reps"
+                            className="w-16 px-2 py-1 text-xs border rounded"
+                            onChange={(e) => {
+                              const reps = parseInt(e.target.value) || 0;
+                              const currentWeight = actualExerciseData[index]?.sets[setIndex]?.weight || 0;
+                              handleSetComplete(index, setIndex, currentWeight, reps);
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))
           ) : (
             // Focused view - show current exercise or completion card
             currentExerciseIndex < allExercises.length ? (
-              <TrackedExercise
-                key={`${allExercises[currentExerciseIndex].name}-${currentExerciseIndex}`}
-                exercise={allExercises[currentExerciseIndex]}
-                onSetComplete={(setIndex, weight, reps) => handleSetComplete(currentExerciseIndex, setIndex, weight, reps)}
-                onSetUncomplete={(setIndex) => handleSetUncomplete(currentExerciseIndex, setIndex)}
-                onPBCheck={handlePBCheck}
-                isWarmupOrCooldown={isWarmupOrCooldownExercise(currentExerciseIndex)}
-              />
+              <div key={`${allExercises[currentExerciseIndex].name}-${currentExerciseIndex}`} className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">{allExercises[currentExerciseIndex].name}</h3>
+                  {isWarmupOrCooldownExercise(currentExerciseIndex) && (
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                      Exercise
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    <strong>Target:</strong> {allExercises[currentExerciseIndex].sets} sets × {allExercises[currentExerciseIndex].reps} reps
+                  </p>
+                  {allExercises[currentExerciseIndex].notes && (
+                    <p className="text-sm text-gray-600">
+                      <strong>Notes:</strong> {allExercises[currentExerciseIndex].notes}
+                    </p>
+                  )}
+                  <div className="mt-4">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Track your sets:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {Array.from({ length: allExercises[currentExerciseIndex].sets }, (_, setIndex) => (
+                        <div key={setIndex} className="flex items-center space-x-2 p-2 border rounded">
+                          <span className="text-sm font-medium">Set {setIndex + 1}:</span>
+                          <input
+                            type="number"
+                            placeholder="Weight"
+                            className="w-16 px-2 py-1 text-xs border rounded"
+                            onChange={(e) => {
+                              const weight = parseFloat(e.target.value) || 0;
+                              const currentReps = actualExerciseData[currentExerciseIndex]?.sets[setIndex]?.reps || 0;
+                              handleSetComplete(currentExerciseIndex, setIndex, weight, currentReps);
+                            }}
+                          />
+                          <input
+                            type="number"
+                            placeholder="Reps"
+                            className="w-16 px-2 py-1 text-xs border rounded"
+                            onChange={(e) => {
+                              const reps = parseInt(e.target.value) || 0;
+                              const currentWeight = actualExerciseData[currentExerciseIndex]?.sets[setIndex]?.weight || 0;
+                              handleSetComplete(currentExerciseIndex, setIndex, currentWeight, reps);
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : (
               // Show completion card when all exercises are done in focused view
               <div className="space-y-6">

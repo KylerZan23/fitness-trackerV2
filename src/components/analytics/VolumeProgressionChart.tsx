@@ -29,7 +29,7 @@ ChartJS.register(
   Filler
 )
 
-const supabase = createClient()
+  const supabase = await createClient()
 
 interface VolumeData {
   week_start: string

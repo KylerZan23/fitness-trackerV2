@@ -23,10 +23,10 @@ export function ReadOnlyModeProvider({ children }: ReadOnlyModeProviderProps) {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
-  const supabase = createClient()
 
   const refreshStatus = async () => {
     try {
+      const supabase = await createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         setSubscriptionStatus(null)

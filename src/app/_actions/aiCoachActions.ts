@@ -3,7 +3,6 @@
 import { cookies } from 'next/headers'
 import { createClient } from '@/utils/supabase/server'
 import {
-    getLinkedWorkouts,
     getUserActivitySummary,
     getCachedAICoachRecommendation,
     cacheAICoachRecommendation,
@@ -11,7 +10,6 @@ import {
 
 import { getUserProfile } from '@/lib/db/index'
 import { fetchCurrentWeekGoalsWithProgress } from '@/lib/db/goals'
-import { getActiveTrainingProgram, type TrainingProgramWithId } from '@/lib/db/program'
 import type { GoalWithProgress } from '@/lib/types'
 import { MuscleGroup } from '@/lib/types'
 import type { DayOfWeek } from '@/lib/types/program'
@@ -87,14 +85,7 @@ interface UserProfile {
   // other profile fields
 }
 
-interface ProgramAdherenceData {
-  programName: string
-  currentPhase: string
-  currentWeek: string
-  todaysPlannedWorkout: string
-  workoutsCompletedThisWeek: number
-  lastLoggedWorkoutVsPlan: string
-}
+
 
 /**
  * Helper function to calculate week-over-week duration change
@@ -116,73 +107,7 @@ function calculateDurationChange(
   return Math.round((currentAvgDuration - previousWeekEstimatedDuration) * 10) / 10
 }
 
-/**
- * Helper function to fetch and analyze program adherence data
- */
-async function getProgramAdherenceData(
-  supabase: any,
-  userId: string,
-  activeProgram: TrainingProgramWithId
-): Promise<ProgramAdherenceData | null> {
-  try {
-    // Get current date info
-    const today = new Date()
-    const currentDayOfWeek = ((today.getDay() + 6) % 7) + 1 // Convert Sunday=0 to Monday=1 format
-    
-    // For MVP, assume user is in first phase, first week (can be enhanced later with start_date logic)
-    const currentPhaseIndex = 0
-    const currentWeekIndex = 0
-    
-    if (!activeProgram.phases[currentPhaseIndex]?.weeks[currentWeekIndex]) {
-      return null
-    }
-    
-    const currentPhase = activeProgram.phases[currentPhaseIndex]
-    const currentWeek = currentPhase.weeks[currentWeekIndex]
-    
-    // Find today's planned workout
-    const todaysWorkout = currentWeek.days.find(day => Number(day.dayOfWeek) === currentDayOfWeek)
-    const todaysPlannedWorkout = todaysWorkout?.isRestDay 
-      ? 'Rest Day' 
-      : todaysWorkout?.focus || 'Workout Planned'
-    
-    // Query workout_groups for adherence data
-    const { success, data: linkedWorkouts, error } = await getLinkedWorkouts(userId, activeProgram.id, currentPhaseIndex, currentWeekIndex);
 
-    if (!success) {
-        console.error('Error fetching linked workouts for adherence:', error);
-        return null;
-    }
-    
-    // Calculate adherence metrics
-    const workoutsCompletedThisWeek = linkedWorkouts?.length || 0
-    
-    // Determine last logged workout vs plan
-    let lastLoggedWorkoutVsPlan = 'N/A'
-    if (linkedWorkouts && linkedWorkouts.length > 0) {
-      const lastWorkout = linkedWorkouts[0]
-      const lastWorkoutDay = currentWeek.days.find(day => day.dayOfWeek === lastWorkout.linked_program_day_of_week)
-      if (lastWorkoutDay) {
-        const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][lastWorkout.linked_program_day_of_week - 1]
-        lastLoggedWorkoutVsPlan = `Completed ${dayName}'s ${lastWorkoutDay.focus || 'workout'}`
-      }
-    } else {
-      lastLoggedWorkoutVsPlan = 'No workouts logged for current week yet'
-    }
-    
-    return {
-      programName: activeProgram.programName,
-      currentPhase: `Phase ${currentPhaseIndex + 1} of ${activeProgram.phases.length}: ${currentPhase.phaseName}`,
-      currentWeek: `Week ${currentWeekIndex + 1} of ${currentPhase.durationWeeks}`,
-      todaysPlannedWorkout,
-      workoutsCompletedThisWeek,
-      lastLoggedWorkoutVsPlan
-    }
-  } catch (error) {
-    console.error('ERROR in getProgramAdherenceData:', error)
-    return null
-  }
-}
 
 // Placeholder for actual OpenAI or LLM client initialization if needed globally
 // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -237,22 +162,7 @@ export async function getAIWeeklyReview(): Promise<
       return { error: 'User profile not found. Please complete your profile setup.' }
     }
 
-    // Fetch active training program and adherence data
-    let activeProgram: TrainingProgramWithId | null = null
-    let programAdherence: ProgramAdherenceData | null = null
-    
-    try {
-      activeProgram = await getActiveTrainingProgram()
-      if (activeProgram) {
-        programAdherence = await getProgramAdherenceData(supabase, user.id, activeProgram)
-        console.log('Program adherence data retrieved:', JSON.stringify(programAdherence, null, 2))
-      } else {
-        console.log('No active training program found for weekly review')
-      }
-    } catch (programError) {
-      console.warn('Error fetching program adherence data for weekly review:', programError)
-      // Continue without program data - not critical for weekly review
-    }
+
 
     // Calculate week-over-week trends for enhanced analysis
     const weekOverWeekTrends = {
@@ -265,7 +175,7 @@ export async function getAIWeeklyReview(): Promise<
 
     console.log('Week-over-week trends calculated:', JSON.stringify(weekOverWeekTrends, null, 2))
 
-    // Create cache key based on user activity data, profile, program adherence, and trends
+    // Create cache key based on user activity data, profile, and trends
     const cacheDataSignature = {
       userId: user.id,
       totalWorkoutSessions: activityData?.total_workout_sessions || 0,
@@ -274,11 +184,6 @@ export async function getAIWeeklyReview(): Promise<
       workoutDaysLastWeek: activityData?.workout_days_last_week || 0,
       fitnessGoals: userProfile.fitness_goals || null,
       experienceLevel: userProfile.experience_level || null,
-      // Include program adherence data in cache key for more contextual caching
-      programName: programAdherence?.programName || null,
-      currentPhase: programAdherence?.currentPhase || null,
-      currentWeek: programAdherence?.currentWeek || null,
-      workoutsCompletedThisWeek: programAdherence?.workoutsCompletedThisWeek || 0,
       // Include week-over-week trends for enhanced caching
       workoutDaysChange: weekOverWeekTrends.workoutDaysChange,
       workoutSessionsChange: weekOverWeekTrends.workoutSessionsChange,
@@ -313,38 +218,12 @@ export async function getAIWeeklyReview(): Promise<
         console.log('AI Weekly Review: No cache entry found.');
     }
 
-    // Format program adherence context for the prompt
-    const programContextSection = programAdherence 
-      ? `
-**TRAINING PROGRAM ADHERENCE CONTEXT:**
-- Program Name: ${programAdherence.programName}
-- Current Phase: ${programAdherence.currentPhase}
-- Current Week: ${programAdherence.currentWeek}
-- Today's Planned Workout Focus: ${programAdherence.todaysPlannedWorkout}
-- Workouts Completed This Week: ${programAdherence.workoutsCompletedThisWeek}
-- Last Logged Workout vs Plan: ${programAdherence.lastLoggedWorkoutVsPlan}
 
-**PROGRAM ADHERENCE ANALYSIS INSTRUCTIONS:**
-- If user is following a structured program, assess adherence to their planned workouts
-- Compare actual workouts completed vs expected for the week
-- Reference specific program phases and focus areas in your analysis
-- Highlight alignment between planned workout focuses and actual activity
-- If behind on program schedule, provide specific catch-up recommendations
-- If ahead or on track, celebrate program consistency and suggest optimization`
-      : `
-**TRAINING PROGRAM ADHERENCE CONTEXT:**
-- Program Name: No active structured program
-- Training Approach: Self-directed/flexible training
-
-**GENERAL TRAINING ANALYSIS INSTRUCTIONS:**
-- Focus on overall activity patterns and consistency
-- Suggest potential benefits of following a structured program if appropriate
-- Analyze muscle group balance and training frequency patterns`
 
     // Construct the LLM prompt for weekly review
     const prompt = `You are a supportive and data-driven fitness coach analyzing a user's weekly training performance. 
 
-Based on the following UserActivitySummary JSON data from the past 7 days and training program adherence information, generate a comprehensive weekly review.
+Based on the following UserActivitySummary JSON data from the past 7 days, generate a comprehensive weekly review focusing on general activity patterns, consistency, and trends.
 
 USER ACTIVITY DATA:
 ${JSON.stringify(activityData, null, 2)}
@@ -361,38 +240,44 @@ USER PROFILE CONTEXT:
 - Experience Level: ${userProfile.experience_level || 'Not specified'}
 - Weight Unit: ${userProfile.weight_unit || 'kg'}
 
-${programContextSection}
+GENERAL ACTIVITY ANALYSIS INSTRUCTIONS:
+- Focus on overall activity patterns, consistency, and workout frequency
+- Analyze muscle group balance and training variety from logged workouts
+- Assess volume trends, exercise progression, and running performance patterns
+- Provide insights on training consistency and recovery patterns
+- Suggest improvements based on activity data without referencing specific programs
 
 ENHANCED INSTRUCTIONS:
 1. Act as an encouraging yet analytical coach
-2. Focus on data-driven insights from activity summary, program adherence, AND week-over-week trends
-3. Be specific about numbers (workouts, volume, exercises, program compliance, trends)
+2. Focus on data-driven insights from activity summary and week-over-week trends
+3. Be specific about numbers (workouts, volume, exercises, trends)
 4. Prioritize week-over-week trend analysis to show progress or areas needing attention
-5. If user has an active program, integrate program adherence with trend analysis
-6. Identify both strengths and concrete improvement opportunities based on trends
-7. Provide actionable, specific tips for the upcoming week that align with trends and program (if applicable)
-8. Reference program-specific focuses and planned workouts when available
-9. Celebrate positive trends (increased workout days, improved pace, etc.) specifically
-10. Address negative trends constructively with specific strategies for improvement
+5. Identify both strengths and concrete improvement opportunities based on trends
+6. Provide actionable, specific tips for the upcoming week that align with trends
+7. Celebrate positive trends (increased workout days, improved pace, etc.) specifically
+8. Address negative trends constructively with specific strategies for improvement
+9. Focus on muscle group balance, training frequency, and consistency patterns
+10. Suggest ways to maintain or improve training momentum
 
 REQUIRED OUTPUT FORMAT (JSON only):
 {
   "title": "Your Weekly Review",
-  "summary": "A 1-2 sentence overview mentioning week-over-week trends, total workouts, program adherence (if applicable), key metrics, or overall activity level",
-  "whatWentWell": "A specific success from the data highlighting positive trends (increased workout days, improved pace, program adherence, consistency, volume increase, etc.)",
-  "improvementArea": "A data-driven area for improvement based on negative trends or opportunities (declining workout frequency, slower pace, program compliance, missed planned workouts, etc.)",
+  "summary": "A 1-2 sentence overview mentioning week-over-week trends, total workouts, key metrics, or overall activity level",
+  "whatWentWell": "A specific success from the data highlighting positive trends (increased workout days, improved pace, consistency, volume increase, muscle group balance, etc.)",
+  "improvementArea": "A data-driven area for improvement based on negative trends or opportunities (declining workout frequency, slower pace, muscle group imbalances, inconsistent training, etc.)",
   "actionableTip": "One specific, concrete tip for next week based on trend analysis and improvement area (e.g., 'Add one more workout day to match last week's 4-day consistency' or 'Focus on maintaining your improved pace from this week')"
 }
 
 IMPORTANT: 
 - Base ALL insights on the actual data provided, especially week-over-week trends
 - Prioritize trend analysis - highlight what's improving, declining, or staying consistent
-- If user has an active program, integrate program adherence with trend insights
+- Focus on general activity patterns rather than specific program adherence
 - If no workouts were logged, focus on motivation and trend-based comeback strategies
 - Celebrate positive trends specifically (e.g., "+2 workout days this week", "pace improved")
 - Address negative trends constructively with specific recovery strategies
 - Make improvement areas constructive, not critical, and trend-focused
 - Ensure actionable tips are specific, measurable, and aligned with trend reversals or momentum
+- Analyze muscle group distribution and suggest balance improvements when relevant
 
 Return ONLY the JSON object, no additional text.`
 
@@ -577,8 +462,6 @@ export async function getAICoachRecommendation(): Promise<
     let profile: UserProfile | null = null
     let goals: GoalWithProgress[] = []
     let summary: UserActivitySummary | null = null
-    let activeProgram: TrainingProgramWithId | null = null
-    let programAdherence: ProgramAdherenceData | null = null
 
     try {
       profile = (await getUserProfile(supabase)) as UserProfile | null
@@ -592,18 +475,7 @@ export async function getAICoachRecommendation(): Promise<
         )
       }
 
-      // Fetch active training program
-      try {
-        activeProgram = await getActiveTrainingProgram()
-        if (activeProgram) {
-          programAdherence = await getProgramAdherenceData(supabase, userId, activeProgram)
-        }
-      } catch (programFetchError) {
-        console.warn(
-          `getAICoachRecommendation: Error fetching active program for user ${userId}`,
-          programFetchError
-        )
-      }
+
 
       const { success, data: summaryData, error: summaryError } = await getUserActivitySummary(userId, 30);
 
@@ -636,11 +508,9 @@ export async function getAICoachRecommendation(): Promise<
 
     const dataSignatureObject = {
       profileFitnessGoals: profile?.fitness_goals || null,
-  
       totalWorkouts: summary?.total_workout_sessions || 0,
       totalRuns: summary?.total_run_sessions || 0,
       workoutsThisWeek: summary?.workout_days_this_week || 0,
-      programAdherence: programAdherence || null,
       topExerciseTrend: summary?.dynamic_exercise_progression?.[0]?.trend || null,
       activeGoals: goalsString || '',
       profileTrainingFocus: profile?.primary_training_focus || null,
@@ -745,60 +615,52 @@ export async function getAICoachRecommendation(): Promise<
     const formattedRuns = formatLast3Runs(summary)
     const formattedGoals = goalsString
 
-    // Format program context for the prompt
-    const programContextSection = programAdherence 
-      ? `
-**Current Training Program Context:**
-- Program Name: ${programAdherence.programName}
-- Current Phase: ${programAdherence.currentPhase}
-- Current Week: ${programAdherence.currentWeek}
-- Today's Planned Workout Focus: ${programAdherence.todaysPlannedWorkout}
-- Workouts Completed This Week: ${programAdherence.workoutsCompletedThisWeek}
-- Last Logged Workout vs Plan: ${programAdherence.lastLoggedWorkoutVsPlan}`
-      : `
-**Current Training Program Context:**
-- Program Name: N/A
-- Current Phase: N/A
-- Current Week: N/A
-- Today's Planned Workout Focus: N/A
-- Workouts Completed This Week: N/A
-- Last Logged Workout vs Plan: N/A`
+
 
     const promptText = `
-You are an expert AI Fitness Coach for NeuralLift. Your primary goal is to provide a concise, encouraging, and tactical piece of advice for today's planned workout, using the ProgramAdherenceData and UserActivitySummary to inform your recommendation. If it's a rest day, provide a recovery-focused tip.
+You are an expert AI Fitness Coach for NeuralLift. Your primary goal is to provide a concise, encouraging, and tactical piece of advice based on the user's recent activity patterns and logged workouts, using the UserActivitySummary data to inform your recommendation.
 
 **Key Instructions for LLM:**
-1.  **Focus on TODAY**: Your advice must be directly relevant to today's planned session.
-2.  **Be Concise & Tactical**: Provide specific, actionable advice for today's workout. Reference specific exercises or techniques.
-3.  **Positive & Encouraging Tone**: Motivate the user for their session today.
-4.  **Use Program Context**: Always reference the user's current program and today's planned focus.
-5.  **Data-Driven**: Connect advice to recent performance and adherence patterns.
-6.  **Safety First**: Include form cues or progression advice when relevant.
+1.  **Focus on Activity Patterns**: Your advice must be based on recent workout consistency, muscle group balance, and performance trends.
+2.  **Be Concise & Tactical**: Provide specific, actionable advice. Reference specific exercises or techniques based on their logged workouts.
+3.  **Positive & Encouraging Tone**: Motivate the user based on their recent activity and progress.
+4.  **Data-Driven**: Connect advice to recent performance patterns, volume trends, and muscle group distribution.
+5.  **Safety First**: Include form cues or progression advice when relevant.
+6.  **General Activity Focus**: Provide recommendations based on overall training patterns rather than specific program adherence.
 
-**CRITICAL: Your workoutRecommendation.title and workoutRecommendation.details must directly reference today's planned focus and exercises from the ProgramAdherenceData.**
-
-**Today's Workout Focus Guidelines:**
-- If today's planned workout focus is provided (e.g., "Upper Body", "Legs", "Push"), your workoutRecommendation.title should be "Focus for Your [Focus] Day" or "Today's [Focus] Session".
-- Your workoutRecommendation.details should give specific advice for today's session, like "I see your program includes heavy squats today. Based on your last session, focus on hitting depth. Your secondary focus should be maintaining tempo on your lunges."
-- If it's a rest day, focus on recovery advice: title "Recovery Day Focus", details about active recovery, hydration, sleep, etc.
-- If no specific workout is planned, provide general motivation to get back on track.
+**Activity-Based Recommendation Guidelines:**
+- Analyze muscle group distribution from recent workouts to identify imbalances
+- Consider workout frequency patterns (this week vs last week)
+- Reference specific exercises from their recent sessions when giving advice
+- If low activity, provide motivation and simple re-entry strategies
+- If high activity, focus on recovery, progression, or technique refinement
+- Use exercise progression data to suggest improvements
 
 **User Profile:**
 - Age: ${profile?.age || 'Not specified'}
 - Fitness Goals: ${profile?.fitness_goals || 'Not set'}
 - Preferred Weight Unit: ${preferredWeightUnit}
-
 - Primary Training Focus: ${profile?.primary_training_focus || 'General Fitness'}
 - Experience Level: ${profile?.experience_level || 'Not Specified'}
 
 **Current Weekly Goals (Tracked in App):**
 ${formattedGoals}
 
-**Recent Activity Context (for informing today's advice):**
+**Recent Activity Context (Last 30 Days):**
 - Workout Days This Week: ${summary?.workout_days_this_week || 0}
 - Workout Days Last Week: ${summary?.workout_days_last_week || 0}
+- Total Workout Sessions: ${summary?.total_workout_sessions || 0}
+- Total Run Sessions: ${summary?.total_run_sessions || 0}
 - Recent Run Pace Trend: ${summary?.recent_run_pace_trend || 'N/A'}
-${programContextSection}
+
+**Muscle Group Activity Summary:**
+${formattedMuscleSummary}
+
+**Exercise Progression Insights:**
+${formattedExerciseProgression}
+
+**Recent Running Activity:**
+${formattedRuns}
 
 **Output Format (Strict JSON - provide only the JSON object):**
 Provide your response as a single JSON object matching this TypeScript interface:
@@ -806,7 +668,7 @@ Provide your response as a single JSON object matching this TypeScript interface
 {
   "workoutRecommendation": {
     "title": "Your Suggested Workout Focus",
-    "details": "Explain why and what to do. Be specific. E.g., focus on X today with Y sets/reps because your Z data shows...",
+    "details": "Explain why and what to do based on recent activity patterns. Be specific about muscle groups, volume, or exercises that need attention.",
     "suggestedExercises": [
       { "name": "Barbell Squat", "sets": 3, "reps": "5-8", "muscle_group": "Legs" },
       { "name": "Bench Press", "sets": 3, "reps": "8-12", "muscle_group": "Chest" },
@@ -815,15 +677,15 @@ Provide your response as a single JSON object matching this TypeScript interface
   },
   "runRecommendation": {
     "title": "Your Suggested Run",
-    "details": "Details for the run. E.g., a 5k tempo run at X pace, or an easy 30-min recovery run."
+    "details": "Details for the run based on recent pace trends and activity levels. E.g., a 5k tempo run or an easy recovery run."
   },
   "generalInsight": {
     "title": "One Key Insight from Your Data",
-    "details": "A brief, encouraging insight. E.g., 'Great job on increasing your chest volume!' or 'Remember to incorporate rest days.'"
+    "details": "A brief, encouraging insight based on recent activity patterns. E.g., 'Great consistency this week!' or 'Consider balancing your muscle groups.'"
   },
   "focusAreaSuggestion": {
     "title": "Suggested Focus Area (Optional)",
-    "details": "A specific, actionable focus area for long-term improvement based on data. Give a concrete tip or action."
+    "details": "A specific, actionable focus area for improvement based on activity data analysis. Give a concrete tip or action."
   }
 }
 \`\`\`
@@ -832,14 +694,14 @@ Provide your response as a single JSON object matching this TypeScript interface
 - \`suggestedExercises\`: MUST be an array of objects. Each object MUST contain 'name', 'sets', 'reps', and 'muscle_group'. The 'muscle_group' MUST be one of the following exact values: ${Object.values(
       MuscleGroup
     ).join(', ')}.
-- \`workoutRecommendation.details\`: Provide specific, tactical advice for today's session. Reference form cues, intensity, or specific exercises from their program. Connect to recent adherence patterns.
-- \`runRecommendation\`: Only include if relevant to today's plan or if it's a rest day and light cardio would help recovery. Keep it simple and specific to today.
-- \`generalInsight\`: Brief encouragement related to their recent adherence or progress. Reference their current program position.
+- \`workoutRecommendation.details\`: Provide specific, tactical advice based on recent activity patterns. Reference muscle group balance, exercise progression, or consistency patterns.
+- \`runRecommendation\`: Base on recent running data and pace trends. Suggest appropriate intensity and duration.
+- \`generalInsight\`: Brief encouragement related to their recent activity patterns and progress trends.
 
 **For \`focusAreaSuggestion\` (Optional):**
--   Only include if there's a specific technique or form cue that would improve today's session.
--   Focus on immediate, actionable improvements for today's workout.
--   If it's a rest day, suggest recovery techniques or mobility work.
+-   Focus on areas for improvement based on activity data analysis (muscle imbalances, consistency, progression, etc.)
+-   Provide actionable improvements for overall training effectiveness
+-   Consider recovery and technique refinements based on recent patterns
 
 Now, generate the recommendation based on all the above data and instructions.
 `

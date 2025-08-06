@@ -84,7 +84,7 @@ export async function startWorkoutSession(
       createdAt: verification.data?.created_at
     })
 
-    revalidatePath('/program')
+    revalidatePath('/workouts')
     return { success: true, sessionId: data.id }
   } catch (error: any) {
     console.error('❌ Exception in startWorkoutSession:', {

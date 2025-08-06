@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 
 interface SqlMigrationRunnerProps {
   adminOnly?: boolean

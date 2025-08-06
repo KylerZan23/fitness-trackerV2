@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Home, Dumbbell, User, LogOut, Calendar, TrendingUp, Users, Brain, BarChart3 } from 'lucide-react'
+import { Home, Dumbbell, User, LogOut, Calendar, TrendingUp, Users, Brain, BarChart3, Cpu, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Separator } from '@/components/ui/separator'
@@ -17,7 +17,7 @@ interface SidebarProps {
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
-  { href: '/program', label: 'My Program', icon: Calendar },
+  { href: '/programs', label: 'Neural Programs', icon: Cpu, isNeural: true },
   { href: '/workouts', label: 'Workouts', icon: Dumbbell },
   { href: '/community', label: 'Community', icon: Users },
   { href: '/progress', label: 'Progress', icon: TrendingUp },
@@ -66,6 +66,11 @@ export function Sidebar({
               {item.isPro && (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
                   Pro
+                </span>
+              )}
+              {item.isNeural && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                  Neural
                 </span>
               )}
             </Link>

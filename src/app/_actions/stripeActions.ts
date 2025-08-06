@@ -53,8 +53,8 @@ export async function createCheckoutSession(priceId: string) {
       mode: 'subscription',
       customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${headers().get('origin')}/program?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${headers().get('origin')}/profile`,
+      success_url: `${(await headers()).get('origin')}/program?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${(await headers()).get('origin')}/profile`,
       subscription_data: {
         trial_period_days: 7,
         metadata: { supabaseUUID: user.id }
@@ -102,7 +102,7 @@ export async function createCustomerPortalSession() {
 
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: customerId,
-    return_url: `${headers().get('origin')}/profile`,
+    return_url: `${(await headers()).get('origin')}/profile`,
   });
 
   return { url: portalSession.url };

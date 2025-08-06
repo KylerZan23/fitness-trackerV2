@@ -118,7 +118,7 @@ export default function WorkoutsHistoryPage() {
 
   // Handle logout
   const handleLogout = useCallback(async () => {
-    const supabase = createClient()
+    const supabase = await createClient()
     await supabase.auth.signOut()
     router.push('/login')
   }, [router])

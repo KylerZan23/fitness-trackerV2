@@ -10,7 +10,7 @@ import Link from 'next/link'
 // import Image from 'next/image' // Removed as image panels are being removed
 import { MinimalSignupFormData, minimalSignupSchema } from '@/lib/schemas'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

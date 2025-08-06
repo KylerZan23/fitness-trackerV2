@@ -308,7 +308,7 @@ export async function getUserPersonalRecords(weightUnit: 'kg' | 'lbs' = 'kg'): P
     }
 
     for (const [key, displayName] of Object.entries(exerciseMap)) {
-      const strengthData = strengthLevels[key]
+      const strengthData = strengthLevels[key as keyof typeof strengthLevels]
       if (strengthData && strengthData.value) {
         // Calculate monthly progress by comparing with 30 days ago
         const monthlyProgress = await calculateMonthlyProgress(

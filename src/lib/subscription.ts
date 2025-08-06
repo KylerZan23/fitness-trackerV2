@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 
 export type SubscriptionTier = 'trial' | 'standard' | 'pro'
 

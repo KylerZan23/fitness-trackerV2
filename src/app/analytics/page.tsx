@@ -63,7 +63,7 @@ export default function AnalyticsPage() {
     try {
       // Refresh the materialized view for advanced analytics
       const { createClient } = await import('@/utils/supabase/client')
-      const supabase = createClient()
+      const supabase = await createClient()
       
       const { error } = await supabase.rpc('refresh_advanced_analytics')
       

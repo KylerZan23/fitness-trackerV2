@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { getWorkoutsForMonth, getUserProfile, HistoricalWorkout } from '@/lib/db/index'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { Button } from '@/components/ui/button'

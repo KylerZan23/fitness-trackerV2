@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { Error } from '@/components/ui/error'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { SocialProfileHeader } from '@/components/profile/SocialProfileHeader'

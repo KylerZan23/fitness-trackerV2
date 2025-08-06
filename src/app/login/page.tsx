@@ -7,7 +7,7 @@ import Link from 'next/link'
 // import Image from 'next/image' // Removed as image panel is being removed
 import { LoginFormData, loginSchema } from '@/lib/schemas'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label' // Added
@@ -31,7 +31,7 @@ function LoginContent() {
   // Check if the page was accessed with a force_login parameter
   const forceLogin = searchParams?.get('force_login') === 'true'
   // Check if there's a redirect URL
-  const redirectTo = searchParams?.get('redirectTo') || '/program'
+  const redirectTo = searchParams?.get('redirectTo') || '/workouts'
 
   // If accessed with bypass, show a notice about being logged in
   useEffect(() => {
@@ -396,7 +396,7 @@ function LoginContent() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  onClick={() => router.push('/program')}
+                  onClick={() => router.push('/workouts')}
                   variant="outline"
                   className="w-full sm:w-auto"
                 >

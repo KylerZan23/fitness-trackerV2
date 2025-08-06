@@ -11,7 +11,7 @@ import {
   endOfMonth,
 } from 'date-fns'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { MuscleGroup, findMuscleGroupForExercise } from '@/lib/types'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, Title } from 'chart.js'
 import { Pie } from 'react-chartjs-2'

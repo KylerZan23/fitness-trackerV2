@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown, Minus, Target, Calendar } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { WorkoutData } from '@/lib/utils/strengthCalculations'
 import { format, subDays, startOfDay, endOfDay, getDay } from 'date-fns'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'

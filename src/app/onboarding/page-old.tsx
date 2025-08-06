@@ -6,7 +6,7 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import {
   Card,
@@ -36,7 +36,7 @@ import {
   type EquipmentType,
 } from '@/lib/types/onboarding'
 import {
-  finalizeOnboardingAndGenerateProgram,
+  finalizeOnboarding,
   type FullOnboardingAnswers,
 } from '@/app/_actions/onboardingActions'
 
@@ -259,7 +259,7 @@ export default function OnboardingPage() {
             console.log(
               'User has completed onboarding and has active program, redirecting to program page'
             )
-            router.replace('/program')
+            router.replace('/workouts')
             return
           } else {
             console.log(
@@ -298,7 +298,7 @@ export default function OnboardingPage() {
       console.log('Submitting onboarding data:', onboardingAndProfileData)
 
       // Call the server action
-      const result = await finalizeOnboardingAndGenerateProgram(onboardingAndProfileData)
+      const result = await finalizeOnboarding(onboardingAndProfileData)
 
       if ('error' in result) {
         setError(result.error || 'An error occurred')
@@ -311,8 +311,8 @@ export default function OnboardingPage() {
       // You could add a toast notification here in the future
       // toast.success('Welcome! Your personalized training program is being generated.')
 
-      // Redirect to program page to view the generated training program
-      router.push('/program?onboarding=completed')
+      // Redirect to workouts page after onboarding completion
+      router.push('/workouts?onboarding=completed')
     } catch (err) {
       console.error('Error submitting onboarding:', err)
       setError('An unexpected error occurred. Please try again.')

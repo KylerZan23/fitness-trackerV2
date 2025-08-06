@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { Error as ErrorComponent } from '@/components/ui/error'
 import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+  const supabase = await createClient()
 import type { VerifyOtpParams } from '@supabase/supabase-js'
 
 function ConfirmContent() {
@@ -77,8 +77,8 @@ function ConfirmContent() {
 
         // Redirect based on onboarding status
         if (profile?.onboarding_completed) {
-          console.log('User has completed onboarding, redirecting to program')
-          router.push('/program')
+          console.log('User has completed onboarding, redirecting to workouts')
+          router.push('/workouts')
         } else {
           console.log('User has not completed onboarding, redirecting to onboarding')
           router.push('/onboarding')
