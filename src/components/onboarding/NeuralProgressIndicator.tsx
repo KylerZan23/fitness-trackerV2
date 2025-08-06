@@ -49,20 +49,18 @@ export function NeuralProgressIndicator({
       className
     )}>
       {/* Neural Branding Header */}
-      <div className="flex items-center justify-center mb-6">
-        <div className="flex items-center space-x-3">
+      <div className="text-center mb-12">
+        <div className="flex items-center justify-center mb-4">
           <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
             <Brain className="w-5 h-5 text-white" />
           </div>
-          <div className="text-center">
-            <h2 className="text-xl font-bold text-gray-900">Neural Setup</h2>
-            <p className="text-sm text-gray-600">Personalizing your fitness journey</p>
-          </div>
+          <h2 className="text-xl font-bold text-gray-900 ml-3">Neural Setup</h2>
         </div>
+        <p className="text-sm text-gray-600">Personalizing your fitness journey</p>
       </div>
 
       {/* Progress Bar Container */}
-      <div className="relative mb-8">
+      <div className="relative mb-24">
         {/* Background Progress Track */}
         <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
           {/* Animated Progress Fill */}
@@ -73,7 +71,7 @@ export function NeuralProgressIndicator({
         </div>
 
         {/* Step Indicators */}
-        <div className="absolute top-0 left-0 w-full flex justify-between items-center transform -translate-y-1/2">
+        <div className="absolute top-0 left-0 w-full flex justify-between items-start transform -translate-y-1/2">
           {steps.map((step, index) => {
             const isCompleted = index < currentStep
             const isCurrent = index === currentStep
@@ -114,10 +112,10 @@ export function NeuralProgressIndicator({
 
                 {/* Step Label */}
                 {!compact && (
-                  <div className="mt-3 text-center min-w-0">
+                  <div className="mt-4 text-center min-w-0 max-w-[120px]">
                     <div
                       className={cn(
-                        "text-sm font-medium transition-colors duration-300",
+                        "text-sm font-medium transition-colors duration-300 leading-tight",
                         isCompleted && "text-blue-600",
                         isCurrent && "text-blue-700 font-semibold",
                         isUpcoming && "text-gray-500"
@@ -128,7 +126,7 @@ export function NeuralProgressIndicator({
                     {showDescriptions && step.description && (
                       <div
                         className={cn(
-                          "text-xs mt-1 transition-colors duration-300",
+                          "text-xs mt-2 transition-colors duration-300 leading-tight",
                           isCompleted && "text-blue-500",
                           isCurrent && "text-blue-600",
                           isUpcoming && "text-gray-400"

@@ -298,8 +298,8 @@ export function NeuralOnboardingFlow({
   const canProceed = currentStepConfig ? !currentStepConfig.validate(state.formData) : false
 
   return (
-    <div className={cn("min-h-screen bg-gradient-to-br from-blue-50 to-purple-50", className)}>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className={cn("w-full", className)}>
+      <div className="w-full max-w-4xl mx-auto px-4 py-8">
         {/* Progress Indicator */}
         <NeuralProgressIndicator
           currentStep={state.currentStep}
@@ -317,7 +317,7 @@ export function NeuralOnboardingFlow({
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between mt-8">
+        <div className="flex items-center justify-between mt-12">
           <Button
             variant="outline"
             onClick={state.currentStep === 0 ? onCancel : goToPreviousStep}
@@ -371,7 +371,7 @@ export function NeuralOnboardingFlow({
         )}
 
         {/* Footer */}
-        <div className="mt-12 text-center text-sm text-gray-500">
+        <div className="mt-12 pb-8 text-center text-sm text-gray-500">
           <p>Powered by Neural AI • Your data is secure and private</p>
         </div>
       </div>

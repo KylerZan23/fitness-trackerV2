@@ -80,9 +80,9 @@ export default function NeuralOnboardingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
+          <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
               Create Your Neural Program
             </h1>
@@ -92,12 +92,13 @@ export default function NeuralOnboardingPage() {
             </p>
           </div>
 
-          <NeuralOnboardingFlow
-            userId={userId}
-            onComplete={handleComplete}
-            onCancel={handleCancel}
-            className="bg-white rounded-lg shadow-lg"
-          />
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <NeuralOnboardingFlow
+              userId={userId}
+              onComplete={handleComplete}
+              onCancel={handleCancel}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -91,8 +91,8 @@ export class ProgramGenerator {
     errorCount: number;
   };
 
-  constructor(neuralAPI?: NeuralAPI) {
-    this.neuralAPI = neuralAPI ?? neuralAPI;
+  constructor(api?: NeuralAPI) {
+    this.neuralAPI = api ?? neuralAPI;
     this.metrics = {
       programsGenerated: 0,
       programsProgressed: 0,

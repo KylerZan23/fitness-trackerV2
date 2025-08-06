@@ -69,7 +69,7 @@ export const NeuralTrainingProgramSchema = z.object({
   weekNumber: z.number().int().positive(),
   workouts: z.array(NeuralWorkoutSchema),
   progressionNotes: z.string(),
-  createdAt: z.date(),
+  createdAt: z.string().datetime(),
   neuralInsights: z.string(),
 });
 
