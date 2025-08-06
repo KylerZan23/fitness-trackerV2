@@ -4,7 +4,36 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 
 ## Recent Updates
 
-### Neural API Infrastructure (Latest)
+### Neural Program Generation E2E Testing (Latest)
+✅ **Comprehensive End-to-End Test Suite**
+- **Complete User Flow Testing**: Automated testing of entire Neural onboarding process
+  - Form validation and error handling across all onboarding steps
+  - API mocking with realistic Neural program generation responses
+  - Navigation testing with back/forward functionality and state preservation
+  - Mobile responsiveness validation across different viewport sizes
+- **API Integration Testing**: Mock backend responses with valid Neural program schema
+  - POST `/api/neural/generate-program` endpoint mocking with success/error scenarios
+  - Request payload validation ensuring onboarding data flows correctly
+  - Error handling verification for API failures and timeout scenarios
+- **UI Assertion Testing**: Comprehensive verification of program rendering
+  - Program display validation with workout titles and exercise details
+  - Neural insights and progression notes visibility verification
+  - Form field interaction and validation state testing
+- **Cross-Browser Testing**: Multi-browser and device compatibility
+  - Chromium, Firefox, Webkit testing across desktop and mobile viewports
+  - Accessibility and keyboard navigation validation
+  - Screenshot and video capture on test failures for debugging
+- **Playwright Infrastructure**: Professional E2E testing setup
+  - Parallel test execution across browser matrix
+  - CI/CD integration ready with automated retries
+  - Implementation plan documentation and maintenance strategy
+- **Failure Handling Test**: Dedicated test for API error scenarios (NEW)
+  - 500 status code simulation with graceful error handling
+  - Application stability verification during failures
+  - User experience validation with retry functionality
+  - Form state preservation and error message testing
+
+### Neural API Infrastructure
 ✅ **Complete API System for Coach Neural**
 - **Neural Generation API**: Streamlined `/api/neural/generate` endpoint for program creation
   - Simplified interface compared to legacy generate-program endpoint
@@ -133,28 +162,16 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
   - Self-documenting code through comprehensive type definitions
   - Runtime type guards for additional safety layers
 
-### Phoenix Pipeline Feature Flagging System
-✅ **Safe Rollout Infrastructure for Next-Generation AI Pipeline**
-- **Dual Pipeline Architecture**: Seamless routing between Phoenix and Legacy generation systems
-  - Feature flag-based user routing with automatic fallback mechanisms
-  - Consistent `ProgramGenerationResult` interface across both pipelines
-  - Performance monitoring and success rate tracking per pipeline
-  - Graceful degradation when Phoenix pipeline encounters issues
-- **Comprehensive Feature Flag Management**: Database-driven flags with hierarchical resolution
-  - User-specific overrides for beta testing and individual rollbacks
-  - Admin controls with force enable/disable for emergency situations
-  - Percentage-based rollout using consistent hashing for gradual migration
-  - Cache optimization with TTL for high-performance flag resolution
-- **Administrative Controls**: Full-featured admin interface for flag management
-  - Real-time rollout percentage adjustment without deployments
-  - Emergency rollback capability for immediate issue mitigation
-  - User override management for targeted testing and support
-  - Audit trail and reason tracking for all flag modifications
-- **Gradual Rollout Strategy**: Structured approach for safe Phoenix deployment
-  - Internal testing (0.1%) → Limited beta (5%) → Expanded rollout (25%, 50%, 100%)
-  - Automated fallback to legacy system on Phoenix pipeline failures
-  - Performance comparison metrics between pipeline implementations
-  - Command-line tools for operational management and emergency procedures
+### Neural AI System
+✅ **Simplified, Reliable AI-Powered Program Generation**
+- **On-Demand Generation**: Neural programs generated in real-time without database persistence
+  - Simplified type system optimized for AI generation reliability
+  - Flexible validation with required core fields for better success rates
+  - Direct integration with modern LLM capabilities
+- **Streamlined Architecture**: Eliminated complex nested schemas that caused validation failures
+  - Program → Workouts → Exercises structure for clarity
+  - Natural language fields for AI-generated descriptions
+  - Improved user experience with consistent program generation
 
 ### Guardian Layer Implementation
 ✅ **Comprehensive AI Program Validation System**
@@ -179,10 +196,7 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
   - Modular design for easy extension and modification
   - Performance optimized with early termination and efficient iteration
 
-### Phoenix Schema Types Implementation
-✅ **Comprehensive Hierarchical Training Program Structure**
-- **Scientific Exercise Programming**: Complete Zod schema system for hierarchical training programs
-  - Phases → Weeks → Days → Exercises with full scientific fields
+
   - Exercise tiers (Anchor/Primary/Secondary/Accessory) with progression strategies
   - Volume landmarks (MEV/MAV/MRV) and RPE-based autoregulation
   - Periodization models (Linear, Undulating, Block, Conjugate, Autoregulated)
@@ -340,10 +354,10 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
   - Cache check before expensive LLM generation pipeline
   - Automatic cache invalidation via expiration timestamps
   - Graceful error handling for cache operations
-- **Data Consistency**: Cached programs still saved to training_programs table
-  - Ensures accurate program history tracking
-  - Maintains user experience consistency
-  - Preserves all program metadata and analytics
+- **Data Consistency**: Programs generated fresh each time for optimal personalization
+  - Real-time adaptation to user preferences and goals
+  - No stale cached data affecting program quality
+  - Streamlined user experience with instant generation
 - **Database Schema**: New ai_coach_cache table with optimized indexes
   - Primary key on cache_key for fast lookups
   - Indexes on user_id/expires_at and hashed_data_input
@@ -885,7 +899,6 @@ The Neural Coach API provides programmatic access to AI-powered training program
 - `community_groups`: Fitness communities and specializations
 - `community_posts`: User-generated content with voting
 - `community_feed_events`: Activity timeline and notifications
-- `training_programs`: AI-generated workout programs
 
 ### Key Features
 - Comprehensive RLS policies for data security
@@ -912,6 +925,36 @@ The Neural Coach API provides programmatic access to AI-powered training program
 - `yarn build` - Build for production
 - `yarn test` - Run test suite
 - `yarn lint` - Run ESLint
+
+### Testing
+
+#### Unit Tests (Jest)
+- `yarn test` - Run all unit tests
+- `yarn test:watch` - Run tests in watch mode
+- Located in `src/__tests__/`
+
+#### End-to-End Tests (Playwright)
+- `yarn playwright test` - Run all E2E tests
+- `yarn playwright test --ui` - Run with interactive UI
+- `yarn playwright test --headed` - Run in headed mode
+- `yarn playwright install` - Install browser dependencies
+
+**Neural Program Generation E2E Test Suite** (`tests/neural-program-generation.spec.ts`):
+- ✅ Complete Neural onboarding flow automation
+- ✅ API mocking with valid Neural program responses  
+- ✅ **Comprehensive failure handling testing** (NEW)
+- ✅ Form validation and error handling testing
+- ✅ Mobile responsiveness verification
+- ✅ Navigation and state management validation
+- ✅ Program rendering and UI assertion testing
+
+**Failure Handling Test Coverage**:
+- ✅ API 500 error simulation with graceful degradation
+- ✅ Application crash prevention and stability verification  
+- ✅ User-friendly error message display validation
+- ✅ Page state preservation during error scenarios
+- ✅ Retry functionality testing without page refresh
+- ✅ Form data persistence after API failures
 
 ## Architecture
 

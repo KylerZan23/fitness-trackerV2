@@ -7,7 +7,6 @@ import Link from 'next/link'
 // import Image from 'next/image' // Removed as image panel is being removed
 import { LoginFormData, loginSchema } from '@/lib/schemas'
 import { createClient } from '@/utils/supabase/client'
-  const supabase = await createClient()
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label' // Added
@@ -38,6 +37,7 @@ function LoginContent() {
     if (bypassAuth && !forceLogin) {
       const checkSession = async () => {
         // Use getSession() instead of getUser() for secure authentication verification
+        const supabase = createClient()
         const { data } = await supabase.auth.getSession()
         if (data.session) {
           setShowSessionInfo(true)
@@ -55,6 +55,7 @@ function LoginContent() {
       setError(null)
 
       // Sign out from Supabase
+      const supabase = createClient()
       await supabase.auth.signOut()
 
       // Clear any local storage items related to auth
@@ -89,6 +90,8 @@ function LoginContent() {
       console.log('Starting login process...')
       setIsLoading(true)
       setError(null)
+      
+      const supabase = createClient()
 
       // First, ensure we're starting with a clean state by signing out
       if (forceLogin) {

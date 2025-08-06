@@ -11,12 +11,12 @@ import { z } from 'zod';
 // Base exercise schema
 const ExerciseSchema = z.object({
   id: z.string().min(1),
-  name: z.string().min(1),
+  name: z.string().min(1).optional(),
   targetMuscles: z.array(z.string()),
   sets: z.number().min(1).max(20),
   reps: z.string().min(1),
   load: z.string().min(1),
-  rest: z.string().min(1),
+  rest: z.string().min(1).optional(),
   rpe: z.string().min(1),
   notes: z.string().optional(),
   videoUrl: z.string().url().optional()

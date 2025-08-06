@@ -99,23 +99,42 @@ REQUIRED RESPONSE FORMAT:
 You must respond with valid JSON containing these exact fields:
 
 {
-  "program": {
-    "name": "Week X Training Program",
-    "overview": "Brief program description",
-    "sessions": [
+  "day1": {
+    "name": "Session Name",
+    "exercises": [
       {
-        "day": "Monday",
-        "name": "Session Name",
-        "exercises": [
-          {
-            "name": "Exercise Name",
-            "sets": 3,
-            "reps": "8-10",
-            "weight": "RPE 7-8 or % 1RM",
-            "restMinutes": 3,
-            "notes": "Technique cues or modifications"
-          }
-        ]
+        "name": "Exercise Name",
+        "sets": 3,
+        "reps": "8-10",
+        "weight": "RPE 7-8 or % 1RM",
+        "restMinutes": 3,
+        "notes": "Technique cues or modifications"
+      }
+    ]
+  },
+  "day2": {
+    "name": "Session Name",
+    "exercises": [
+      {
+        "name": "Exercise Name",
+        "sets": 3,
+        "reps": "8-10",
+        "weight": "RPE 7-8 or % 1RM",
+        "restMinutes": 3,
+        "notes": "Technique cues or modifications"
+      }
+    ]
+  },
+  "day3": {
+    "name": "Session Name",
+    "exercises": [
+      {
+        "name": "Exercise Name",
+        "sets": 3,
+        "reps": "8-10",
+        "weight": "RPE 7-8 or % 1RM",
+        "restMinutes": 3,
+        "notes": "Technique cues or modifications"
       }
     ]
   },

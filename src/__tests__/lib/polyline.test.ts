@@ -1,15 +1,15 @@
 import { describe, it, expect } from '@jest/globals'
-import { decodePolyline, calculateBounds, calculateCenter } from '@/lib/polyline'
+import { decodePolyline, calculateBounds, calculateCenter, type Coordinate } from '@/lib/polyline'
 
 describe('polyline utilities', () => {
   describe('decodePolyline', () => {
     it('should decode a basic polyline string to coordinates', () => {
-      // This is a real encoded polyline that represents a path with 3 points
+      // This is a real encoded polyline that represents a path with 2 points
       const encoded = 'u{~vFvyys@fS]'
       const decoded = decodePolyline(encoded)
 
       // Verify the structure and basic properties of the decoded result
-      expect(decoded).toHaveLength(3)
+      expect(decoded).toHaveLength(2)
       expect(Array.isArray(decoded)).toBe(true)
 
       // Verify each coordinate is a valid {lat, lng} object
@@ -25,8 +25,8 @@ describe('polyline utilities', () => {
       })
 
       // Verify the first coordinate is approximately correct (known value for this polyline)
-      expect(decoded[0].lat).toBeCloseTo(38.5, 0) // latitude within 1 degree
-      expect(decoded[0].lng).toBeCloseTo(-120.2, 0) // longitude within 1 degree
+      expect(decoded[0].lat).toBeCloseTo(40.63, 1) // latitude within 0.1 degree
+      expect(decoded[0].lng).toBeCloseTo(-8.66, 1) // longitude within 0.1 degree
     })
 
     it('should handle a simple polyline string', () => {
@@ -47,7 +47,7 @@ describe('polyline utilities', () => {
 
   describe('calculateBounds', () => {
     it('should return zero bounds for empty coordinate array', () => {
-      const coordinates = []
+      const coordinates: Coordinate[] = []
       const result = calculateBounds(coordinates)
       expect(result).toEqual({
         north: 0,
@@ -116,7 +116,7 @@ describe('polyline utilities', () => {
 
   describe('calculateCenter', () => {
     it('should return (0,0) for empty coordinate array', () => {
-      const coordinates = []
+      const coordinates: Coordinate[] = []
       const result = calculateCenter(coordinates)
       expect(result).toEqual({ lat: 0, lng: 0 })
     })

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { createClient } from '@/utils/supabase/client'
-  const supabase = await createClient()
 import { getUserProfile } from '@/lib/db/index'
 import { TrendingUp, BarChart3, Activity, Zap, Brain } from 'lucide-react'
 
@@ -84,6 +83,9 @@ export default function ProgressPage() {
     async function fetchStrengthAnalyticsData() {
       setIsLoading(true)
       try {
+        // Create Supabase client
+        const supabase = await createClient()
+        
         // Get user profile first
         const userProfile = await getUserProfile()
         if (!userProfile) {
@@ -159,6 +161,7 @@ export default function ProgressPage() {
   // Logout handler
   const handleLogout = async () => {
     try {
+      const supabase = await createClient()
       const { error } = await supabase.auth.signOut()
       if (error) throw error
       router.push('/login')

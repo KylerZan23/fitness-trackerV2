@@ -309,19 +309,32 @@ export async function getUserPersonalRecords(weightUnit: 'kg' | 'lbs' = 'kg'): P
 
     for (const [key, displayName] of Object.entries(exerciseMap)) {
       const strengthData = strengthLevels[key as keyof typeof strengthLevels]
-      if (strengthData && strengthData.value) {
+      
+      // Handle both number and object formats for strength data
+      let strengthValue: number | null = null
+      let strengthDate: string | null = null
+      
+      if (typeof strengthData === 'number') {
+        strengthValue = strengthData
+        strengthDate = new Date().toISOString()
+      } else if (strengthData && typeof strengthData === 'object' && 'value' in strengthData) {
+        strengthValue = (strengthData as any).value
+        strengthDate = (strengthData as any).date || new Date().toISOString()
+      }
+      
+      if (strengthValue) {
         // Calculate monthly progress by comparing with 30 days ago
         const monthlyProgress = await calculateMonthlyProgress(
-          supabase, user.id, key, strengthData.value, weightUnit
+          supabase, user.id, key, strengthValue, weightUnit
         )
 
         records.push({
           exerciseName: displayName,
-          weight: Math.round(strengthData.value),
+          weight: Math.round(strengthValue),
           reps: 1, // e1RM is always 1 rep
           monthlyProgress,
           unit: weightUnit,
-          achievedAt: strengthData.date || new Date().toISOString()
+          achievedAt: strengthDate || new Date().toISOString()
         })
       }
     }

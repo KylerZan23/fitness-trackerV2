@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { getUserProfile } from '@/lib/db/index'
 import { hasProAccess, getSubscriptionStatus } from '@/lib/subscription'
+import { createClient } from '@/utils/supabase/client'
 import { TrendingUp, BarChart3, Activity, Download, RefreshCw } from 'lucide-react'
 
 interface UserProfile {
@@ -26,6 +27,17 @@ export default function AnalyticsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Create sidebarProps for consistent layout
+  const sidebarProps = {
+    userName: profile?.name,
+    userEmail: profile?.email,
+    onLogout: async () => {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      router.push('/login')
+    },
+  }
 
   useEffect(() => {
     async function initializePage() {
@@ -98,7 +110,7 @@ export default function AnalyticsPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout sidebarProps={sidebarProps}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
         </div>
@@ -108,7 +120,7 @@ export default function AnalyticsPage() {
 
   if (!profile) {
     return (
-      <DashboardLayout>
+      <DashboardLayout sidebarProps={sidebarProps}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <p className="text-gray-600">Profile not found</p>
         </div>
@@ -117,7 +129,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout sidebarProps={sidebarProps}>
       <div className="min-h-screen bg-gray-50 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           

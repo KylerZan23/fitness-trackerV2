@@ -1,14 +1,10 @@
 // src/app/api/chat/route.ts
 import { createClient } from '@/utils/supabase/server';
-import { OpenAIStream, StreamingTextResponse } from 'ai';
+import { streamText } from 'ai';
+import { openai } from 'ai/openai';
 import { cookies } from 'next/headers';
-import OpenAI from 'openai';
 
 export const runtime = 'edge';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
 
 export async function POST(req: Request) {
   const { messages, chatId } = await req.json();
@@ -20,14 +16,10 @@ export async function POST(req: Request) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    stream: true,
+  const result = await streamText({
+    model: openai('gpt-4o'),
     messages,
-  });
-
-  const stream = OpenAIStream(response, {
-    async onCompletion(completion) {
+    onFinish: async ({ text: completion }) => {
       const payload = {
         user_id: user.id,
         messages: [...messages, { role: 'assistant', content: completion }],
@@ -45,5 +37,5 @@ export async function POST(req: Request) {
     },
   });
 
-  return new StreamingTextResponse(stream);
+  return result.toDataStreamResponse();
 }

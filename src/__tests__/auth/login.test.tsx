@@ -1,8 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import LoginPage from '@/app/login/page'
-import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
 
 // Mock Next.js navigation
 jest.mock('next/navigation', () => ({
@@ -16,22 +14,24 @@ jest.mock('next/navigation', () => ({
   }),
 }))
 
-jest.mock('@/lib/supabase', () => ({
-  supabase: {
-    auth: {
-      signInWithPassword: jest.fn(),
-      getSession: jest.fn(),
-      signOut: jest.fn(),
-    },
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          single: jest.fn(),
-        })),
-      })),
-      upsert: jest.fn(),
-    })),
+const mockSupabase = {
+  auth: {
+    signInWithPassword: jest.fn(),
+    getSession: jest.fn(),
+    signOut: jest.fn(),
   },
+  from: jest.fn(() => ({
+    select: jest.fn(() => ({
+      eq: jest.fn(() => ({
+        single: jest.fn(),
+      })),
+    })),
+    upsert: jest.fn(),
+  })),
+}
+
+jest.mock('@/utils/supabase/client', () => ({
+  createClient: () => mockSupabase,
 }))
 
 // Mock sonner toast
@@ -57,7 +57,7 @@ describe('LoginPage', () => {
 
   it('handles successful login', async () => {
     const mockSignIn = jest.fn().mockResolvedValueOnce({ error: null })
-    ;(supabase.auth.signInWithPassword as jest.Mock).mockImplementation(mockSignIn)
+    ;(mockSupabase.auth.signInWithPassword as jest.Mock).mockImplementation(mockSignIn)
 
     render(<LoginPage />)
 
@@ -91,7 +91,7 @@ describe('LoginPage', () => {
 
   it('handles login error', async () => {
     const mockError = new Error('Invalid credentials')
-    ;(supabase.auth.signInWithPassword as jest.Mock).mockRejectedValueOnce(mockError)
+    ;(mockSupabase.auth.signInWithPassword as jest.Mock).mockRejectedValueOnce(mockError)
 
     render(<LoginPage />)
 

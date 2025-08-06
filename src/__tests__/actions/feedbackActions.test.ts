@@ -5,9 +5,12 @@ import {
   submitCoachFeedback,
   getFeedbackStats
 } from '@/app/_actions/feedbackActions'
+import { createMockSupabaseClient } from '../utils/mockFactories.util'
 
 // Mock all dependencies
-jest.mock('@/utils/supabase/server')
+jest.mock('@/utils/supabase/server', () => ({
+  createClient: jest.fn(),
+}))
 
 // Import mocked modules for type safety
 import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
@@ -42,41 +45,27 @@ const createMockFeedbackEntry = () => ({
   created_at: '2024-01-01T00:00:00.000Z',
 })
 
-const createMockSupabaseClient = () => {
-  // Create a mock query builder that can be chained properly
-  const mockQueryBuilder = {
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockResolvedValue({ data: null, error: null }),
-    single: jest.fn().mockResolvedValue({ data: null, error: null }),
-    update: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockResolvedValue({ data: [], error: null }),
-    upsert: jest.fn().mockResolvedValue({ data: [], error: null }),
-    delete: jest.fn().mockReturnThis(),
-    order: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    range: jest.fn().mockReturnThis(),
-    filter: jest.fn().mockReturnThis(),
-  }
+const createMockSupabaseClientForFeedback = () => {
+  // Use the base mock factory and extend it
+  const client = createMockSupabaseClient()
+  
+  // Add specific methods needed for feedback tests
+  client.delete = jest.fn(() => client)
+  client.range = jest.fn(() => client)
+  client.filter = jest.fn(() => client)
 
-  return {
-    auth: {
-      getUser: jest.fn(),
-      getSession: jest.fn(),
-    },
-    from: jest.fn().mockReturnValue(mockQueryBuilder),
-    rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
-  }
+  return client
 }
 
 describe('feedbackActions', () => {
-  let mockSupabaseClient: ReturnType<typeof createMockSupabaseClient>
+  let mockSupabaseClient: ReturnType<typeof createMockSupabaseClientForFeedback>
   let mockQueryBuilder: any
 
   beforeEach(() => {
     jest.clearAllMocks()
     
     // Reset mocks
-    mockSupabaseClient = createMockSupabaseClient()
+    mockSupabaseClient = createMockSupabaseClientForFeedback()
     mockQueryBuilder = mockSupabaseClient.from() as any
     
     // Setup default mock implementations
@@ -91,30 +80,24 @@ describe('feedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: true,
-        message: 'Server action is working!',
+        data: { message: 'Server action is working!' },
       })
     })
   })
 
   describe('submitProgramFeedback', () => {
-    it('should return an error if user is not authenticated', async () => {
-      // Arrange: No authenticated user
-      mockSupabaseClient.auth.getUser.mockResolvedValue({
-        data: { user: null },
-        error: null,
-      } as any)
+    it('should always reject program feedback for Neural system', async () => {
+      // Act - Program feedback should be rejected regardless of inputs
+      const result = await submitProgramFeedback('any-program-id', 5, 'Great program!')
 
-      // Act
-      const result = await submitProgramFeedback('550e8400-e29b-41d4-a716-446655440000', 5, 'Great program!')
-
-      // Assert
+      // Assert - Neural system rejects all program feedback
       expect(result).toEqual({
         success: false,
-        error: 'Authentication required',
+        error: 'Program feedback is not supported for Neural-generated programs. Programs are generated on-demand.',
       })
 
-      // Verify no database operations were attempted
-      expect(mockQueryBuilder.insert).not.toHaveBeenCalled()
+      // Verify no database operations were attempted since function returns early
+      expect(mockSupabaseClient.from).not.toHaveBeenCalled()
     })
 
     it('should return an error if there is an authentication error', async () => {
@@ -130,7 +113,7 @@ describe('feedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'Authentication required',
+        error: 'Authentication required. Please log in again.',
       })
     })
 
@@ -359,7 +342,7 @@ describe('feedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'Authentication required',
+        error: 'Authentication required. Please log in again.',
       })
     })
 
@@ -492,7 +475,7 @@ describe('feedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'Authentication required',
+        error: 'Authentication required. Please log in again.',
       })
     })
 
@@ -606,7 +589,7 @@ describe('feedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'An unexpected error occurred',
+        error: 'An unexpected error occurred. Please try again.',
       })
     })
   })

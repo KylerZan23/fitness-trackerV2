@@ -5,9 +5,12 @@ import {
   type SubmitWorkoutFeedbackParams,
   type WorkoutFeedback
 } from '@/app/_actions/workoutFeedbackActions'
+import { createMockSupabaseClient } from '../utils/mockFactories.util'
 
 // Mock all dependencies
-jest.mock('@/utils/supabase/server')
+jest.mock('@/utils/supabase/server', () => ({
+  createClient: jest.fn(),
+}))
 
 // Import mocked modules for type safety
 import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
@@ -31,41 +34,27 @@ const createMockWorkoutSessionFeedback = () => ({
   created_at: '2024-01-01T12:30:00.000Z',
 })
 
-const createMockSupabaseClient = () => {
-  // Create a mock query builder that can be chained properly
-  const mockQueryBuilder = {
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockResolvedValue({ data: null, error: null }),
-    single: jest.fn().mockResolvedValue({ data: null, error: null }),
-    update: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    upsert: jest.fn().mockResolvedValue({ data: [], error: null }),
-    delete: jest.fn().mockReturnThis(),
-    order: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    range: jest.fn().mockReturnThis(),
-    filter: jest.fn().mockReturnThis(),
-  }
+// Use standardized mock factory with additional methods for workout feedback
+const createMockSupabaseClientForWorkoutFeedback = () => {
+  const client = createMockSupabaseClient()
+  
+  // Add specific methods needed for workout feedback tests
+  client.delete = jest.fn(() => client)
+  client.range = jest.fn(() => client)
+  client.filter = jest.fn(() => client)
 
-  return {
-    auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
-      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
-    },
-    from: jest.fn().mockReturnValue(mockQueryBuilder),
-    rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
-  }
+  return client
 }
 
 describe('workoutFeedbackActions', () => {
-  let mockSupabaseClient: ReturnType<typeof createMockSupabaseClient>
+  let mockSupabaseClient: ReturnType<typeof createMockSupabaseClientForWorkoutFeedback>
   let mockQueryBuilder: any
 
   beforeEach(() => {
     jest.clearAllMocks()
     
     // Reset mocks
-    mockSupabaseClient = createMockSupabaseClient()
+    mockSupabaseClient = createMockSupabaseClientForWorkoutFeedback()
     mockQueryBuilder = mockSupabaseClient.from() as any
     
     // Setup default mock implementations
@@ -91,7 +80,7 @@ describe('workoutFeedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'User not authenticated',
+        error: 'Authentication required. Please log in again.',
       })
 
       // Verify no database operations were attempted
@@ -111,7 +100,7 @@ describe('workoutFeedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'User not authenticated',
+        error: 'Authentication required. Please log in again.',
       })
     })
 
@@ -133,7 +122,7 @@ describe('workoutFeedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'Invalid feedback value',
+        error: 'Invalid feedback value. Please select easy, good, or hard.',
       })
 
       // Verify no database operations were attempted
@@ -159,7 +148,7 @@ describe('workoutFeedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'Failed to save feedback',
+        error: 'Failed to save feedback. Please try again.',
       })
     })
 
@@ -247,7 +236,7 @@ describe('workoutFeedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'An unexpected error occurred',
+        error: 'An unexpected error occurred. Please try again.',
       })
     })
 
@@ -268,7 +257,7 @@ describe('workoutFeedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'An unexpected error occurred',
+        error: 'An unexpected error occurred. Please try again.',
       })
     })
 
@@ -314,7 +303,7 @@ describe('workoutFeedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'User not authenticated',
+        error: 'Authentication required. Please log in again.',
       })
 
       // Verify no database operations were attempted
@@ -334,7 +323,7 @@ describe('workoutFeedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'User not authenticated',
+        error: 'Authentication required. Please log in again.',
       })
     })
 
@@ -427,7 +416,7 @@ describe('workoutFeedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'An unexpected error occurred',
+        error: 'An unexpected error occurred. Please try again.',
       })
     })
 
@@ -448,7 +437,7 @@ describe('workoutFeedbackActions', () => {
       // Assert
       expect(result).toEqual({
         success: false,
-        error: 'An unexpected error occurred',
+        error: 'An unexpected error occurred. Please try again.',
       })
     })
   })

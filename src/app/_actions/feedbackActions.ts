@@ -54,82 +54,18 @@ export type FeedbackResponse =
 
 /**
  * Submit feedback for an AI-generated training program
+ * Note: Neural programs generate on-demand, so this function is deprecated.
+ * Kept for backwards compatibility but returns an error.
  */
 export async function submitProgramFeedback(
   programId: string,
   rating: number,
   comment?: string
 ): Promise<FeedbackResponse> {
-  try {
-    console.log('submitProgramFeedback called with:', { programId, rating, comment })
-    
-    const supabase = await createClient()
-
-    // Authenticate user first
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      console.error('Authentication error in submitProgramFeedback:', authError)
-      return { success: false, error: 'Authentication required. Please log in again.' }
-    }
-    
-    // Validate input data after authentication
-    const validatedData = ProgramFeedbackSchema.parse({
-      programId,
-      rating,
-      comment,
-    })
-    
-    console.log('Validation passed for user:', user.id)
-
-    // Verify the program exists and belongs to the user
-    const { data: program, error: programError } = await supabase
-      .from('training_programs')
-      .select('id')
-      .eq('id', validatedData.programId)
-      .eq('user_id', user.id)
-      .single()
-
-    if (programError || !program) {
-      console.error('Program verification error:', programError)
-      return { success: false, error: 'Program not found or access denied.' }
-    }
-    
-    console.log('Program verified for user:', user.id)
-
-    // Insert feedback
-    const { data: feedback, error: insertError } = await supabase
-      .from('ai_program_feedback')
-      .insert({
-        user_id: user.id,
-        program_id: validatedData.programId,
-        rating: validatedData.rating,
-        comment: validatedData.comment || null,
-      })
-      .select('id')
-      .single()
-
-    if (insertError) {
-      console.error('Error inserting program feedback:', insertError)
-      return { success: false, error: 'Failed to submit feedback. Please try again.' }
-    }
-
-    console.log(`Program feedback submitted successfully: ${feedback.id}`)
-    return { success: true, id: feedback.id }
-
-  } catch (error) {
-    console.error('Error in submitProgramFeedback:', error)
-    
-    if (error instanceof z.ZodError) {
-      const errorMessage = error.errors.map(e => e.message).join(', ')
-      console.error('Validation errors:', error.errors)
-      return { success: false, error: `Invalid input: ${errorMessage}` }
-    }
-
-    return { success: false, error: 'An unexpected error occurred. Please try again.' }
+  console.log('submitProgramFeedback called but Neural system does not support persistent program feedback')
+  return { 
+    success: false, 
+    error: 'Program feedback is not supported for Neural-generated programs. Programs are generated on-demand.' 
   }
 }
 

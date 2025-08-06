@@ -217,8 +217,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      hasProgram: programs.length > 0,
-      latestProgram: programs[0] || null,
+      hasProgram: false, // Neural generates on-demand, no stored programs
+      latestProgram: null,
       onboardingCompleted: profile?.onboarding_completed || false,
       onboardingData: profile?.onboarding_responses || null
     })

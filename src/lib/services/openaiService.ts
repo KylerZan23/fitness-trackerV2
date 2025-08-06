@@ -100,6 +100,29 @@ export class OpenAIStructuredService implements ILLMService {
       // Remove the $schema property as OpenAI doesn't expect it
       const { $schema, ...cleanJsonSchema } = jsonSchema;
 
+      // Log schema validation before API call
+      logger.info('Schema conversion and validation', {
+        operation: 'generateStructuredOutput',
+        component: 'openaiService',
+        hasJsonSchema: !!jsonSchema,
+        hasCleanSchema: !!cleanJsonSchema,
+        schemaType: typeof cleanJsonSchema,
+        schemaKeys: cleanJsonSchema ? Object.keys(cleanJsonSchema) : [],
+        schemaStringified: JSON.stringify(cleanJsonSchema).substring(0, 500),
+      });
+
+      // Ensure we have a valid schema object
+      if (!cleanJsonSchema || typeof cleanJsonSchema !== 'object') {
+        logger.error('Invalid schema object generated', {
+          operation: 'generateStructuredOutput',
+          component: 'openaiService',
+          originalSchema: schema,
+          jsonSchema,
+          cleanJsonSchema,
+        });
+        throw new Error('Failed to convert Zod schema to valid JSON Schema');
+      }
+
       const client = getOpenAIClient();
       const completion = await client.chat.completions.create({
         model: finalConfig.model,
@@ -114,7 +137,7 @@ export class OpenAIStructuredService implements ILLMService {
         response_format: {
           type: 'json_schema',
           json_schema: {
-            name: 'output_schema',
+            name: 'response_schema',
             strict: true,
             schema: cleanJsonSchema,
           },

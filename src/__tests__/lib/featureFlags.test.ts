@@ -11,19 +11,13 @@ import {
   clearFeatureFlagCache,
   FEATURE_FLAGS
 } from '@/lib/featureFlags'
+import { createMockSupabaseClient } from '../utils/mockFactories.util'
 
-// Mock Supabase client
-const mockSupabaseClient = {
-  from: jest.fn(() => mockSupabaseClient),
-  select: jest.fn(() => mockSupabaseClient),
-  eq: jest.fn(() => mockSupabaseClient),
-  or: jest.fn(() => mockSupabaseClient),
-  maybeSingle: jest.fn(),
-  single: jest.fn(),
-  auth: {
-    getUser: jest.fn()
-  }
-}
+// Create mock client using factory
+const mockSupabaseClient = createMockSupabaseClient()
+
+// Add specific methods needed for feature flags tests
+mockSupabaseClient.or = jest.fn(() => mockSupabaseClient)
 
 // Mock the createClient function
 jest.mock('@/utils/supabase/server', () => ({
@@ -366,28 +360,27 @@ describe('Feature Flags System', () => {
 
 describe('Feature Flag Cache', () => {
   it('should cache flag configurations', async () => {
-    // Mock no user override
-    mockSupabaseClient.maybeSingle.mockResolvedValue({ data: null })
-    
-    // Mock flag config
-    mockSupabaseClient.maybeSingle.mockResolvedValue({
-      data: {
-        id: 'flag-1',
-        flag_name: 'cached_flag',
-        is_enabled: true,
-        rollout_percentage: 100
-      }
-    })
+    // Mock responses in order: user override (null), flag config, user override again
+    mockSupabaseClient.maybeSingle
+      .mockResolvedValueOnce({ data: null })  // First call: no user override
+      .mockResolvedValueOnce({  // Second call: flag config
+        data: {
+          id: 'flag-1',
+          flag_name: 'cached_flag',
+          is_enabled: true,
+          rollout_percentage: 100
+        }
+      })
+      .mockResolvedValueOnce({ data: null })  // Third call: no user override again
 
     // First call should hit database
     await isFeatureEnabled('user-123', 'cached_flag')
     
-    // Second call should use cache (within TTL)
+    // Second call should use cache for flag config, but still check user override
     await isFeatureEnabled('user-123', 'cached_flag')
     
-    // Should have been called twice (once for user override, once for flag config)
-    // But flag config should be cached
-    expect(mockSupabaseClient.maybeSingle).toHaveBeenCalledTimes(3) // 2 for first call, 1 for second
+    // Should have been called 3 times: 2 for first call (user + flag), 1 for second call (user only)
+    expect(mockSupabaseClient.maybeSingle).toHaveBeenCalledTimes(3)
   })
 
   it('should clear cache when requested', () => {

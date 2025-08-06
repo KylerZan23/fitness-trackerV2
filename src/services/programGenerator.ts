@@ -144,17 +144,25 @@ export class ProgramGenerator {
       };
 
       // Generate program using Neural API
-      const neuralResponse = await this.neuralAPI.generateProgram(neuralRequest);
+      let neuralResponse;
+      try {
+        neuralResponse = await this.neuralAPI.generateProgram(neuralRequest);
+      } catch (error) {
+        logger.error('Neural API program generation failed', {
+          operation: 'createNewProgram',
+          component: 'programGenerator',
+          requestId,
+          userId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw new Error("Neural API failed to generate a program.");
+      }
       
       // Enhance and validate the generated program
       const enhancedProgram = this.enhanceProgramForUser(neuralResponse.program, userId);
       
-      // Store program in database
-      const storedProgram = await this.storeProgramInDatabase(enhancedProgram, {
-        onboardingDataSnapshot: validatedOnboardingData,
-        neuralResponse,
-        generationType: 'new_program',
-      });
+      // Neural programs are generated on-demand, no database storage needed
+      const storedProgram = enhancedProgram;
 
       const duration = Date.now() - startTime;
       this.metrics.programsGenerated++;
@@ -237,7 +245,19 @@ export class ProgramGenerator {
       };
 
       // Generate progressed program using Neural API
-      const neuralResponse = await this.neuralAPI.generateProgram(neuralRequest);
+      let neuralResponse;
+      try {
+        neuralResponse = await this.neuralAPI.generateProgram(neuralRequest);
+      } catch (error) {
+        logger.error('Neural API program progression failed', {
+          operation: 'progressProgram',
+          component: 'programGenerator',
+          requestId,
+          userId: currentProgram.userId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw new Error("Neural API failed to generate a program.");
+      }
       
       // Enhance progressed program with continuity from current program
       const progressedProgram = this.enhanceProgressedProgram(
@@ -246,14 +266,8 @@ export class ProgramGenerator {
         validatedProgressData
       );
       
-      // Store progressed program in database
-      const storedProgram = await this.storeProgramInDatabase(progressedProgram, {
-        onboardingDataSnapshot: onboardingData,
-        neuralResponse,
-        generationType: 'program_progression',
-        previousProgramId: validatedProgram.id,
-        progressData: validatedProgressData,
-      });
+      // Neural programs are generated on-demand, no database storage needed
+      const storedProgram = progressedProgram;
 
       const duration = Date.now() - startTime;
       this.metrics.programsProgressed++;
@@ -479,45 +493,19 @@ export class ProgramGenerator {
   }
 
   /**
-   * Extract onboarding context from existing program or database
+   * Extract onboarding context from program structure (Neural programs don't store snapshots)
    * 
    * @private
    */
   private async extractOnboardingContext(program: TrainingProgram): Promise<OnboardingData> {
-    try {
-      const supabase = await createClient();
-      const { data: programRecord, error } = await supabase
-        .from('training_programs')
-        .select('onboarding_data_snapshot')
-        .eq('id', program.id)
-        .single();
+    logger.info('Deriving onboarding context from program structure (Neural system)', {
+      operation: 'extractOnboardingContext',
+      component: 'programGenerator',
+      programId: program.id,
+    });
 
-      if (error || !programRecord?.onboarding_data_snapshot) {
-        // Fallback: derive basic onboarding data from program structure
-        logger.warn('Could not fetch onboarding data snapshot, using fallback', {
-          operation: 'extractOnboardingContext',
-          component: 'programGenerator',
-          programId: program.id,
-          error: error?.message,
-        });
-
-        return this.deriveOnboardingDataFromProgram(program);
-      }
-
-      return ENHANCED_PROGRAM_VALIDATION.neural.onboardingData.parse(
-        programRecord.onboarding_data_snapshot
-      );
-    } catch (error) {
-      logger.error('Failed to extract onboarding context', {
-        operation: 'extractOnboardingContext',
-        component: 'programGenerator',
-        programId: program.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      // Use fallback method
-      return this.deriveOnboardingDataFromProgram(program);
-    }
+    // Neural programs don't store onboarding snapshots, derive from program structure
+    return this.deriveOnboardingDataFromProgram(program);
   }
 
   /**
@@ -577,82 +565,7 @@ export class ProgramGenerator {
     };
   }
 
-  /**
-   * Store program in database with metadata
-   * 
-   * @private
-   */
-  private async storeProgramInDatabase(
-    program: TrainingProgram,
-    metadata: {
-      onboardingDataSnapshot: OnboardingData;
-      neuralResponse: NeuralResponse;
-      generationType: 'new_program' | 'program_progression';
-      previousProgramId?: string;
-      progressData?: ProgressData;
-    }
-  ): Promise<TrainingProgram> {
-    try {
-      const supabase = await createClient();
-      
-      const { data, error } = await supabase
-        .from('training_programs')
-        .insert({
-          id: program.id,
-          user_id: program.userId,
-          program_details: program,
-          program_name: program.programName,
-          total_duration_weeks: 1, // Neural programs are week-by-week
-          is_active: true,
-          onboarding_data_snapshot: metadata.onboardingDataSnapshot,
-          generation_metadata: {
-            generation_type: metadata.generationType,
-            neural_response: metadata.neuralResponse,
-            previous_program_id: metadata.previousProgramId,
-            progress_data: metadata.progressData,
-            generated_at: new Date().toISOString(),
-            ai_model_version: 'neural-v1',
-          },
-        })
-        .select()
-        .single();
 
-      if (error) {
-        throw new ProgramGeneratorError(
-          ProgramGeneratorErrorType.DATABASE_ERROR,
-          `Failed to store program in database: ${error.message}`,
-          { programId: program.id, error: error.message }
-        );
-      }
-
-      logger.info('Program stored in database successfully', {
-        operation: 'storeProgramInDatabase',
-        component: 'programGenerator',
-        programId: program.id,
-        userId: program.userId,
-        generationType: metadata.generationType,
-      });
-
-      return program;
-    } catch (error) {
-      if (error instanceof ProgramGeneratorError) {
-        throw error;
-      }
-
-      logger.error('Database storage failed', {
-        operation: 'storeProgramInDatabase',
-        component: 'programGenerator',
-        programId: program.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      throw new ProgramGeneratorError(
-        ProgramGeneratorErrorType.DATABASE_ERROR,
-        `Unexpected database error: ${error instanceof Error ? error.message : String(error)}`,
-        { programId: program.id }
-      );
-    }
-  }
 
   /**
    * Handle errors and convert to standard result format

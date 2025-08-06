@@ -1,9 +1,11 @@
 import { jest } from '@jest/globals'
-import { type SupabaseClient } from '@/utils/supabase/server'
 
 /**
  * Shared mock factories for consistent testing patterns across all server action tests
  */
+
+// Simplified mock types for testing
+export type MockSupabaseClient = any
 
 export type MockUser = {
   id: string
@@ -106,44 +108,78 @@ export const createMockFeedback = (overrides: Partial<MockFeedback> = {}): MockF
 /**
  * Supabase client mock factory
  */
-export const createMockSupabaseClient = (): jest.Mocked<SupabaseClient> =>
-  ({
+export const createMockSupabaseClient = (): MockSupabaseClient => {
+  // Create terminal mock functions that support both mockResolvedValue and mockResolvedValueOnce
+  const createTerminalMock = () => {
+    const mock = jest.fn()
+    mock.mockResolvedValue({
+      data: null,
+      error: null,
+    })
+    return mock
+  }
+
+  const createQueryChain = () => {
+    const chain: any = {
+      select: jest.fn() as any,
+      eq: jest.fn() as any,
+      order: jest.fn() as any,
+      limit: jest.fn() as any,
+      insert: jest.fn() as any,
+      update: jest.fn() as any,
+      upsert: jest.fn() as any,
+      single: createTerminalMock(),
+      maybeSingle: createTerminalMock(),
+      or: jest.fn() as any,
+    }
+    
+    // Make all methods return the chain to enable fluent chaining
+    chain.select.mockReturnValue(chain)
+    chain.eq.mockReturnValue(chain)
+    chain.order.mockReturnValue(chain)
+    chain.limit.mockReturnValue(chain)
+    chain.insert.mockReturnValue(chain)
+    chain.update.mockReturnValue(chain)
+    chain.upsert.mockReturnValue(chain)
+    chain.or.mockReturnValue(chain)
+    
+    return chain
+  }
+
+  // Create a reusable query chain for direct access (for legacy test compatibility)
+  const mainQueryChain = createQueryChain()
+
+  const client: any = {
     auth: {
-      getUser: jest.fn().mockResolvedValue({
-        data: { user: null },
-        error: null,
-      } as any),
-      getSession: jest.fn().mockResolvedValue({
-        data: { session: null },
-        error: null,
-      } as any),
+      getUser: jest.fn() as any,
+      getSession: jest.fn() as any,
     },
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    order: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockResolvedValue({
-      data: [],
-      error: null,
-    } as any),
-    update: jest.fn().mockResolvedValue({
-      data: [],
-      error: null,
-    } as any),
-    upsert: jest.fn().mockResolvedValue({
-      data: [],
-      error: null,
-    } as any),
-    single: jest.fn().mockResolvedValue({
-      data: null,
-      error: null,
-    } as any),
-    rpc: jest.fn().mockResolvedValue({
-      data: null,
-      error: null,
-    } as any),
-  } as any as jest.Mocked<SupabaseClient>)
+    from: jest.fn(() => mainQueryChain) as any, // Return the same chain so test mocks work
+    rpc: jest.fn() as any,
+    // Expose terminal methods at top level for legacy test compatibility
+    maybeSingle: mainQueryChain.maybeSingle,
+    single: mainQueryChain.single,
+    select: mainQueryChain.select,
+    eq: mainQueryChain.eq,
+    or: mainQueryChain.or,
+  }
+
+  // Configure default mock behaviors
+  client.auth.getUser.mockResolvedValue({
+    data: { user: null },
+    error: null,
+  })
+  client.auth.getSession.mockResolvedValue({
+    data: { session: null },
+    error: null,
+  })
+  client.rpc.mockResolvedValue({
+    data: null,
+    error: null,
+  })
+
+  return client
+}
 
 /**
  * Helper functions for common test scenarios
@@ -437,3 +473,32 @@ export const expectConsistentResults = <T>(results: T[], compareFn?: (a: T, b: T
     })
   }
 }
+
+/**
+ * Test suite for mock factories
+ */
+describe('Mock Factories', () => {
+  describe('createMockSupabaseClient', () => {
+    it('should create a functional mock client', () => {
+      const client = createMockSupabaseClient()
+      expect(client).toBeDefined()
+      expect(client.auth).toBeDefined()
+      expect(client.from).toBeDefined()
+      expect(typeof client.auth.getUser).toBe('function')
+    })
+  })
+
+  describe('createMockUser', () => {
+    it('should create a mock user with default values', () => {
+      const user = createMockUser()
+      expect(user.id).toBe('test-user-id')
+      expect(user.email).toBe('test@example.com')
+    })
+
+    it('should apply overrides correctly', () => {
+      const user = createMockUser({ email: 'custom@example.com' })
+      expect(user.email).toBe('custom@example.com')
+      expect(user.id).toBe('test-user-id') // default preserved
+    })
+  })
+})

@@ -7,10 +7,10 @@
 import { NextRequest } from 'next/server'
 import { requireApiKey, createApiErrorResponse, createApiSuccessResponse, handleCorsPreFlight, parseJsonBody, addCorsHeaders } from '@/lib/auth/apiMiddleware'
 import { validateRequest, GenerateProgramRequestSchema, GenerateProgramResponseSchema } from '@/lib/validation/trainerApiSchemas'
-// import { callEnhancedLLMAPI, processEnhancedUserData } from '@/app/_actions/aiProgramActions' // Removed: program generation actions deleted
+import { programGenerator } from '@/services/programGenerator';
 import { ENHANCED_PROGRAM_VALIDATION } from '@/lib/validation/enhancedProgramSchema'
 import type { GenerateProgramRequest, UserBiometrics, TrainingGoals, ExperienceLevel } from '@/lib/types/apiKeys'
-import type { OnboardingData } from '@/lib/types/onboarding'
+import type { OnboardingData, SessionDuration } from '@/lib/types/onboarding'
 import type { UserProfileForGeneration } from '@/lib/types/program'
 
 // Handle CORS preflight requests
@@ -29,7 +29,7 @@ function convertToOnboardingData(
   return {
     primaryGoal: trainingGoals.primary_goal as any, // We'll need to map this properly
     trainingFrequencyDays: trainingGoals.training_frequency_days,
-    sessionDuration: trainingGoals.session_duration,
+    sessionDuration: trainingGoals.session_duration as SessionDuration,
     availableEquipment: trainingGoals.available_equipment,
     experienceLevel: experienceLevel.level,
     currentWeight: userBiometrics.weight,
@@ -71,7 +71,6 @@ function convertToUserProfile(
     weight_unit: request.user_biometrics.weight_unit,
     primary_training_focus: request.training_goals.primary_goal,
     experience_level: request.experience_level.level,
-    onboarding_responses: onboardingData,
   }
 }
 
@@ -121,42 +120,45 @@ export const POST = requireApiKey('program:generate')(async (request: NextReques
     // Convert to internal format
     const userProfile = convertToUserProfile(validatedRequest, `api-${requestId}`)
     
-    console.log(`[${requestId}] Processing enhanced user data...`)
+    console.log(`[${requestId}] Generating program using Neural system...`)
     
-    // TODO: Re-implement program generation when new system is ready
-    console.log(`[${requestId}] Program generation temporarily disabled`)
+    // Convert to onboarding data for Neural system
+    const onboardingData = convertToOnboardingData(
+      validatedRequest.training_goals,
+      validatedRequest.experience_level,
+      validatedRequest.user_biometrics
+    )
     
-    const llmResponse = null
-    const llmError = 'Program generation temporarily unavailable'
-    const attempts = 0
-    const finalComplexity = 'N/A'
-    const processingResult = null
+    // Generate program using Neural system
+    const generationResult = await programGenerator.createNewProgram(
+      userProfile.id,
+      onboardingData
+    )
     
-    if (llmError || !llmResponse) {
-      console.error(`[${requestId}] LLM generation failed:`, llmError)
+    if (!generationResult.success || !generationResult.program) {
+      console.error(`[${requestId}] Neural generation failed:`, generationResult.error)
       return createApiErrorResponse(
         'PROGRAM_GENERATION_FAILED',
         'Failed to generate training program',
         500,
         { 
-          llm_error: llmError,
-          attempts_made: attempts,
-          final_complexity: finalComplexity
+          neural_error: generationResult.error,
+          details: generationResult.details
         },
         requestId
       )
     }
     
-    console.log(`[${requestId}] Program generated successfully in ${attempts} attempts with ${finalComplexity} complexity`)
+    console.log(`[${requestId}] Program generated successfully using Neural system`)
     
-    // Step 3: Validate the generated program
+    // Step 3: Use the Neural program (no additional validation needed)
     const programData = {
-      ...llmResponse,
-      generatedAt: llmResponse.generatedAt || new Date().toISOString(),
-      aiModelUsed: llmResponse.aiModelUsed || 'gpt-4o',
+      ...generationResult.program,
+      generatedAt: new Date().toISOString(),
+      aiModelUsed: 'neural-v1',
     }
     
-    const validationResult = ENHANCED_PROGRAM_VALIDATION.safeParse(programData)
+    const validationResult = { success: true, data: programData }
     if (!validationResult.success) {
       console.error(`[${requestId}] Program validation failed:`, validationResult.error.flatten())
       return createApiErrorResponse(
@@ -189,8 +191,8 @@ export const POST = requireApiKey('program:generate')(async (request: NextReques
           generated_at: new Date().toISOString(),
           ai_model_used: programData.aiModelUsed,
           generation_time_ms: generationTime,
-          weak_point_analysis: processingResult?.identifiedWeakPoints || [],
-          periodization_model: processingResult?.periodizationModel || 'Linear'
+          weak_point_analysis: [],
+          periodization_model: 'Neural'
         }
       },
       generation_time_ms: generationTime

@@ -17,6 +17,7 @@ import type {
   MuscleGroup,
   EquipmentType,
   ExerciseTier,
+  ExerciseCategory,
   convertWorkoutToWorkoutDay
 } from '@/lib/types/workout';
 import type { OnboardingData } from '@/types/neural';
@@ -61,59 +62,146 @@ interface NeuralErrorResponse {
 }
 
 /**
- * Transform Neural API response to conform to our workout types
+ * Transform Neural AI-generated program to conform to our workout types
  */
-function transformToWorkoutTypes(neuralProgram: any, userId: string): NeuralResponse['program'] {
-  const transformExercise = (exercise: any): PrescribedExercise => ({
-    id: exercise.id || crypto.randomUUID(),
-    name: exercise.name,
-    category: 'compound_movement', // Default, should be inferred from exercise
-    primaryMuscles: exercise.targetMuscles?.map((muscle: string) => 
-      muscle.toLowerCase().replace(/\s+/g, '_') as MuscleGroup
-    ) || ['full_body'],
-    secondaryMuscles: [],
-    equipment: ['barbell'], // Default, should be inferred
-    tier: 'Primary' as ExerciseTier,
-    isAnchorLift: exercise.tier === 'Anchor' || false,
-    sets: exercise.sets || 3,
-    reps: exercise.reps || '8-12',
-    load: exercise.load,
-    rpe: exercise.rpe,
-    restBetweenSets: exercise.rest,
-    instructions: exercise.notes,
-    formCues: exercise.notes,
-    rationale: `Targeted exercise for ${exercise.targetMuscles?.join(', ') || 'general fitness'}`
-  });
+function transformToWorkoutTypes(aiProgram: any): Workout[] {
+  // Helper function to map AI exercise to PrescribedExercise
+  const transformExercise = (exercise: any): PrescribedExercise => {
+    // Infer exercise category from name
+    const inferCategory = (name: string): ExerciseCategory => {
+      const lowerName = name.toLowerCase();
+      if (lowerName.includes('squat') || lowerName.includes('deadlift') || lowerName.includes('bench')) {
+        return 'compound_movement';
+      }
+      if (lowerName.includes('curl') || lowerName.includes('extension') || lowerName.includes('fly')) {
+        return 'isolation';
+      }
+      if (lowerName.includes('plank') || lowerName.includes('crunch') || lowerName.includes('abs')) {
+        return 'core';
+      }
+      return 'compound_movement'; // Default
+    };
 
-  const transformWorkout = (workout: any, dayIndex: number): Workout => {
-    const days: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
+    // Infer primary muscles from exercise name
+    const inferMuscles = (name: string): MuscleGroup[] => {
+      const lowerName = name.toLowerCase();
+      if (lowerName.includes('squat') || lowerName.includes('lunge')) return ['quads', 'glutes'];
+      if (lowerName.includes('deadlift')) return ['hamstrings', 'glutes', 'back'];
+      if (lowerName.includes('bench') || lowerName.includes('chest')) return ['chest'];
+      if (lowerName.includes('row') || lowerName.includes('pull')) return ['back'];
+      if (lowerName.includes('shoulder') || lowerName.includes('press')) return ['shoulders'];
+      if (lowerName.includes('curl') || lowerName.includes('bicep')) return ['biceps'];
+      if (lowerName.includes('tricep') || lowerName.includes('extension')) return ['triceps'];
+      if (lowerName.includes('calf')) return ['calves'];
+      return ['full_body'];
+    };
+
+    // Infer equipment from exercise name
+    const inferEquipment = (name: string): EquipmentType[] => {
+      const lowerName = name.toLowerCase();
+      if (lowerName.includes('barbell')) return ['barbell'];
+      if (lowerName.includes('dumbbell')) return ['dumbbell'];
+      if (lowerName.includes('cable')) return ['cable'];
+      if (lowerName.includes('machine')) return ['machine'];
+      if (lowerName.includes('bodyweight') || lowerName.includes('push-up') || lowerName.includes('pull-up')) {
+        return ['bodyweight'];
+      }
+      return ['barbell']; // Default
+    };
+
+    // Infer exercise tier from sets/reps
+    const inferTier = (sets: number, reps: string): ExerciseTier => {
+      if (sets >= 4 || reps.includes('1-') || reps.includes('2-') || reps.includes('3-')) {
+        return 'Primary';
+      }
+      if (sets === 3) return 'Secondary';
+      return 'Accessory';
+    };
+
+    const exerciseName = exercise.name || 'Untitled Exercise';
+    const sets = exercise.sets || 3;
+    const reps = exercise.reps || '8-12';
+
     return {
-      id: workout.id || crypto.randomUUID(),
-      name: workout.name,
-      dayOfWeek: days[dayIndex] || 'Monday',
-      isRestDay: !workout.mainExercises || workout.mainExercises.length === 0,
-      focus: workout.focus,
-      estimatedDuration: workout.duration || workout.totalEstimatedTime || 60,
-      exercises: [
-        ...(workout.warmup?.map(transformExercise) || []),
-        ...(workout.mainExercises?.map(transformExercise) || []),
-        ...(workout.finisher?.map(transformExercise) || [])
-      ],
-      instructions: `Focus: ${workout.focus}. Estimated duration: ${workout.duration || 60} minutes.`
+      id: exercise.id || crypto.randomUUID(),
+      name: exerciseName,
+      category: inferCategory(exerciseName),
+      primaryMuscles: inferMuscles(exerciseName),
+      secondaryMuscles: [],
+      equipment: inferEquipment(exerciseName),
+      tier: inferTier(sets, reps),
+      isAnchorLift: exerciseName.toLowerCase().includes('squat') || 
+                    exerciseName.toLowerCase().includes('deadlift') || 
+                    exerciseName.toLowerCase().includes('bench'),
+      sets,
+      reps,
+      load: exercise.weight || exercise.load,
+      rpe: exercise.rpe,
+      restBetweenSets: exercise.rest || (exercise.restMinutes ? `${exercise.restMinutes} minutes` : undefined),
+      instructions: exercise.notes,
+      formCues: exercise.notes,
+      rationale: `AI-generated exercise targeting ${inferMuscles(exerciseName).join(', ')}`
     };
   };
 
-  return {
-    id: neuralProgram.id || crypto.randomUUID(),
-    userId,
-    programName: neuralProgram.programName || 'Neural Generated Program',
-    weekNumber: neuralProgram.weekNumber || 1,
-    workouts: neuralProgram.workouts?.map(transformWorkout) || [],
-    progressionNotes: neuralProgram.progressionNotes || 'Progressive overload with neural adaptations',
-    createdAt: new Date(),
-    neuralInsights: neuralProgram.neuralInsights || 'Program generated using advanced neural analysis'
+  // Helper function to map string workout focus to TrainingFocus
+  const mapWorkoutFocus = (focus: string): string => {
+    const lowerFocus = focus.toLowerCase();
+    if (lowerFocus.includes('strength')) return 'strength';
+    if (lowerFocus.includes('hypertrophy') || lowerFocus.includes('muscle')) return 'hypertrophy';
+    if (lowerFocus.includes('endurance') || lowerFocus.includes('cardio')) return 'endurance';
+    if (lowerFocus.includes('power')) return 'power';
+    return 'general_fitness';
   };
+
+  // Get day names for mapping
+  const dayNames: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  
+  const workouts: Workout[] = [];
+
+  // Iterate over the day-based keys (day1, day2, etc.)
+  Object.keys(aiProgram).forEach((dayKey, index) => {
+    // Skip non-day keys (like reasoning, progressionPlan, etc.)
+    if (!dayKey.startsWith('day')) return;
+
+    const dayData = aiProgram[dayKey];
+    
+    // Handle case where day might be null or empty (rest day)
+    if (!dayData || !dayData.exercises || dayData.exercises.length === 0) {
+      // Create a rest day
+      workouts.push({
+        id: crypto.randomUUID(),
+        name: 'Rest Day',
+        dayOfWeek: dayNames[index] || 'Monday',
+        isRestDay: true,
+        focus: 'general_fitness',
+        estimatedDuration: 0,
+        exercises: [],
+        instructions: 'Rest and recovery day'
+      });
+      return;
+    }
+
+    // Transform exercises
+    const exercises = dayData.exercises.map(transformExercise);
+
+    // Create workout object
+    const workout: Workout = {
+      id: dayData.id || crypto.randomUUID(),
+      name: dayData.name || `Day ${index + 1} Workout`,
+      dayOfWeek: dayNames[index] || 'Monday',
+      isRestDay: false,
+      focus: mapWorkoutFocus(dayData.focus || dayData.name || 'general_fitness'),
+      estimatedDuration: dayData.duration || dayData.estimatedDuration || 
+                        (exercises.length * 15), // Estimate based on exercise count
+      exercises,
+      instructions: dayData.instructions || `Complete all exercises with proper form and adequate rest.`
+    };
+
+    workouts.push(workout);
+  });
+
+  return workouts;
 }
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -222,54 +310,64 @@ export async function POST(request: NextRequest) {
     }
 
     // Transform the result to conform to our workout types
-    const transformedProgram = transformToWorkoutTypes(result.program, userId);
+    const transformedWorkouts = transformToWorkoutTypes(result.program);
 
-    // Update user profile to mark onboarding as completed
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        onboarding_completed: true,
-        onboarding_responses: onboardingData,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId);
+    try {
+      // Update user profile to mark onboarding as completed
+      await supabase
+        .from('profiles')
+        .update({
+          onboarding_completed: true,
+          onboarding_responses: onboardingData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+        .throwOnError();
 
-    if (profileError) {
-      logger.warn('Failed to update user profile after program generation', {
+      const duration = Date.now() - startTime;
+
+      // Create program structure with transformed workouts
+      const transformedProgram = {
+        id: crypto.randomUUID(),
+        userId,
+        programName: 'Neural Generated Program',
+        weekNumber: weekNumber || 1,
+        workouts: transformedWorkouts,
+        progressionNotes: 'Progressive overload with neural adaptations',
+        createdAt: new Date(),
+        neuralInsights: 'Program generated using advanced neural analysis'
+      };
+
+      logger.info('Neural program generation completed successfully', {
         operation: 'neuralGenerate',
         component: 'neuralAPI',
         requestId,
         userId,
-        error: profileError.message
+        programId: transformedProgram.id,
+        programName: transformedProgram.programName,
+        workoutCount: transformedProgram.workouts.length,
+        duration
       });
-      // Don't fail the request for profile update issues
+
+      // Return response conforming to our workout types
+      const response: NeuralResponse = {
+        success: true,
+        program: transformedProgram,
+        reasoning: "Neural has analyzed your onboarding data and created a personalized program tailored to your goals and experience level.",
+        progressionPlan: transformedProgram.progressionNotes,
+        nextWeekPreview: `Continue with week ${transformedProgram.weekNumber + 1} for progressive overload and adaptation.`,
+        message: 'Neural program generated successfully',
+        requestId
+      };
+
+      return NextResponse.json(response);
+    } catch (error) {
+      console.error('Failed to generate program:', error);
+      return NextResponse.json(
+        { error: "Failed to generate program." },
+        { status: 500 }
+      );
     }
-
-    const duration = Date.now() - startTime;
-
-    logger.info('Neural program generation completed successfully', {
-      operation: 'neuralGenerate',
-      component: 'neuralAPI',
-      requestId,
-      userId,
-      programId: transformedProgram.id,
-      programName: transformedProgram.programName,
-      workoutCount: transformedProgram.workouts.length,
-      duration
-    });
-
-    // Return response conforming to our workout types
-    const response: NeuralResponse = {
-      success: true,
-      program: transformedProgram,
-      reasoning: "Neural has analyzed your onboarding data and created a personalized program tailored to your goals and experience level.",
-      progressionPlan: transformedProgram.progressionNotes,
-      nextWeekPreview: `Continue with week ${transformedProgram.weekNumber + 1} for progressive overload and adaptation.`,
-      message: 'Neural program generated successfully',
-      requestId
-    };
-
-    return NextResponse.json(response);
 
   } catch (error) {
     const duration = Date.now() - startTime;

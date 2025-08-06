@@ -1,24 +1,24 @@
 import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { IndepthAnalysisCard } from './IndepthAnalysisCard'
-import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
 
 // Mock Supabase
-jest.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          gte: jest.fn(() => ({
-            lte: jest.fn(() => ({
-              order: jest.fn(() => Promise.resolve({ data: [], error: null }))
-            }))
+const mockSupabase = {
+  from: jest.fn(() => ({
+    select: jest.fn(() => ({
+      eq: jest.fn(() => ({
+        gte: jest.fn(() => ({
+          lte: jest.fn(() => ({
+            order: jest.fn(() => Promise.resolve({ data: [], error: null }))
           }))
         }))
       }))
     }))
-  }
+  }))
+}
+
+jest.mock('@/utils/supabase/client', () => ({
+  createClient: () => mockSupabase,
 }))
 
 // Mock date-fns-tz to control timezone behavior
@@ -35,8 +35,6 @@ jest.mock('date-fns', () => ({
   endOfDay: jest.fn(() => new Date('2024-01-15T23:59:59.999Z')),
   getDay: jest.fn(() => 1) // Monday
 }))
-
-const mockSupabase = supabase as jest.Mocked<typeof supabase>
 
 describe('IndepthAnalysisCard', () => {
   const defaultProps = {
