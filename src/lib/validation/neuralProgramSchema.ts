@@ -1,238 +1,96 @@
-/**
- * Simplified Neural Program Schema
- * 
- * This schema is designed to match the actual AI output structure,
- * replacing the overly complex enhancedProgramSchema.ts for Neural program validation.
- * 
- * Based on the AI's actual response structure observed in logs:
- * {
- *   "program_name": "Intermediate Hypertrophy Builder",
- *   "workouts": [...]
- * }
- */
-
+// src/lib/validation/neuralProgramSchema.ts
 import { z } from 'zod';
 
-/**
- * Onboarding data validation for Neural system
- */
-export const NeuralOnboardingDataSchema = z.object({
-  primaryFocus: z.enum(['hypertrophy', 'strength', 'general_fitness']),
-  experienceLevel: z.enum(['beginner', 'intermediate', 'advanced']),
-  sessionDuration: z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90)]),
-  equipmentAccess: z.enum(['full_gym', 'dumbbells_only', 'bodyweight_only']),
+// --- Base Schemas for Internal and API Validation ---
+
+export const neuralOnboardingDataSchema = z.object({
+  primaryFocus: z.string(),
+  experienceLevel: z.string(),
+  sessionDuration: z.number(),
+  equipmentAccess: z.string(),
   personalRecords: z.object({
-    squat: z.number().positive().optional(),
-    bench: z.number().positive().optional(),
-    deadlift: z.number().positive().optional(),
-  }).optional(),
-  additionalInfo: z.object({
-    injuryHistory: z.string().optional(),
-    preferences: z.array(z.string()).optional(),
-    availableDays: z.number().int().min(1).max(7).optional(),
+    squat: z.number().optional(),
+    bench: z.number().optional(),
+    deadlift: z.number().optional(),
   }).optional(),
 });
 
-/**
- * Progress data validation for Neural system
- */
-export const NeuralProgressDataSchema = z.object({
-  strengthProgress: z.record(z.object({
-    previousBest: z.number(),
-    current: z.number(),
-    unit: z.string(),
-    measuredAt: z.date(),
-  })).optional(),
-  workoutFeedback: z.object({
-    averageFatigue: z.number().min(1).max(10),
-    averageMotivation: z.number().min(1).max(10),
-    completionRate: z.number().min(0).max(1),
-    workoutsCompleted: z.number().int().nonnegative(),
-  }).optional(),
-  bodyComposition: z.object({
-    weightChange: z.number().optional(),
-    bodyFatChange: z.number().optional(),
-    measuredAt: z.date(),
-  }).optional(),
-  recoveryMetrics: z.object({
-    averageSleepHours: z.number().positive(),
-    sleepQuality: z.number().min(1).max(10),
-    stressLevel: z.number().min(1).max(10),
-  }).optional(),
+export const neuralRequestSchema = neuralOnboardingDataSchema.extend({
+    regenerate: z.boolean().optional(),
+    weekNumber: z.number().optional(),
 });
 
-/**
- * Neural request validation
- */
-export const NeuralRequestSchema = z.object({
-  onboardingData: NeuralOnboardingDataSchema,
-  currentWeek: z.number().int().positive(),
-  previousProgress: NeuralProgressDataSchema.optional(),
+export const neuralProgressDataSchema = z.record(z.any()).optional();
+
+
+// --- AI-Facing Schemas for OpenAI Generation ---
+
+const baseExerciseSchema = z.object({
+    exercise: z.string().describe("The name of the exercise."),
+    sets: z.number().describe("The number of sets."),
+    reps: z.union([z.string(), z.number()]).describe("The number of reps or duration."),
+    load: z.string().describe("The weight or intensity (e.g., '50 lbs', 'Bodyweight', 'RPE 7')."),
+    rest: z.string().describe("The rest period after the exercise (e.g., '60s', '2-3 min')."),
+    description: z.string().optional().describe("A brief description of the exercise."),
 });
 
-/**
- * Base exercise schema for main exercises
- */
-export const NeuralExerciseSchema = z.object({
-  exercise: z.string(),
-  sets: z.number(),
-  reps: z.union([z.string(), z.number()]),
-  load: z.string(),
-  rest: z.string(),
-  RPE: z.number().optional(),
-  description: z.string().optional(),
-  coaching_cues: z.string().optional(),
+const warmupExerciseSchema = baseExerciseSchema.extend({
+    intensity: z.string().describe("Intensity level (e.g., 'Light cardio').")
 });
 
-/**
- * Warmup exercise schema with flexible structure
- * Warmup exercises can use duration/intensity OR sets/reps structure
- */
-export const WarmupExerciseSchema = z.object({
-  exercise: z.string(),
-  // Warmup can use either duration-based or sets-based approach
-  duration: z.string().optional(),
-  intensity: z.string().optional(),
-  // OR traditional sets/reps structure
-  sets: z.number().optional(),
-  reps: z.union([z.string(), z.number()]).optional(),
-  load: z.string().optional(),
-  rest: z.string().optional(),
-  description: z.string().optional(),
+const mainExerciseSchema = baseExerciseSchema.extend({
+    RPE: z.number().min(1).max(10).optional().describe("Rate of Perceived Exertion (1-10)."),
+    coaching_cues: z.string().optional().describe("Specific coaching cues for form.")
 });
 
-/**
- * Finisher exercise schema with flexible structure
- * Optional finishers might not have load requirements
- */
-export const FinisherExerciseSchema = z.object({
-  exercise: z.string(),
-  sets: z.number().optional(),
-  reps: z.union([z.string(), z.number()]).optional(),
-  load: z.string().optional(),
-  rest: z.string().optional(),
-  duration: z.string().optional(),
-  description: z.string().optional(),
+const finisherExerciseSchema = baseExerciseSchema.extend({
+    duration: z.string().describe("Total duration for the finisher (e.g., '5 minutes').")
 });
 
-/**
- * Workout schema matching AI output structure
- */
-export const NeuralWorkoutSchema = z.object({
-  day: z.string(),
-  focus: z.string().optional(), // AI sometimes omits focus field
-  warmup: z.array(WarmupExerciseSchema).optional(),
-  main_exercises: z.array(NeuralExerciseSchema),
-  finisher: z.array(FinisherExerciseSchema).optional(),
-  optional_finisher: z.array(FinisherExerciseSchema).optional(),
+const cooldownExerciseSchema = baseExerciseSchema.extend({
+    duration: z.string().describe("Duration for each stretch (e.g., '30s per side').")
 });
 
-/**
- * Simplified Neural program schema that matches AI output exactly
- */
-export const SimplifiedNeuralProgramSchema = z.object({
-  program_name: z.string(),
-  workouts: z.array(NeuralWorkoutSchema),
+const workoutSchema = z.object({
+    day: z.string().describe("Assigned day (e.g., 'Day 1', 'Monday')."),
+    focus: z.string().describe("Primary focus of the workout (e.g., 'Full Body Strength')."),
+    warmup: z.array(warmupExerciseSchema).describe("List of warmup exercises."),
+    main_exercises: z.array(mainExerciseSchema).describe("List of main exercises."),
+    optional_finisher: z.array(finisherExerciseSchema).optional().describe("Optional high-intensity finisher."),
+    cooldown: z.array(cooldownExerciseSchema).optional().describe("List of cooldown stretches.")
 });
 
-/**
- * Raw AI response schema - what the AI actually returns
- * This matches the structure observed in the logs
- */
-export const RawAIResponseSchema = z.object({
-  program_name: z.string(),
-  workouts: z.array(NeuralWorkoutSchema),
+// The top-level schema for the AI's response
+export const outputSchema = z.object({
+    program_name: z.string().describe("A creative name for the training program."),
+    workouts: z.array(workoutSchema).describe("List of all workouts for the week.")
 });
 
-/**
- * Complete Neural API response schema with additional context
- * For backward compatibility with existing code
- */
-export const NeuralAPIResponseSchema = z.object({
-  program_name: z.string(),
-  workouts: z.array(NeuralWorkoutSchema),
-  reasoning: z.string().optional(),
-  progressionPlan: z.string().optional(),
-  nextWeekPreview: z.string().optional(),
-});
+// Alias for the AI's response schema
+export const RawAIResponseSchema = outputSchema;
 
-// Type exports
-export type NeuralOnboardingData = z.infer<typeof NeuralOnboardingDataSchema>;
-export type NeuralProgressData = z.infer<typeof NeuralProgressDataSchema>;
-export type NeuralRequest = z.infer<typeof NeuralRequestSchema>;
-export type NeuralExercise = z.infer<typeof NeuralExerciseSchema>;
-export type WarmupExercise = z.infer<typeof WarmupExerciseSchema>;
-export type FinisherExercise = z.infer<typeof FinisherExerciseSchema>;
-export type NeuralWorkout = z.infer<typeof NeuralWorkoutSchema>;
-export type SimplifiedNeuralProgram = z.infer<typeof SimplifiedNeuralProgramSchema>;
-export type RawAIResponse = z.infer<typeof RawAIResponseSchema>;
-export type NeuralAPIResponse = z.infer<typeof NeuralAPIResponseSchema>;
 
-/**
- * Validation helpers
- */
-export function validateNeuralProgram(data: unknown): { success: true; data: SimplifiedNeuralProgram } | { success: false; error: string } {
-  const result = SimplifiedNeuralProgramSchema.safeParse(data);
-  if (result.success) {
-    return { success: true, data: result.data };
-  }
-  return { 
-    success: false, 
-    error: result.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
-  };
-}
+// --- Validation Functions for Internal Use ---
 
-export function validateRawAIResponse(data: unknown): { success: true; data: RawAIResponse } | { success: false; error: string } {
-  const result = RawAIResponseSchema.safeParse(data);
-  if (result.success) {
-    return { success: true, data: result.data };
-  }
-  return { 
-    success: false, 
-    error: result.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
-  };
-}
+export const validateNeuralOnboardingData = (data: unknown) => neuralOnboardingDataSchema.parse(data);
+export const validateNeuralRequest = (data: unknown) => neuralRequestSchema.parse(data);
+export const validateNeuralProgram = (data: unknown) => outputSchema.parse(data);
+export const validateRawAIResponse = (data: unknown) => RawAIResponseSchema.parse(data);
+export const validateNeuralProgressData = (data: unknown) => neuralProgressDataSchema.parse(data);
 
-export function validateNeuralAPIResponse(data: unknown): { success: true; data: NeuralAPIResponse } | { success: false; error: string } {
-  const result = NeuralAPIResponseSchema.safeParse(data);
-  if (result.success) {
-    return { success: true, data: result.data };
-  }
-  return { 
-    success: false, 
-    error: result.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
-  };
-}
 
-export function validateNeuralRequest(data: unknown): { success: true; data: NeuralRequest } | { success: false; error: string } {
-  const result = NeuralRequestSchema.safeParse(data);
-  if (result.success) {
-    return { success: true, data: result.data };
-  }
-  return { 
-    success: false, 
-    error: result.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
-  };
-}
+// --- Type Exports for Use Throughout the Application ---
 
-export function validateNeuralOnboardingData(data: unknown): { success: true; data: NeuralOnboardingData } | { success: false; error: string } {
-  const result = NeuralOnboardingDataSchema.safeParse(data);
-  if (result.success) {
-    return { success: true, data: result.data };
-  }
-  return { 
-    success: false, 
-    error: result.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
-  };
-}
+export type NeuralProgram = z.infer<typeof outputSchema>;
+export type Workout = z.infer<typeof workoutSchema>;
+export type MainExercise = z.infer<typeof mainExerciseSchema>;
+export type WarmupExercise = z.infer<typeof warmupExerciseSchema>;
+export type FinisherExercise = z.infer<typeof finisherExerciseSchema>;
+export type CooldownExercise = z.infer<typeof cooldownExerciseSchema>;
 
-export function validateNeuralProgressData(data: unknown): { success: true; data: NeuralProgressData } | { success: false; error: string } {
-  const result = NeuralProgressDataSchema.safeParse(data);
-  if (result.success) {
-    return { success: true, data: result.data };
-  }
-  return { 
-    success: false, 
-    error: result.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
-  };
-}
+// Keep singular exports for backward compatibility if needed elsewhere
+export const FinisherExerciseSchema = finisherExerciseSchema;
+export const WarmupExerciseSchema = warmupExerciseSchema;
+export const NeuralExerciseSchema = mainExerciseSchema;
+export const CooldownExerciseSchema = cooldownExerciseSchema;
+export const WorkoutSchema = workoutSchema;

@@ -191,8 +191,11 @@ export function NeuralOnboardingFlow({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId,
-          onboardingData: validatedData
+          primaryFocus: validatedData.primaryFocus,
+          experienceLevel: validatedData.experienceLevel,
+          sessionDuration: parseInt(validatedData.sessionDuration, 10),
+          equipmentAccess: validatedData.equipmentAccess,
+          personalRecords: validatedData.personalRecords
         })
       })
 

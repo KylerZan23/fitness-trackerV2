@@ -5,14 +5,14 @@ import { logger } from '@/lib/logging'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const requestId = crypto.randomUUID();
   const startTime = Date.now();
-  const programId = params.id;
+  const { id: programId } = await params;
 
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     logger.info('Neural program fetch requested', {
       operation: 'fetchNeuralProgram',
@@ -37,7 +37,7 @@ export async function GET(
     // Fetch program using Data Access Layer with RLS protection
     let program;
     try {
-      program = await getNeuralProgramById(params.id, user.id);
+      program = await getNeuralProgramById(programId, user.id);
     } catch (error) {
       logger.warn('Program not found or access denied', {
         operation: 'fetchNeuralProgram',
