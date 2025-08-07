@@ -9,6 +9,7 @@ export async function GET(
 ) {
   const requestId = crypto.randomUUID();
   const startTime = Date.now();
+  const programId = params.id;
 
   try {
     const supabase = createClient();
@@ -17,7 +18,7 @@ export async function GET(
       operation: 'fetchNeuralProgram',
       component: 'programsAPI',
       requestId,
-      programId: params.id
+      programId: programId
     });
 
     // Verify authentication
@@ -27,7 +28,7 @@ export async function GET(
         operation: 'fetchNeuralProgram',
         component: 'programsAPI',
         requestId,
-        programId: params.id,
+        programId: programId,
         error: authError?.message
       });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -42,7 +43,7 @@ export async function GET(
         operation: 'fetchNeuralProgram',
         component: 'programsAPI',
         requestId,
-        programId: params.id,
+        programId: programId,
         userId: user.id,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -59,7 +60,7 @@ export async function GET(
       operation: 'fetchNeuralProgram',
       component: 'programsAPI',
       requestId,
-      programId: params.id,
+      programId: programId,
       userId: user.id,
       duration
     });
@@ -80,7 +81,7 @@ export async function GET(
       operation: 'fetchNeuralProgram',
       component: 'programsAPI',
       requestId,
-      programId: params.id,
+      programId: programId,
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       duration

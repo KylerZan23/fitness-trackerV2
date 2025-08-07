@@ -782,11 +782,13 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 - **Feature Gating**: Pro features protected with upgrade prompts and seamless billing integration
 
 ### Onboarding Experience
-✅ **Comprehensive User Setup**
+✅ **Streamlined Neural Onboarding Flow**
+- New users automatically routed to Neural onboarding (`/neural/onboarding`) for modern AI-powered program creation
 - Multi-step onboarding with fitness goals assessment
 - Strength level evaluation for major lifts
 - Equipment and preference selection
 - Training frequency and experience level setup
+- Direct path from signup to personalized Neural program generation
 
 ## API Documentation
 

@@ -80,8 +80,8 @@ function ConfirmContent() {
           console.log('User has completed onboarding, redirecting to workouts')
           router.push('/workouts')
         } else {
-          console.log('User has not completed onboarding, redirecting to onboarding')
-          router.push('/onboarding')
+          console.log('User has not completed onboarding, redirecting to neural onboarding')
+          router.push('/neural/onboarding')
         }
       } catch (err: unknown) {
         console.error('Confirmation error:', err)

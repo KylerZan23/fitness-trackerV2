@@ -316,7 +316,7 @@ export class NeuralAPI {
         name: exercise.exercise,
         targetMuscles: [], // Would need to be mapped from exercise names
         sets: exercise.sets,
-        reps: exercise.reps.toString(),
+        reps: exercise.reps?.toString() || 'AMRAP',
         load: exercise.load,
         rest: exercise.rest,
         rpe: exercise.RPE?.toString() || "7",
@@ -326,7 +326,7 @@ export class NeuralAPI {
         name: exercise.exercise,
         targetMuscles: [],
         sets: exercise.sets,
-        reps: exercise.reps.toString(),
+        reps: exercise.reps?.toString() || 'AMRAP',
         load: exercise.load,
         rest: exercise.rest,
         rpe: exercise.RPE?.toString() || "6",
@@ -335,7 +335,7 @@ export class NeuralAPI {
         name: exercise.exercise,
         targetMuscles: [],
         sets: exercise.sets,
-        reps: exercise.reps.toString(),
+        reps: exercise.reps?.toString() || 'AMRAP',
         load: exercise.load,
         rest: exercise.rest,
         rpe: "6",
@@ -538,7 +538,46 @@ Focus on creating a program that:
 - Includes clear, actionable exercise descriptions
 - Considers any injury history or preferences mentioned
 
-Be specific with exercise names, rep ranges, and coaching cues. Use natural language for load descriptions (e.g., "moderate weight", "15-20lb dumbbells", "bodyweight").`;
+Be specific with exercise names, rep ranges, and coaching cues. Use natural language for load descriptions (e.g., "moderate weight", "15-20lb dumbbells", "bodyweight").
+
+REQUIRED JSON FORMAT:
+{
+  "program_name": "Descriptive program name",
+  "workouts": [
+    {
+      "day": "Monday",
+      "focus": "Upper Body Push",
+      "warmup": [
+        {
+          "exercise": "Dynamic Stretching",
+          "duration": "10 minutes",
+          "description": "Full body mobility preparation"
+        }
+      ],
+      "main_exercises": [
+        {
+          "exercise": "Bench Press",
+          "sets": 4,
+          "reps": "8-10",
+          "load": "moderate weight",
+          "rest": "90 seconds",
+          "RPE": 7,
+          "coaching_cues": "Control the descent, drive through chest"
+        }
+      ],
+      "optional_finisher": [
+        {
+          "exercise": "Push-ups",
+          "sets": 2,
+          "reps": "AMRAP",
+          "rest": "60 seconds"
+        }
+      ]
+    }
+  ]
+}
+
+Use exactly this structure. The key field is "workouts" (not "week_1_workouts" or any other variation).`;
 
     logger.debug('Generated program generation prompt', {
       operation: 'buildProgramGenerationPrompt',

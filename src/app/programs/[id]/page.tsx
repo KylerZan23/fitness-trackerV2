@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Calendar, Clock, Brain, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -47,9 +47,7 @@ interface ProgramData {
   metadata: Record<string, any>
 }
 
-interface ProgramPageProps {
-  params: { id: string }
-}
+interface ProgramPageProps {}
 
 // Transform API response to match the component's expected format
 const transformProgramData = (apiProgram: ProgramData): TrainingProgram => {
@@ -120,13 +118,15 @@ const transformProgramData = (apiProgram: ProgramData): TrainingProgram => {
   }
 }
 
-export default function ProgramPage({ params }: ProgramPageProps) {
+export default function ProgramPage() {
   const router = useRouter()
   const [program, setProgram] = useState<ProgramData | null>(null)
   const [transformedProgram, setTransformedProgram] = useState<TrainingProgram | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  const params = useParams()
+  const programId = useMemo(() => params.id, [params.id]) as string;
 
   useEffect(() => {
     const checkAuthAndFetchProgram = async () => {
@@ -137,19 +137,17 @@ export default function ProgramPage({ params }: ProgramPageProps) {
         
         if (authError || !session?.user) {
           toast.error('Please log in to view your program')
-          router.push(`/login?redirect=/programs/${params.id}`)
+          router.push(`/login?redirect=/programs/${programId}`)
           return
         }
 
-        setIsAuthenticated(true)
-
         // Fetch program
-        const response = await fetch(`/api/programs/${params.id}`)
+        const response = await fetch(`/api/programs/${programId}`)
 
         if (!response.ok) {
           if (response.status === 401) {
             toast.error('Please log in to view this program')
-            router.push(`/login?redirect=/programs/${params.id}`)
+            router.push(`/login?redirect=/programs/${programId}`)
             return
           } else if (response.status === 404) {
             setError('Program not found')
@@ -173,8 +171,10 @@ export default function ProgramPage({ params }: ProgramPageProps) {
       }
     }
 
-    checkAuthAndFetchProgram()
-  }, [params.id, router])
+    if (programId) {
+      checkAuthAndFetchProgram()
+    }
+  }, [programId, router])
 
   if (loading) {
     return (
@@ -317,6 +317,3 @@ export default function ProgramPage({ params }: ProgramPageProps) {
     </div>
   )
 }
-
-
-

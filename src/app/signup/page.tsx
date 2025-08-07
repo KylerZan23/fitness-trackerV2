@@ -108,8 +108,8 @@ export default function SignupPage() {
           console.log('Trial started successfully')
         }
 
-        console.log('Profile created successfully, redirecting to onboarding...')
-        router.push('/onboarding')
+        console.log('Profile created successfully, redirecting to neural onboarding...')
+        router.push('/neural/onboarding')
       }
     } catch (err: unknown) {
       console.error('Signup error:', err)

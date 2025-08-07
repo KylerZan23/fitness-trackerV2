@@ -71,7 +71,7 @@ export const NeuralRequestSchema = z.object({
 });
 
 /**
- * Exercise schema matching AI output structure
+ * Base exercise schema for main exercises
  */
 export const NeuralExerciseSchema = z.object({
   exercise: z.string(),
@@ -81,6 +81,38 @@ export const NeuralExerciseSchema = z.object({
   rest: z.string(),
   RPE: z.number().optional(),
   description: z.string().optional(),
+  coaching_cues: z.string().optional(),
+});
+
+/**
+ * Warmup exercise schema with flexible structure
+ * Warmup exercises can use duration/intensity OR sets/reps structure
+ */
+export const WarmupExerciseSchema = z.object({
+  exercise: z.string(),
+  // Warmup can use either duration-based or sets-based approach
+  duration: z.string().optional(),
+  intensity: z.string().optional(),
+  // OR traditional sets/reps structure
+  sets: z.number().optional(),
+  reps: z.union([z.string(), z.number()]).optional(),
+  load: z.string().optional(),
+  rest: z.string().optional(),
+  description: z.string().optional(),
+});
+
+/**
+ * Finisher exercise schema with flexible structure
+ * Optional finishers might not have load requirements
+ */
+export const FinisherExerciseSchema = z.object({
+  exercise: z.string(),
+  sets: z.number().optional(),
+  reps: z.union([z.string(), z.number()]).optional(),
+  load: z.string().optional(),
+  rest: z.string().optional(),
+  duration: z.string().optional(),
+  description: z.string().optional(),
 });
 
 /**
@@ -88,11 +120,11 @@ export const NeuralExerciseSchema = z.object({
  */
 export const NeuralWorkoutSchema = z.object({
   day: z.string(),
-  focus: z.string(),
-  warmup: z.array(NeuralExerciseSchema).optional(),
+  focus: z.string().optional(), // AI sometimes omits focus field
+  warmup: z.array(WarmupExerciseSchema).optional(),
   main_exercises: z.array(NeuralExerciseSchema),
-  finisher: z.array(NeuralExerciseSchema).optional(),
-  optional_finisher: z.array(NeuralExerciseSchema).optional(),
+  finisher: z.array(FinisherExerciseSchema).optional(),
+  optional_finisher: z.array(FinisherExerciseSchema).optional(),
 });
 
 /**
@@ -129,6 +161,8 @@ export type NeuralOnboardingData = z.infer<typeof NeuralOnboardingDataSchema>;
 export type NeuralProgressData = z.infer<typeof NeuralProgressDataSchema>;
 export type NeuralRequest = z.infer<typeof NeuralRequestSchema>;
 export type NeuralExercise = z.infer<typeof NeuralExerciseSchema>;
+export type WarmupExercise = z.infer<typeof WarmupExerciseSchema>;
+export type FinisherExercise = z.infer<typeof FinisherExerciseSchema>;
 export type NeuralWorkout = z.infer<typeof NeuralWorkoutSchema>;
 export type SimplifiedNeuralProgram = z.infer<typeof SimplifiedNeuralProgramSchema>;
 export type RawAIResponse = z.infer<typeof RawAIResponseSchema>;

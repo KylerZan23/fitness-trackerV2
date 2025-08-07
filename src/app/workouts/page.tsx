@@ -42,7 +42,7 @@ export default function WorkoutsHistoryPage() {
         const profileData = await getUserProfile()
         if (!profileData) {
           console.log('No profile found, redirecting to onboarding')
-          router.push('/onboarding')
+          router.push('/neural/onboarding')
           return
         }
         setProfile(profileData)

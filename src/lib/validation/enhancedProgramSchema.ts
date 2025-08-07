@@ -67,9 +67,12 @@ export const SimplifiedNeuralProgramSchema = z.object({
   program_name: z.string(),
   workouts: z.array(z.object({
     day: z.string(),
-    focus: z.string(),
+    focus: z.string().optional(),
     warmup: z.array(z.object({
       exercise: z.string(),
+      // Warmup can use duration/intensity OR sets/reps structure
+      duration: z.string().optional(),
+      intensity: z.string().optional(),
       sets: z.number().optional(),
       reps: z.union([z.string(), z.number()]).optional(),
       load: z.string().optional(),
@@ -82,31 +85,36 @@ export const SimplifiedNeuralProgramSchema = z.object({
       reps: z.union([z.string(), z.number()]),
       load: z.string(),
       rest: z.string(),
-      RPE: z.number().optional()
+      RPE: z.number().optional(),
+      coaching_cues: z.string().optional()
     })),
     finisher: z.union([
       z.array(z.object({
         exercise: z.string(),
-        sets: z.number(),
-        reps: z.union([z.string(), z.number()]),
-        load: z.string(),
-        rest: z.string()
+        sets: z.number().optional(),
+        reps: z.union([z.string(), z.number()]).optional(),
+        load: z.string().optional(),
+        rest: z.string().optional(),
+        duration: z.string().optional()
       })),
       z.object({
         exercise: z.string(),
-        sets: z.number(),
-        reps: z.union([z.string(), z.number()]),
-        load: z.string(),
-        rest: z.string(),
+        sets: z.number().optional(),
+        reps: z.union([z.string(), z.number()]).optional(),
+        load: z.string().optional(),
+        rest: z.string().optional(),
+        duration: z.string().optional(),
         RPE: z.number().optional()
       })
     ]).optional(),
     optional_finisher: z.array(z.object({
       exercise: z.string(),
-      sets: z.number(),
-      reps: z.union([z.string(), z.number()]),
-      load: z.string(),
-      rest: z.string()
+      sets: z.number().optional(),
+      reps: z.union([z.string(), z.number()]).optional(),
+      load: z.string().optional(),
+      rest: z.string().optional(),
+      duration: z.string().optional(),
+      description: z.string().optional()
     })).optional()
   }))
 });

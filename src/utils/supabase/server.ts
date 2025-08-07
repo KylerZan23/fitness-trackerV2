@@ -1,36 +1,34 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { SupabaseClient } from '@supabase/supabase-js'
-import { type ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
-import { cookies as nextCookies } from 'next/headers'
+import { cookies } from 'next/headers'
 import { getSupabaseServerConfig } from '@/lib/env'
 
-/**
- * Create a Supabase client for use in server components and server actions.
- * Optionally accepts a pre-fetched cookie store.
- */
-export async function createClient(cookieStore?: ReadonlyRequestCookies) {
-  const store = cookieStore || (await nextCookies())
+export function createClient() {
+  const cookieStore = cookies()
   const { url, anonKey } = getSupabaseServerConfig()
 
   return createServerClient(url, anonKey, {
     cookies: {
-      getAll() {
-        return store.getAll().map(({ name, value }: { name: string; value: string }) => ({
-          name,
-          value,
-        }))
+      get(name: string) {
+        return cookieStore.get(name)?.value
       },
-      setAll(cookiesToSet) {
+      set(name: string, value: string, options: CookieOptions) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            store.set(name, value, options as CookieOptions)
-          )
+          cookieStore.set({ name, value, ...options })
         } catch (error) {
-          console.warn('Supabase server client: Failed to set cookies in setAll. Error:', error)
+          // The `set` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
+        }
+      },
+      remove(name: string, options: CookieOptions) {
+        try {
+          cookieStore.set({ name, value: '', ...options })
+        } catch (error) {
+          // The `delete` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
         }
       },
     },
   })
 }
-
-export type { SupabaseClient }
