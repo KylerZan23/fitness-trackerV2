@@ -141,28 +141,74 @@ export default function ProgramPage() {
           return
         }
 
-        // Fetch program
-        const response = await fetch(`/api/programs/${programId}`)
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            toast.error('Please log in to view this program')
-            router.push(`/login?redirect=/programs/${programId}`)
-            return
-          } else if (response.status === 404) {
-            setError('Program not found')
-          } else {
-            setError('Failed to load program')
+        // Check for fresh program data from onboarding (avoids fetch dependency)
+        let freshProgramData = null
+        if (typeof window !== 'undefined') {
+          const stored = sessionStorage.getItem('freshProgram')
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored)
+              if (parsed.id === programId) {
+                freshProgramData = parsed
+                // Clear the stored data after use
+                sessionStorage.removeItem('freshProgram')
+              }
+            } catch (e) {
+              console.warn('Failed to parse fresh program data:', e)
+            }
           }
-          return
         }
 
-        const data = await response.json()
-        setProgram(data)
-        
-        // Transform the data for the display component
-        const transformed = transformProgramData(data)
-        setTransformedProgram(transformed)
+        if (freshProgramData) {
+          // Use the fresh program data directly (from onboarding)
+          const data = {
+            id: freshProgramData.id,
+            userId: session.user.id,
+            createdAt: freshProgramData.createdAt,
+            updatedAt: freshProgramData.createdAt,
+            program: freshProgramData.program,
+            metadata: { source: 'neural-onboarding' }
+          }
+          setProgram(data)
+          
+          // Transform the data for the display component
+          const transformed = transformProgramData(data)
+          setTransformedProgram(transformed)
+        } else {
+          // Fallback to fetch with intelligent retry for transient failures
+          const { retryProgramFetch } = await import('@/lib/utils/retryFetch')
+          const result = await retryProgramFetch(programId)
+
+          if (!result.success) {
+            const error = result.error
+            
+            if (error?.message?.includes('401')) {
+              toast.error('Please log in to view this program')
+              router.push(`/login?redirect=/programs/${programId}`)
+              return
+            } else if (error?.message?.includes('404')) {
+              // After retries, this is likely a real 404
+              setError(`Program not found (attempted ${result.attempts} times over ${Math.round(result.totalTime/1000)}s)`)
+            } else if (error?.message?.includes('403')) {
+              setError('You do not have permission to view this program')
+            } else {
+              setError(`Failed to load program after ${result.attempts} attempts: ${error?.message || 'Unknown error'}`)
+            }
+            return
+          }
+
+          const data = result.data
+          setProgram(data)
+          
+          // Transform the data for the display component
+          const transformed = transformProgramData(data)
+          setTransformedProgram(transformed)
+          
+          // Log successful retry info for debugging
+          if (result.attempts > 1) {
+            console.log(`[ProgramFetch] ✅ Program loaded after ${result.attempts} attempts in ${Math.round(result.totalTime/1000)}s`)
+          }
+        }
       } catch (err) {
         console.error('Failed to fetch program:', err)
         setError('Network error occurred')

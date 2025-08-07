@@ -4,10 +4,10 @@ import { z } from 'zod';
 // --- Base Schemas for Internal and API Validation ---
 
 export const neuralOnboardingDataSchema = z.object({
-  primaryFocus: z.string(),
-  experienceLevel: z.string(),
-  sessionDuration: z.number(),
-  equipmentAccess: z.string(),
+  primaryFocus: z.enum(['hypertrophy', 'strength', 'general_fitness']),
+  experienceLevel: z.enum(['beginner', 'intermediate', 'advanced']),
+  sessionDuration: z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90)]),
+  equipmentAccess: z.enum(['full_gym', 'dumbbells_only', 'bodyweight_only']),
   personalRecords: z.object({
     squat: z.number().optional(),
     bench: z.number().optional(),
@@ -15,39 +15,58 @@ export const neuralOnboardingDataSchema = z.object({
   }).optional(),
 });
 
-export const neuralRequestSchema = neuralOnboardingDataSchema.extend({
-    regenerate: z.boolean().optional(),
-    weekNumber: z.number().optional(),
-});
-
 export const neuralProgressDataSchema = z.record(z.any()).optional();
+
+// Neural API request schema - matches the actual NeuralRequest interface structure
+export const neuralRequestSchema = z.object({
+    onboardingData: neuralOnboardingDataSchema,
+    currentWeek: z.number(),
+    previousProgress: neuralProgressDataSchema,
+});
 
 
 // --- AI-Facing Schemas for OpenAI Generation ---
+// Note: These schemas are defined independently (not extending base schemas) 
+// to avoid $ref issues with OpenAI structured outputs
 
-const baseExerciseSchema = z.object({
+const warmupExerciseSchema = z.object({
     exercise: z.string().describe("The name of the exercise."),
     sets: z.number().describe("The number of sets."),
     reps: z.union([z.string(), z.number()]).describe("The number of reps or duration."),
     load: z.string().describe("The weight or intensity (e.g., '50 lbs', 'Bodyweight', 'RPE 7')."),
     rest: z.string().describe("The rest period after the exercise (e.g., '60s', '2-3 min')."),
     description: z.string().optional().describe("A brief description of the exercise."),
-});
-
-const warmupExerciseSchema = baseExerciseSchema.extend({
     intensity: z.string().describe("Intensity level (e.g., 'Light cardio').")
 });
 
-const mainExerciseSchema = baseExerciseSchema.extend({
+const mainExerciseSchema = z.object({
+    exercise: z.string().describe("The name of the exercise."),
+    sets: z.number().describe("The number of sets."),
+    reps: z.union([z.string(), z.number()]).describe("The number of reps or duration."),
+    load: z.string().describe("The weight or intensity (e.g., '50 lbs', 'Bodyweight', 'RPE 7')."),
+    rest: z.string().describe("The rest period after the exercise (e.g., '60s', '2-3 min')."),
+    description: z.string().optional().describe("A brief description of the exercise."),
     RPE: z.number().min(1).max(10).optional().describe("Rate of Perceived Exertion (1-10)."),
     coaching_cues: z.string().optional().describe("Specific coaching cues for form.")
 });
 
-const finisherExerciseSchema = baseExerciseSchema.extend({
+const finisherExerciseSchema = z.object({
+    exercise: z.string().describe("The name of the exercise."),
+    sets: z.number().describe("The number of sets."),
+    reps: z.union([z.string(), z.number()]).describe("The number of reps or duration."),
+    load: z.string().describe("The weight or intensity (e.g., '50 lbs', 'Bodyweight', 'RPE 7')."),
+    rest: z.string().describe("The rest period after the exercise (e.g., '60s', '2-3 min')."),
+    description: z.string().optional().describe("A brief description of the exercise."),
     duration: z.string().describe("Total duration for the finisher (e.g., '5 minutes').")
 });
 
-const cooldownExerciseSchema = baseExerciseSchema.extend({
+const cooldownExerciseSchema = z.object({
+    exercise: z.string().describe("The name of the exercise."),
+    sets: z.number().describe("The number of sets."),
+    reps: z.union([z.string(), z.number()]).describe("The number of reps or duration."),
+    load: z.string().describe("The weight or intensity (e.g., '50 lbs', 'Bodyweight', 'RPE 7')."),
+    rest: z.string().describe("The rest period after the exercise (e.g., '60s', '2-3 min')."),
+    description: z.string().optional().describe("A brief description of the exercise."),
     duration: z.string().describe("Duration for each stretch (e.g., '30s per side').")
 });
 
@@ -72,11 +91,11 @@ export const RawAIResponseSchema = outputSchema;
 
 // --- Validation Functions for Internal Use ---
 
-export const validateNeuralOnboardingData = (data: unknown) => neuralOnboardingDataSchema.parse(data);
-export const validateNeuralRequest = (data: unknown) => neuralRequestSchema.parse(data);
-export const validateNeuralProgram = (data: unknown) => outputSchema.parse(data);
-export const validateRawAIResponse = (data: unknown) => RawAIResponseSchema.parse(data);
-export const validateNeuralProgressData = (data: unknown) => neuralProgressDataSchema.parse(data);
+export const validateNeuralOnboardingData = (data: unknown) => neuralOnboardingDataSchema.safeParse(data);
+export const validateNeuralRequest = (data: unknown) => neuralRequestSchema.safeParse(data);
+export const validateNeuralProgram = (data: unknown) => outputSchema.safeParse(data);
+export const validateRawAIResponse = (data: unknown) => RawAIResponseSchema.safeParse(data);
+export const validateNeuralProgressData = (data: unknown) => neuralProgressDataSchema.safeParse(data);
 
 
 // --- Type Exports for Use Throughout the Application ---

@@ -40,8 +40,19 @@ export default function NeuralOnboardingPage() {
     console.log('Neural onboarding completed with program data:', programData)
     
     try {
-      // Redirect to the persistent program view using the programId from the database
-      if (programData?.programId) {
+      // If we have the full program data, store it to avoid fetch dependency
+      if (programData?.program && programData?.programId) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('freshProgram', JSON.stringify({
+            id: programData.programId,
+            program: programData.program,
+            createdAt: programData.createdAt || new Date().toISOString()
+          }))
+        }
+        toast.success('Your Neural program has been created!')
+        router.push(`/programs/${programData.programId}`)
+      } else if (programData?.programId) {
+        // Fallback: redirect with ID only (will trigger fetch)
         toast.success('Your Neural program has been created!')
         router.push(`/programs/${programData.programId}`)
       } else {

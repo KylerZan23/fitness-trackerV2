@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
+import { getReadAfterWriteClient, recordProgramWrite, markProgramAsReplicated } from '@/lib/db/read-after-write';
 
 export interface NeuralProgram {
   id: string;
@@ -16,11 +17,25 @@ export interface CreateNeuralProgramData {
 }
 
 /**
- * Save a neural program to the database
+ * Save a neural program to the database with transactional integrity
+ * 
+ * This function ensures the program is successfully committed to the database
+ * before returning. No success response should be sent until this completes.
  */
 export async function saveNeuralProgram(data: CreateNeuralProgramData) {
-  const supabase = await createClient();
+  // Use write-optimized client for database writes
+  const supabase = await getReadAfterWriteClient({ operation: 'write' });
   
+  // Validate input data before attempting database operation
+  if (!data.user_id) {
+    throw new Error('TRANSACTIONAL_INTEGRITY: user_id is required for database commit');
+  }
+  
+  if (!data.program_content) {
+    throw new Error('TRANSACTIONAL_INTEGRITY: program_content is required for database commit');
+  }
+
+  // Perform atomic insert operation
   const { data: savedProgram, error } = await supabase
     .from('neural_programs')
     .insert({
@@ -28,13 +43,30 @@ export async function saveNeuralProgram(data: CreateNeuralProgramData) {
       program_content: data.program_content,
       metadata: data.metadata ?? {}
     })
-    .select('id, created_at')
+    .select('*')
     .single();
 
   if (error) {
-    throw new Error(`Failed to save neural program: ${error.message}`);
+    throw new Error(`TRANSACTIONAL_INTEGRITY: Database commit failed - ${error.message} (Code: ${error.code})`);
   }
 
+  // Verify the returned data is valid and complete
+  if (!savedProgram || !savedProgram.id) {
+    throw new Error('TRANSACTIONAL_INTEGRITY: Database insert succeeded but returned invalid data - no ID confirmed');
+  }
+
+  if (savedProgram.user_id !== data.user_id) {
+    throw new Error('TRANSACTIONAL_INTEGRITY: Database insert succeeded but returned mismatched user_id');
+  }
+  
+  if (!savedProgram.program_content) {
+    throw new Error('TRANSACTIONAL_INTEGRITY: Database insert succeeded but program_content is missing');
+  }
+
+  // Database commit confirmed - record write for read-after-write consistency
+  recordProgramWrite(savedProgram.id, savedProgram.user_id, 'creation');
+  
+  // Database commit confirmed - safe to return success
   return savedProgram;
 }
 
@@ -58,10 +90,14 @@ export async function getNeuralPrograms(userId: string) {
 }
 
 /**
- * Get a specific neural program by ID
+ * Get a specific neural program by ID with read-after-write consistency
  */
 export async function getNeuralProgramById(programId: string, userId: string) {
-  const supabase = await createClient();
+  // Use read-after-write client to handle fresh writes
+  const supabase = await getReadAfterWriteClient({ 
+    programId, 
+    operation: 'read' 
+  });
   
   const { data: program, error } = await supabase
     .from('neural_programs')
@@ -74,6 +110,9 @@ export async function getNeuralProgramById(programId: string, userId: string) {
     throw new Error(`Failed to get neural program: ${error.message}`);
   }
 
+  // If we successfully read from replica, mark as replicated
+  markProgramAsReplicated(programId);
+
   return program;
 }
 
@@ -85,7 +124,8 @@ export async function updateNeuralProgram(
   userId: string, 
   updates: Partial<Pick<NeuralProgram, 'program_content' | 'metadata'>>
 ) {
-  const supabase = await createClient();
+  // Use write-optimized client for updates
+  const supabase = await getReadAfterWriteClient({ operation: 'write' });
   
   const { data: updatedProgram, error } = await supabase
     .from('neural_programs')
@@ -99,6 +139,9 @@ export async function updateNeuralProgram(
     throw new Error(`Failed to update neural program: ${error.message}`);
   }
 
+  // Record update for read-after-write consistency
+  recordProgramWrite(programId, userId, 'update');
+
   return updatedProgram;
 }
 
@@ -106,7 +149,8 @@ export async function updateNeuralProgram(
  * Delete a neural program
  */
 export async function deleteNeuralProgram(programId: string, userId: string) {
-  const supabase = await createClient();
+  // Use write-optimized client for deletions
+  const supabase = await getReadAfterWriteClient({ operation: 'write' });
   
   const { error } = await supabase
     .from('neural_programs')

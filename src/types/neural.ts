@@ -49,6 +49,8 @@ export interface OnboardingData {
 export interface OnboardingCompletionData extends OnboardingData {
   /** Persistent program ID from database */
   programId?: string;
+  /** Full program object (available after generation) */
+  program?: TrainingProgram;
   /** Timestamp when program was created */
   createdAt?: string;
 }

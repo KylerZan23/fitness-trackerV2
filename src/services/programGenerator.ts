@@ -18,6 +18,9 @@ import { logger } from '@/lib/logging';
 import { createClient } from '@/utils/supabase/server';
 import { neuralAPI, NeuralAPI, NeuralAPIError, NeuralAPIErrorType } from './neuralAPI';
 import { validateNeuralOnboardingData, validateNeuralProgram, validateNeuralProgressData } from '@/lib/validation/neuralProgramSchema';
+import { z, ZodError } from 'zod';
+import { ServiceResult, ApiError, ErrorCodes, createSuccessResult, createErrorResult } from '@/lib/errors/types';
+import { saveNeuralProgram } from '@/lib/data/neural-programs';
 import type {
   OnboardingData,
   ProgressData,
@@ -34,6 +37,15 @@ export interface ProgramGenerationResult {
   program?: TrainingProgram;
   error?: string;
   details?: Record<string, any>;
+  // Complete database record for API responses
+  databaseRecord?: {
+    id: string;
+    user_id: string;
+    created_at: string;
+    updated_at: string;
+    program_content: any;
+    metadata: Record<string, any>;
+  };
 }
 
 /**
@@ -45,6 +57,20 @@ export interface ProgramProgressionResult {
   previousProgram?: TrainingProgram;
   error?: string;
   details?: Record<string, any>;
+}
+
+/**
+ * Validation result structure for Zod validation errors
+ */
+export interface ValidationResult<T = any> {
+  success: boolean;
+  data?: T;
+  errors?: Array<{
+    field: string;
+    message: string;
+    code: string;
+  }>;
+  message?: string;
 }
 
 /**
@@ -111,12 +137,12 @@ export class ProgramGenerator {
    * 
    * @param userId - Unique user identifier
    * @param onboardingData - User's fitness goals, experience, and preferences
-   * @returns Promise resolving to program generation result
+   * @returns Promise resolving to service result with program or error
    */
   async createNewProgram(
     userId: string,
     onboardingData: OnboardingData
-  ): Promise<ProgramGenerationResult> {
+  ): Promise<ServiceResult<ProgramGenerationResult>> {
     const startTime = Date.now();
     const requestId = this.generateRequestId('create');
 
@@ -129,10 +155,37 @@ export class ProgramGenerator {
       experienceLevel: onboardingData.experienceLevel,
     });
 
+    // Validate input data - return error result instead of throwing
+    const validationResult = this.validateOnboardingData(onboardingData);
+    if (!validationResult.success) {
+      const validationErrors = validationResult.errors?.map(err => ({
+        field: err.field,
+        message: err.message,
+        code: err.code,
+      })) || [];
+
+      const apiError: ApiError = {
+        code: ErrorCodes.VALIDATION_FAILED,
+        message: validationResult.message ?? 'Validation failed',
+        details: validationErrors,
+        statusCode: 400,
+        timestamp: new Date().toISOString(),
+      };
+
+      logger.warn('Program creation validation failed', {
+        operation: 'createNewProgram',
+        component: 'programGenerator',
+        requestId,
+        userId,
+        validationErrors,
+      });
+
+      return createErrorResult(apiError);
+    }
+
+    const validatedOnboardingData = validationResult.data!;
+
     try {
-      // Validate input data
-      const validatedOnboardingData = this.validateOnboardingData(onboardingData);
-      
       // Check if user exists and has valid profile
       await this.validateUser(userId);
 
@@ -155,14 +208,74 @@ export class ProgramGenerator {
           userId,
           error: error instanceof Error ? error.message : String(error),
         });
-        throw new Error("Neural API failed to generate a program.");
+
+        const apiError: ApiError = {
+          code: ErrorCodes.EXTERNAL_SERVICE_ERROR,
+          message: 'Neural API failed to generate a program',
+          statusCode: 502,
+          timestamp: new Date().toISOString(),
+        };
+
+        return createErrorResult(apiError);
       }
       
       // Enhance and validate the generated program
       const enhancedProgram = this.enhanceProgramForUser(neuralResponse.program, userId);
       
-      // Neural programs are generated on-demand, no database storage needed
-      const storedProgram = enhancedProgram;
+      // Database persistence is MANDATORY for transactional integrity
+      // The success response must NOT be sent until database commit is confirmed
+      let savedProgramData;
+      try {
+        savedProgramData = await saveNeuralProgram({
+          user_id: userId,
+          program_content: enhancedProgram,
+          metadata: {
+            generated_at: new Date().toISOString(),
+            neural_version: 'v1',
+            onboarding_data: validatedOnboardingData
+          }
+        });
+        
+        // Verify the save operation was successful
+        if (!savedProgramData || !savedProgramData.id) {
+          throw new Error('Database save returned invalid result - no ID confirmed');
+        }
+        
+        logger.info('Program committed to database successfully', {
+          operation: 'createNewProgram',
+          component: 'programGenerator', 
+          requestId,
+          userId,
+          programId: enhancedProgram.id,
+          databaseId: savedProgramData.id,
+          message: 'TRANSACTIONAL_INTEGRITY: Database commit confirmed before success response'
+        });
+      } catch (saveError) {
+        logger.error('CRITICAL: Program database commit failed - aborting operation', {
+          operation: 'createNewProgram',
+          component: 'programGenerator',
+          requestId,
+          userId,
+          programId: enhancedProgram.id,
+          error: saveError instanceof Error ? saveError.message : String(saveError),
+          message: 'TRANSACTIONAL_INTEGRITY: Cannot return success without database commit'
+        });
+        
+        // FAIL the entire operation if database save fails
+        // This ensures transactional integrity - no success without database persistence
+        const apiError: ApiError = {
+          code: ErrorCodes.DATABASE_ERROR,
+          message: 'Failed to persist program to database',
+          statusCode: 500,
+          timestamp: new Date().toISOString(),
+          details: { 
+            originalError: saveError instanceof Error ? saveError.message : String(saveError),
+            programId: enhancedProgram.id
+          }
+        };
+
+        return createErrorResult(apiError);
+      }
 
       const duration = Date.now() - startTime;
       this.metrics.programsGenerated++;
@@ -174,15 +287,21 @@ export class ProgramGenerator {
         requestId,
         userId,
         duration,
-        programId: storedProgram.id,
-        programName: storedProgram.programName,
-        workoutCount: storedProgram.workouts.length,
+        programId: enhancedProgram.id,
+        databaseId: savedProgramData.id,
+        programName: enhancedProgram.programName,
+        workoutCount: enhancedProgram.workouts.length,
       });
 
-      return {
+      const result: ProgramGenerationResult = {
         success: true,
-        program: storedProgram,
+        program: enhancedProgram,
+        // Include complete database metadata for API response
+        databaseRecord: savedProgramData,
       };
+
+      return createSuccessResult(result);
+
     } catch (error) {
       const duration = Date.now() - startTime;
       this.metrics.errorCount++;
@@ -197,12 +316,15 @@ export class ProgramGenerator {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      return this.handleError(error, {
-        operation: 'createNewProgram',
-        userId,
-        requestId,
-        duration,
-      });
+      // Handle unexpected errors
+      const apiError: ApiError = {
+        code: ErrorCodes.INTERNAL_ERROR,
+        message: error instanceof Error ? error.message : 'An unexpected error occurred',
+        statusCode: 500,
+        timestamp: new Date().toISOString(),
+      };
+
+      return createErrorResult(apiError);
     }
   }
 
@@ -231,8 +353,25 @@ export class ProgramGenerator {
 
     try {
       // Validate input data
-      const validatedProgram = this.validateTrainingProgram(currentProgram);
-      const validatedProgressData = this.validateProgressData(progressData);
+      const programValidationResult = this.validateTrainingProgram(currentProgram);
+      if (!programValidationResult.success) {
+        throw new ProgramGeneratorError(
+          ProgramGeneratorErrorType.VALIDATION_ERROR,
+          programValidationResult.message ?? 'Training program validation failed',
+          { validationErrors: programValidationResult.errors, programId: currentProgram.id }
+        );
+      }
+      const validatedProgram = programValidationResult.data!;
+
+      const progressValidationResult = this.validateProgressData(progressData);
+      if (!progressValidationResult.success) {
+        throw new ProgramGeneratorError(
+          ProgramGeneratorErrorType.VALIDATION_ERROR,
+          progressValidationResult.message ?? 'Progress data validation failed',
+          { validationErrors: progressValidationResult.errors, progressData }
+        );
+      }
+      const validatedProgressData = progressValidationResult.data!;
 
       // Extract onboarding data for context (may need to fetch from database)
       const onboardingData = await this.extractOnboardingContext(validatedProgram);
@@ -317,25 +456,55 @@ export class ProgramGenerator {
    * 
    * @private
    */
-  private validateOnboardingData(data: OnboardingData): OnboardingData {
+  private validateOnboardingData(data: OnboardingData): ValidationResult<OnboardingData> {
     try {
       const validation = validateNeuralOnboardingData(data);
-      if (!validation.success) {
-        throw new Error(validation.error);
+      
+      if (validation.success) {
+        return {
+          success: true,
+          data: validation.data,
+        };
       }
-      return validation.data;
-    } catch (error) {
+
+      // Extract detailed validation errors from ZodError
+      const errors = validation.error.issues.map(issue => ({
+        field: issue.path.join('.') || 'root',
+        message: issue.message,
+        code: issue.code,
+      }));
+
+      const formattedErrorDetails = errors.map(err => `${err.field}: ${err.message}`).join(', ');
+      const message = `Validation failed for onboarding data: ${formattedErrorDetails}`;
+
       logger.error('Onboarding data validation failed', {
         operation: 'validateOnboardingData',
         component: 'programGenerator',
-        error: error instanceof Error ? error.message : String(error),
+        validationErrors: errors,
+        formattedErrors: formattedErrorDetails,
       });
 
-      throw new ProgramGeneratorError(
-        ProgramGeneratorErrorType.VALIDATION_ERROR,
-        `Invalid onboarding data: ${error instanceof Error ? error.message : String(error)}`,
-        { onboardingData: data }
-      );
+      return {
+        success: false,
+        errors,
+        message,
+      };
+    } catch (error) {
+      // Handle non-Zod errors (e.g., schema compilation issues, unexpected errors)
+      const message = `Unexpected validation error: ${error instanceof Error ? error.message : String(error)}`;
+      
+      logger.error('Unexpected error during onboarding data validation', {
+        operation: 'validateOnboardingData',
+        component: 'programGenerator',
+        error: error instanceof Error ? error.message : String(error),
+        errorType: error?.constructor?.name,
+      });
+
+      return {
+        success: false,
+        errors: [{ field: 'system', message: 'Internal validation error', code: 'internal_error' }],
+        message,
+      };
     }
   }
 
@@ -344,7 +513,7 @@ export class ProgramGenerator {
    * 
    * @private
    */
-  private validateTrainingProgram(program: TrainingProgram): TrainingProgram {
+  private validateTrainingProgram(program: TrainingProgram): ValidationResult<TrainingProgram> {
     try {
       // Note: We validate the simplified program structure, not the full TrainingProgram
       // because the validateNeuralProgram expects the simplified structure
@@ -363,22 +532,54 @@ export class ProgramGenerator {
           }))
         }))
       });
-      if (!validation.success) {
-        throw new Error(validation.error);
+      
+      if (validation.success) {
+        return {
+          success: true,
+          data: program, // Return original program since structure is valid
+        };
       }
-      return program; // Return original program since structure is valid
-    } catch (error) {
+
+      // Extract detailed validation errors from ZodError
+      const errors = validation.error.issues.map(issue => ({
+        field: issue.path.join('.') || 'root',
+        message: issue.message,
+        code: issue.code,
+      }));
+
+      const formattedErrorDetails = errors.map(err => `${err.field}: ${err.message}`).join(', ');
+      const message = `Validation failed for training program: ${formattedErrorDetails}`;
+
       logger.error('Training program validation failed', {
         operation: 'validateTrainingProgram',
         component: 'programGenerator',
-        error: error instanceof Error ? error.message : String(error),
+        validationErrors: errors,
+        formattedErrors: formattedErrorDetails,
+        programId: program.id,
       });
 
-      throw new ProgramGeneratorError(
-        ProgramGeneratorErrorType.VALIDATION_ERROR,
-        `Invalid training program: ${error instanceof Error ? error.message : String(error)}`,
-        { programId: program.id }
-      );
+      return {
+        success: false,
+        errors,
+        message,
+      };
+    } catch (error) {
+      // Handle non-Zod errors (e.g., data transformation issues, unexpected errors)
+      const message = `Unexpected validation error: ${error instanceof Error ? error.message : String(error)}`;
+      
+      logger.error('Unexpected error during training program validation', {
+        operation: 'validateTrainingProgram',
+        component: 'programGenerator',
+        error: error instanceof Error ? error.message : String(error),
+        errorType: error?.constructor?.name,
+        programId: program.id,
+      });
+
+      return {
+        success: false,
+        errors: [{ field: 'system', message: 'Internal validation error', code: 'internal_error' }],
+        message,
+      };
     }
   }
 
@@ -387,25 +588,55 @@ export class ProgramGenerator {
    * 
    * @private
    */
-  private validateProgressData(data: ProgressData): ProgressData {
+  private validateProgressData(data: ProgressData): ValidationResult<ProgressData> {
     try {
       const validation = validateNeuralProgressData(data);
-      if (!validation.success) {
-        throw new Error(validation.error);
+      
+      if (validation.success) {
+        return {
+          success: true,
+          data: validation.data,
+        };
       }
-      return validation.data;
-    } catch (error) {
+
+      // Extract detailed validation errors from ZodError
+      const errors = validation.error.issues.map(issue => ({
+        field: issue.path.join('.') || 'root',
+        message: issue.message,
+        code: issue.code,
+      }));
+
+      const formattedErrorDetails = errors.map(err => `${err.field}: ${err.message}`).join(', ');
+      const message = `Validation failed for progress data: ${formattedErrorDetails}`;
+
       logger.error('Progress data validation failed', {
         operation: 'validateProgressData',
         component: 'programGenerator',
-        error: error instanceof Error ? error.message : String(error),
+        validationErrors: errors,
+        formattedErrors: formattedErrorDetails,
       });
 
-      throw new ProgramGeneratorError(
-        ProgramGeneratorErrorType.VALIDATION_ERROR,
-        `Invalid progress data: ${error instanceof Error ? error.message : String(error)}`,
-        { progressData: data }
-      );
+      return {
+        success: false,
+        errors,
+        message,
+      };
+    } catch (error) {
+      // Handle non-Zod errors (e.g., schema compilation issues, unexpected errors)
+      const message = `Unexpected validation error: ${error instanceof Error ? error.message : String(error)}`;
+      
+      logger.error('Unexpected error during progress data validation', {
+        operation: 'validateProgressData',
+        component: 'programGenerator',
+        error: error instanceof Error ? error.message : String(error),
+        errorType: error?.constructor?.name,
+      });
+
+      return {
+        success: false,
+        errors: [{ field: 'system', message: 'Internal validation error', code: 'internal_error' }],
+        message,
+      };
     }
   }
 
@@ -466,7 +697,7 @@ export class ProgramGenerator {
     return {
       ...program,
       userId,
-      id: this.generateProgramId(userId),
+      // Keep the UUID generated by NeuralAPI - no need to override
       createdAt: new Date(),
     };
   }
@@ -484,7 +715,7 @@ export class ProgramGenerator {
     return {
       ...newProgram,
       userId: previousProgram.userId,
-      id: this.generateProgramId(previousProgram.userId),
+      // Keep the UUID generated by NeuralAPI - no need to override
       createdAt: new Date(),
       // Maintain program name continuity if it's a series
       programName: this.generateProgressedProgramName(newProgram.programName, previousProgram, progressData),
@@ -660,14 +891,7 @@ export class ProgramGenerator {
     return `pg_${operation}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  /**
-   * Generate unique program ID
-   * 
-   * @private
-   */
-  private generateProgramId(userId: string): string {
-    return `prog_${userId.substr(0, 8)}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-  }
+
 
   /**
    * Get service metrics

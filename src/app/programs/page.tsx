@@ -47,20 +47,35 @@ export default function ProgramsDashboard() {
           return
         }
 
-        // Fetch programs from API
-        const response = await fetch('/api/programs')
-        
-        if (!response.ok) {
-          throw new Error('Failed to load programs')
-        }
-
-        const result = await response.json()
+        // Fetch programs from API with retry for transient failures
+        const { retryFetch } = await import('@/lib/utils/retryFetch')
+        const result = await retryFetch('/api/programs', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        }, {
+          maxAttempts: 3,
+          initialDelay: 500,
+          retryableStatusCodes: [500, 502, 503, 504], // Don't retry 404s for list
+          enableLogging: process.env.NODE_ENV === 'development'
+        })
         
         if (!result.success) {
-          throw new Error(result.error || 'Failed to load programs')
+          const error = result.error
+          throw new Error(`Failed to load programs after ${result.attempts} attempts: ${error?.message || 'Unknown error'}`)
         }
 
-        setPrograms(result.data || [])
+        const data = result.data
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to load programs')
+        }
+
+        setPrograms(data.data || [])
+        
+        // Log successful retry info for debugging
+        if (result.attempts > 1) {
+          console.log(`[ProgramsList] ✅ Programs loaded after ${result.attempts} attempts in ${Math.round(result.totalTime/1000)}s`)
+        }
       } catch (err) {
         console.error('Error loading programs:', err)
         setError(err instanceof Error ? err.message : 'Failed to load programs')

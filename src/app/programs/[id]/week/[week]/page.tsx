@@ -61,25 +61,27 @@ export default function WeeklyProgramView() {
           return
         }
 
-        // Fetch program from API
-        const response = await fetch(`/api/programs/${programId}`)
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('Program not found')
-          } else if (response.status === 403) {
-            throw new Error('You do not have permission to view this program')
-          }
-          throw new Error('Failed to load program')
-        }
-
-        const result = await response.json()
+        // Fetch program from API with intelligent retry for transient failures
+        const { retryProgramFetch } = await import('@/lib/utils/retryFetch')
+        const result = await retryProgramFetch(programId)
         
         if (!result.success) {
-          throw new Error(result.error || 'Failed to load program')
+          const error = result.error
+          
+          if (error?.message?.includes('404')) {
+            throw new Error(`Program not found (attempted ${result.attempts} times)`)
+          } else if (error?.message?.includes('403')) {
+            throw new Error('You do not have permission to view this program')
+          }
+          throw new Error(`Failed to load program after ${result.attempts} attempts: ${error?.message || 'Unknown error'}`)
         }
 
         setProgram(result.data)
+        
+        // Log successful retry info for debugging
+        if (result.attempts > 1) {
+          console.log(`[WeeklyProgramFetch] ✅ Program loaded after ${result.attempts} attempts in ${Math.round(result.totalTime/1000)}s`)
+        }
         
         // Validate week number
         if (weekNumber !== result.data.weekNumber) {

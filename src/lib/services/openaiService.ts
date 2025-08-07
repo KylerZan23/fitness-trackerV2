@@ -95,10 +95,12 @@ export class OpenAIStructuredService implements ILLMService {
       });
 
       // Convert Zod schema to JSON Schema with explicit target specification
+      // Note: OpenAI structured outputs require ALL properties (including optional) in required array
       const jsonSchema = zodToJsonSchema(schema, {
         name: 'outputSchema',
         target: 'openApi3',
         strictUnions: true,
+        $refStrategy: 'none', // Avoid $ref to prevent schema resolution issues
       });
       
       // Remove the $schema property as OpenAI doesn't expect it
@@ -168,6 +170,9 @@ export class OpenAIStructuredService implements ILLMService {
           originalSchema: JSON.stringify(finalSchema).substring(0, 500),
         });
       }
+
+      // Fix required arrays for OpenAI: ALL properties must be in required array (even optional ones)
+      finalSchema = this.fixRequiredArraysForOpenAI(finalSchema);
 
       // Final validation that we have a proper object schema
       if (!finalSchema.type || finalSchema.type !== 'object') {
@@ -499,6 +504,53 @@ export class OpenAIStructuredService implements ILLMService {
       failedRequests: 0,
       averageResponseTime: 0,
     };
+  }
+
+  /**
+   * Fix required arrays for OpenAI structured outputs
+   * OpenAI requires ALL properties (including optional ones) to be in the required array
+   * @private
+   */
+  private fixRequiredArraysForOpenAI(schema: any): any {
+    if (typeof schema !== 'object' || schema === null) {
+      return schema;
+    }
+
+    // Make a deep copy to avoid mutating the original
+    const fixedSchema = JSON.parse(JSON.stringify(schema));
+
+    // Fix this level if it's an object with properties
+    if (fixedSchema.type === 'object' && fixedSchema.properties) {
+      const allPropertyNames = Object.keys(fixedSchema.properties);
+      fixedSchema.required = allPropertyNames;
+      
+      logger.debug('Fixed required array for OpenAI', {
+        operation: 'fixRequiredArraysForOpenAI',
+        component: 'openaiService',
+        properties: allPropertyNames,
+        originalRequired: schema.required || [],
+        newRequired: fixedSchema.required,
+      });
+
+      // Recursively fix nested objects
+      for (const [propName, propSchema] of Object.entries(fixedSchema.properties) as [string, any][]) {
+        fixedSchema.properties[propName] = this.fixRequiredArraysForOpenAI(propSchema);
+      }
+    }
+
+    // Fix array items
+    if (fixedSchema.type === 'array' && fixedSchema.items) {
+      fixedSchema.items = this.fixRequiredArraysForOpenAI(fixedSchema.items);
+    }
+
+    // Fix definitions
+    if (fixedSchema.definitions) {
+      for (const [defName, defSchema] of Object.entries(fixedSchema.definitions) as [string, any][]) {
+        fixedSchema.definitions[defName] = this.fixRequiredArraysForOpenAI(defSchema);
+      }
+    }
+
+    return fixedSchema;
   }
 }
 

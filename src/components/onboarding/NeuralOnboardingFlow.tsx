@@ -10,6 +10,26 @@ import { NeuralQuestionCard, NEURAL_QUESTION_CONFIGS } from './NeuralQuestionCar
 import { cn } from '@/lib/utils'
 import type { OnboardingData, OnboardingCompletionData } from '@/types/neural'
 
+/**
+ * API error response structure from backend
+ */
+interface APIErrorResponse {
+  error: string;           // Generic error message
+  message: string;         // Specific error details
+  details: ValidationError[] | null;  // Structured validation errors
+  timestamp: string;
+  requestId?: string;
+}
+
+/**
+ * Validation error structure for API responses
+ */
+interface ValidationError {
+  field: string;
+  message: string;
+  code: string;
+}
+
 // Validation schema for Neural onboarding data
 const NeuralOnboardingSchema = z.object({
   primaryFocus: z.enum(['hypertrophy', 'strength', 'general_fitness']),
@@ -179,6 +199,35 @@ export function NeuralOnboardingFlow({
     }
   }, [state.currentStep])
 
+  /**
+   * Format validation errors into user-friendly message
+   */
+  const formatValidationErrors = (errors: ValidationError[]): string => {
+    const fieldMappings: Record<string, string> = {
+      'primaryFocus': 'fitness goal',
+      'experienceLevel': 'experience level',
+      'sessionDuration': 'session duration',
+      'equipmentAccess': 'equipment access',
+      'personalRecords.squat': 'squat record',
+      'personalRecords.bench': 'bench press record',
+      'personalRecords.deadlift': 'deadlift record'
+    }
+
+    const formattedErrors = errors.map(error => {
+      const friendlyField = fieldMappings[error.field] || error.field
+      const message = error.message.toLowerCase().replace(/^expected .+, received .+$/, 'is invalid')
+      return `${friendlyField} ${message}`
+    })
+
+    if (formattedErrors.length === 1) {
+      return `Please fix: ${formattedErrors[0]}`
+    } else if (formattedErrors.length === 2) {
+      return `Please fix: ${formattedErrors.join(' and ')}`
+    } else {
+      return `Please fix: ${formattedErrors.slice(0, -1).join(', ')}, and ${formattedErrors[formattedErrors.length - 1]}`
+    }
+  }
+
   const handleSubmit = async () => {
     setState(prev => ({ ...prev, isSubmitting: true }))
 
@@ -193,20 +242,80 @@ export function NeuralOnboardingFlow({
         body: JSON.stringify({
           primaryFocus: validatedData.primaryFocus,
           experienceLevel: validatedData.experienceLevel,
-          sessionDuration: parseInt(validatedData.sessionDuration, 10),
+          sessionDuration: validatedData.sessionDuration,
           equipmentAccess: validatedData.equipmentAccess,
           personalRecords: validatedData.personalRecords
         })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate Neural program')
+        let errorMessage: string
+        
+        try {
+          // Parse JSON error response from API
+          const errorData: APIErrorResponse = await response.json()
+          
+          // Handle validation errors with specific field details
+          if (response.status === 400 && errorData.details && errorData.details.length > 0) {
+            errorMessage = formatValidationErrors(errorData.details)
+          } 
+          // Handle other API errors with specific messages
+          else if (errorData.message) {
+            switch (response.status) {
+              case 404:
+                errorMessage = 'Your account was not found. Please try logging in again.'
+                break
+              case 502:
+                errorMessage = 'Our AI service is temporarily unavailable. Please try again in a few moments.'
+                break
+              case 500:
+                errorMessage = errorData.message.includes('database') 
+                  ? 'We are experiencing database issues. Please try again later.'
+                  : errorData.message
+                break
+              default:
+                errorMessage = errorData.message
+            }
+          } 
+          // Fallback to generic error message
+          else {
+            errorMessage = errorData.error || 'An unexpected error occurred. Please try again.'
+          }
+        } catch (parseError) {
+          // Handle JSON parsing failures gracefully
+          console.warn('Failed to parse error response:', parseError)
+          
+          // Use status-based fallback messages when JSON parsing fails
+          switch (response.status) {
+            case 400:
+              errorMessage = 'Invalid request. Please check your inputs and try again.'
+              break
+            case 401:
+              errorMessage = 'Please log in again to continue.'
+              break
+            case 404:
+              errorMessage = 'Service not found. Please try again later.'
+              break
+            case 429:
+              errorMessage = 'Too many requests. Please wait a moment and try again.'
+              break
+            case 500:
+            case 502:
+            case 503:
+              errorMessage = 'Server error. Please try again later.'
+              break
+            default:
+              errorMessage = 'Network error. Please check your connection and try again.'
+          }
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to generate program')
+      if (!result.success && result.error) {
+        throw new Error(result.error)
       }
 
       // Clear saved state
@@ -219,11 +328,23 @@ export function NeuralOnboardingFlow({
         onComplete({
           ...validatedData,
           programId: result.programId,
+          program: result.program, // Pass the full program object
           createdAt: result.createdAt
         })
       } else {
-        // Fallback redirect to the generated program
-        if (result.programId) {
+        // Redirect with the complete program data structure to avoid fetch dependency
+        if (result.program && result.programId) {
+          // Store the complete program data structure that matches the fetch endpoint format
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('freshProgram', JSON.stringify({
+              id: result.programId,
+              userId: result.userId,
+              createdAt: result.createdAt,
+              updatedAt: result.updatedAt,
+              program: result.program,
+              metadata: result.metadata || { source: 'neural-generation' }
+            }))
+          }
           router.push(`/programs/${result.programId}`)
         } else {
           router.push('/dashboard?newUser=true')
@@ -231,11 +352,29 @@ export function NeuralOnboardingFlow({
       }
     } catch (error) {
       console.error('Neural onboarding submission failed:', error)
+      
+      let errorMessage: string
+      
+      if (error instanceof Error) {
+        // Check if it's a network error
+        if (error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.'
+        } else if (error.message.includes('JSON')) {
+          errorMessage = 'Server response error. Please try again.'
+        } else {
+          // Use the specific error message we parsed from API or validation
+          errorMessage = error.message
+        }
+      } else {
+        // Fallback for unknown error types
+        errorMessage = 'Something went wrong. Please try again.'
+      }
+      
       setState(prev => ({
         ...prev,
         isSubmitting: false,
         errors: { 
-          submit: error instanceof Error ? error.message : 'Something went wrong. Please try again.' 
+          submit: errorMessage
         }
       }))
     }
