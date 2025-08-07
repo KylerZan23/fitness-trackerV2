@@ -17,7 +17,7 @@
 import { z } from 'zod';
 import { openaiService, type LLMServiceConfig } from '@/lib/services/openaiService';
 import { logger } from '@/lib/logging';
-import { ENHANCED_PROGRAM_VALIDATION } from '@/lib/validation/enhancedProgramSchema';
+import { RawAIResponseSchema, validateRawAIResponse, validateNeuralRequest, type RawAIResponse, type NeuralRequest as NeuralRequestType } from '@/lib/validation/neuralProgramSchema';
 import type { 
   NeuralRequest, 
   NeuralResponse, 
@@ -143,7 +143,7 @@ export class NeuralAPI {
       // Generate structured response using OpenAI service
       const response = await this.generateWithRetry(
         prompt,
-        ENHANCED_PROGRAM_VALIDATION.neural.response,
+        RawAIResponseSchema,
         3,
         requestId
       );
@@ -268,7 +268,11 @@ export class NeuralAPI {
    */
   private validateNeuralRequest(request: NeuralRequest): NeuralRequest {
     try {
-      return ENHANCED_PROGRAM_VALIDATION.neural.request.parse(request);
+      const validation = validateNeuralRequest(request);
+      if (!validation.success) {
+        throw new Error(validation.error);
+      }
+      return validation.data;
     } catch (error) {
       logger.error('Neural request validation failed', {
         operation: 'validateNeuralRequest',
@@ -285,6 +289,81 @@ export class NeuralAPI {
   }
 
   /**
+   * Transform raw AI response to expected NeuralResponse format
+   * 
+   * @private
+   */
+  private transformRawResponseToNeuralResponse(rawResponse: RawAIResponse): NeuralResponse {
+    // Generate unique IDs and transform workouts
+    const transformedWorkouts = rawResponse.workouts.map((workout, index) => ({
+      id: crypto.randomUUID(),
+      name: `${workout.day} - ${workout.focus}`,
+      duration: 60, // Default duration, could be calculated from exercises
+      focus: workout.focus,
+      warmup: workout.warmup?.map(exercise => ({
+        id: crypto.randomUUID(),
+        name: exercise.exercise,
+        targetMuscles: [], // Would need to be mapped from exercise names
+        sets: exercise.sets || 2,
+        reps: exercise.reps?.toString() || "10",
+        load: exercise.load || "bodyweight",
+        rest: exercise.rest || "30 seconds",
+        rpe: exercise.RPE?.toString() || "4",
+        notes: exercise.description,
+      })) || [],
+      mainExercises: workout.main_exercises.map(exercise => ({
+        id: crypto.randomUUID(),
+        name: exercise.exercise,
+        targetMuscles: [], // Would need to be mapped from exercise names
+        sets: exercise.sets,
+        reps: exercise.reps.toString(),
+        load: exercise.load,
+        rest: exercise.rest,
+        rpe: exercise.RPE?.toString() || "7",
+      })),
+      finisher: workout.finisher?.map(exercise => ({
+        id: crypto.randomUUID(),
+        name: exercise.exercise,
+        targetMuscles: [],
+        sets: exercise.sets,
+        reps: exercise.reps.toString(),
+        load: exercise.load,
+        rest: exercise.rest,
+        rpe: exercise.RPE?.toString() || "6",
+      })) || workout.optional_finisher?.map(exercise => ({
+        id: crypto.randomUUID(),
+        name: exercise.exercise,
+        targetMuscles: [],
+        sets: exercise.sets,
+        reps: exercise.reps.toString(),
+        load: exercise.load,
+        rest: exercise.rest,
+        rpe: "6",
+      })) || [],
+      totalEstimatedTime: 60, // Would be calculated from exercises + rest
+    }));
+
+    // Create the training program
+    const program: TrainingProgram = {
+      id: crypto.randomUUID(),
+      userId: "", // Will be set by the calling code
+      programName: rawResponse.program_name,
+      weekNumber: 1, // Default, could be passed from request
+      workouts: transformedWorkouts,
+      progressionNotes: "AI-generated program with progressive overload principles",
+      createdAt: new Date(),
+      neuralInsights: `Generated ${transformedWorkouts.length}-workout program focusing on ${transformedWorkouts[0]?.focus || 'balanced training'}`,
+    };
+
+    return {
+      program,
+      reasoning: "Program designed based on user preferences and experience level",
+      progressionPlan: "Week-by-week progression with increasing intensity and volume",
+      nextWeekPreview: "Next week will build upon this foundation with slight increases in load",
+    };
+  }
+
+  /**
    * Validate and enhance Neural response
    * 
    * @private
@@ -292,7 +371,14 @@ export class NeuralAPI {
   private validateNeuralResponse(response: any): NeuralResponse {
     try {
       // First validate the basic structure
-      const validatedResponse = ENHANCED_PROGRAM_VALIDATION.neural.response.parse(response);
+      const validation = validateRawAIResponse(response);
+      if (!validation.success) {
+        throw new Error(`Response validation failed: ${validation.error}`);
+      }
+      const rawResponse = validation.data;
+      
+      // Transform raw AI response to expected NeuralResponse format
+      const validatedResponse = this.transformRawResponseToNeuralResponse(rawResponse);
       
       // Additional business logic validation
       this.validateProgramBusinessLogic(validatedResponse.program);

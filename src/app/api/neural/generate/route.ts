@@ -21,6 +21,7 @@ import type {
   convertWorkoutToWorkoutDay
 } from '@/lib/types/workout';
 import type { OnboardingData } from '@/types/neural';
+import { saveNeuralProgram, getNeuralPrograms } from '@/lib/data/neural-programs';
 
 /**
  * Neural Program Generation API Endpoint
@@ -46,6 +47,8 @@ interface NeuralResponse {
     createdAt: Date;
     neuralInsights: string;
   };
+  programId: string; // Persistent database ID
+  createdAt: string; // Database timestamp
   reasoning: string;
   progressionPlan: string;
   nextWeekPreview: string;
@@ -312,7 +315,43 @@ export async function POST(request: NextRequest) {
     // Transform the result to conform to our workout types
     const transformedWorkouts = transformToWorkoutTypes(result.program);
 
+    // Create program structure with transformed workouts
+    const transformedProgram = {
+      id: crypto.randomUUID(),
+      userId,
+      programName: 'Neural Generated Program',
+      weekNumber: weekNumber || 1,
+      workouts: transformedWorkouts,
+      progressionNotes: 'Progressive overload with neural adaptations',
+      createdAt: new Date(),
+      neuralInsights: 'Program generated using advanced neural analysis'
+    };
+
     try {
+      // Persist the program to database using Data Access Layer
+      let savedProgram;
+      try {
+        savedProgram = await saveNeuralProgram({
+          user_id: userId,
+          program_content: transformedProgram
+        });
+      } catch (saveError) {
+        logger.error('Failed to save neural program to database', {
+          operation: 'neuralGenerate',
+          component: 'neuralAPI',
+          requestId,
+          userId,
+          error: saveError instanceof Error ? saveError.message : 'Unknown error',
+          details: saveError
+        });
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to save generated program',
+          message: 'Program was generated but could not be saved to database',
+          requestId
+        }, { status: 500 });
+      }
+
       // Update user profile to mark onboarding as completed
       await supabase
         .from('profiles')
@@ -326,33 +365,24 @@ export async function POST(request: NextRequest) {
 
       const duration = Date.now() - startTime;
 
-      // Create program structure with transformed workouts
-      const transformedProgram = {
-        id: crypto.randomUUID(),
-        userId,
-        programName: 'Neural Generated Program',
-        weekNumber: weekNumber || 1,
-        workouts: transformedWorkouts,
-        progressionNotes: 'Progressive overload with neural adaptations',
-        createdAt: new Date(),
-        neuralInsights: 'Program generated using advanced neural analysis'
-      };
-
       logger.info('Neural program generation completed successfully', {
         operation: 'neuralGenerate',
         component: 'neuralAPI',
         requestId,
         userId,
         programId: transformedProgram.id,
+        persistentId: savedProgram.id,
         programName: transformedProgram.programName,
         workoutCount: transformedProgram.workouts.length,
         duration
       });
 
-      // Return response conforming to our workout types
+      // Return response conforming to our workout types with persistent ID
       const response: NeuralResponse = {
         success: true,
         program: transformedProgram,
+        programId: savedProgram.id, // Persistent database ID
+        createdAt: savedProgram.created_at, // Database timestamp
         reasoning: "Neural has analyzed your onboarding data and created a personalized program tailored to your goals and experience level.",
         progressionPlan: transformedProgram.progressionNotes,
         nextWeekPreview: `Continue with week ${transformedProgram.weekNumber + 1} for progressive overload and adaptation.`,
@@ -429,8 +459,7 @@ export async function GET(request: NextRequest) {
       }, { status: 401 });
     }
 
-    // Since training_programs table was decommissioned, we check profile status
-    // Neural programs are generated on-demand and not stored in database
+    // Check for stored neural programs
     logger.info('Checking Neural generation status for user', {
       operation: 'neuralGenerateStatus',
       component: 'neuralAPI',
@@ -438,8 +467,19 @@ export async function GET(request: NextRequest) {
       userId
     });
     
-    // No stored programs to check since Neural generates on-demand
-    const programs = [];
+    // Check for existing neural programs using Data Access Layer
+    let programs = [];
+    try {
+      programs = await getNeuralPrograms(userId);
+    } catch (error) {
+      logger.error('Failed to check neural programs', {
+        operation: 'neuralGenerateStatus',
+        component: 'neuralAPI',
+        requestId,
+        userId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
 
     // Check onboarding completion status
     const { data: profile, error: profileError } = await supabase
@@ -463,19 +503,24 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
+    const hasPrograms = programs && programs.length > 0;
+    const latestProgram = hasPrograms ? programs[0] : null;
+
     logger.info('Neural generation status retrieved', {
       operation: 'neuralGenerateStatus',
       component: 'neuralAPI',
       requestId,
       userId,
+      programCount: programs?.length || 0,
+      hasPrograms,
       onboardingCompleted: profile?.onboarding_completed || false
     });
 
     return NextResponse.json({
       success: true,
-      hasPrograms: false, // Neural generates on-demand, no stored programs
-      programs: [],
-      latestProgram: null,
+      hasPrograms,
+      programs: programs || [],
+      latestProgram,
       onboardingCompleted: profile?.onboarding_completed || false,
       onboardingData: profile?.onboarding_responses || null,
       canGenerate: true,

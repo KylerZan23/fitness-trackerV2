@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { NeuralProgressIndicator, NEURAL_ONBOARDING_STEPS } from './NeuralProgressIndicator'
 import { NeuralQuestionCard, NEURAL_QUESTION_CONFIGS } from './NeuralQuestionCard' 
 import { cn } from '@/lib/utils'
-import type { OnboardingData } from '@/types/neural'
+import type { OnboardingData, OnboardingCompletionData } from '@/types/neural'
 
 // Validation schema for Neural onboarding data
 const NeuralOnboardingSchema = z.object({
@@ -40,7 +40,7 @@ interface NeuralOnboardingFlowProps {
   /** User ID for the onboarding flow */
   userId?: string
   /** Callback when onboarding is completed */
-  onComplete?: (data: OnboardingData) => void
+  onComplete?: (data: OnboardingCompletionData) => void
   /** Callback when onboarding is cancelled */
   onCancel?: () => void
   /** Initial data to pre-populate the form */
@@ -187,7 +187,7 @@ export function NeuralOnboardingFlow({
       const validatedData = NeuralOnboardingSchema.parse(state.formData)
 
       // Generate Neural program
-      const response = await fetch('/api/neural/generate-program', {
+      const response = await fetch('/api/neural/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -202,16 +202,29 @@ export function NeuralOnboardingFlow({
 
       const result = await response.json()
 
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate program')
+      }
+
       // Clear saved state
       if (typeof window !== 'undefined') {
         localStorage.removeItem('neural-onboarding-state')
       }
 
-      // Callback or redirect
+      // Callback or redirect with program data including persistent ID
       if (onComplete) {
-        onComplete(validatedData)
+        onComplete({
+          ...validatedData,
+          programId: result.programId,
+          createdAt: result.createdAt
+        })
       } else {
-        router.push('/dashboard?newUser=true')
+        // Fallback redirect to the generated program
+        if (result.programId) {
+          router.push(`/programs/${result.programId}`)
+        } else {
+          router.push('/dashboard?newUser=true')
+        }
       }
     } catch (error) {
       console.error('Neural onboarding submission failed:', error)

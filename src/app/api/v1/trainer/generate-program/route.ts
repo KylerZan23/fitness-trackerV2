@@ -8,7 +8,7 @@ import { NextRequest } from 'next/server'
 import { requireApiKey, createApiErrorResponse, createApiSuccessResponse, handleCorsPreFlight, parseJsonBody, addCorsHeaders } from '@/lib/auth/apiMiddleware'
 import { validateRequest, GenerateProgramRequestSchema, GenerateProgramResponseSchema } from '@/lib/validation/trainerApiSchemas'
 import { programGenerator } from '@/services/programGenerator';
-import { ENHANCED_PROGRAM_VALIDATION } from '@/lib/validation/enhancedProgramSchema'
+
 import type { GenerateProgramRequest, UserBiometrics, TrainingGoals, ExperienceLevel } from '@/lib/types/apiKeys'
 import type { OnboardingData, SessionDuration } from '@/lib/types/onboarding'
 import type { UserProfileForGeneration } from '@/lib/types/program'

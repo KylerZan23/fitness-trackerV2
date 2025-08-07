@@ -124,35 +124,87 @@ export class OpenAIStructuredService implements ILLMService {
       }
 
       const client = getOpenAIClient();
-      const completion = await client.chat.completions.create({
-        model: finalConfig.model,
-        temperature: finalConfig.temperature,
-        max_tokens: finalConfig.maxTokens,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'response_schema',
-            strict: true,
-            schema: cleanJsonSchema,
-          },
-        },
-      });
-
-      const content = completion.choices[0]?.message?.content;
-      if (!content) {
-        logger.error('OpenAI returned no content', {
-          operation: 'generateStructuredOutput',
-          component: 'openaiService',
+      
+      // Primary attempt: structured output mode
+      let completion: any;
+      let content: string;
+      let usedFallback = false;
+      
+      try {
+        completion = await client.chat.completions.create({
           model: finalConfig.model,
-          response: completion,
+          temperature: finalConfig.temperature,
+          max_tokens: finalConfig.maxTokens,
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'response_schema',
+              strict: true,
+              schema: cleanJsonSchema,
+            },
+          },
         });
-        throw new Error('No content returned from OpenAI');
+
+        content = completion.choices[0]?.message?.content;
+        if (!content) {
+          logger.error('OpenAI returned no content in structured mode', {
+            operation: 'generateStructuredOutput',
+            component: 'openaiService',
+            model: finalConfig.model,
+            response: completion,
+          });
+          throw new Error('No content returned from OpenAI');
+        }
+      } catch (structuredError: any) {
+        // Check if this is a schema validation error that we can fallback from
+        if (structuredError.status === 400 && structuredError.message?.includes('Invalid schema')) {
+          logger.warn('Structured output failed, falling back to JSON object mode', {
+            operation: 'generateStructuredOutput',
+            component: 'openaiService',
+            error: structuredError.message,
+            model: finalConfig.model,
+          });
+
+          usedFallback = true;
+
+          // Fallback to JSON object mode
+          const fallbackCompletion = await client.chat.completions.create({
+            model: finalConfig.model,
+            temperature: finalConfig.temperature,
+            max_tokens: finalConfig.maxTokens,
+            messages: [
+              {
+                role: 'system',
+                content: 'You must respond with valid JSON only. Do not include any text outside the JSON object.'
+              },
+              {
+                role: 'user', 
+                content: prompt + '\n\nIMPORTANT: Respond with valid JSON only that matches the requested schema structure.'
+              }
+            ],
+            response_format: { type: 'json_object' }
+          });
+
+          content = fallbackCompletion.choices[0]?.message?.content;
+          if (!content) {
+            logger.error('No response content from OpenAI fallback', {
+              operation: 'generateStructuredOutput',
+              component: 'openaiService',
+              model: finalConfig.model,
+              originalError: structuredError.message,
+            });
+            throw new Error('No response content from OpenAI fallback');
+          }
+        } else {
+          // Re-throw non-schema errors
+          throw structuredError;
+        }
       }
 
       // Parse and validate the JSON response
@@ -160,27 +212,47 @@ export class OpenAIStructuredService implements ILLMService {
       try {
         parsed = JSON.parse(content);
       } catch (parseError) {
-        logger.error('Failed to parse OpenAI JSON response', {
+        const errorContext = usedFallback ? 'fallback JSON object mode' : 'structured output mode';
+        logger.error(`Failed to parse OpenAI JSON response in ${errorContext}`, {
           operation: 'generateStructuredOutput',
           component: 'openaiService',
           model: finalConfig.model,
+          usedFallback,
           rawContent: content.substring(0, 1000),
           parseError: (parseError as Error).message,
         });
-        throw new Error(`Invalid JSON returned from OpenAI: ${(parseError as Error).message}`);
+        throw new Error(`Invalid JSON returned from OpenAI in ${errorContext}: ${(parseError as Error).message}`);
       }
       
       // Validate against the original Zod schema
-      const validated = schema.parse(parsed);
-      
-      logger.info('Successfully generated structured output', {
-        operation: 'generateStructuredOutput',
-        component: 'openaiService',
-        model: finalConfig.model,
-        outputSize: JSON.stringify(validated).length,
-      });
-      
-      return validated;
+      try {
+        const validated = schema.parse(parsed);
+        
+        const successMessage = usedFallback 
+          ? 'Successfully generated output using JSON object fallback'
+          : 'Successfully generated structured output';
+          
+        logger.info(successMessage, {
+          operation: 'generateStructuredOutput',
+          component: 'openaiService',
+          model: finalConfig.model,
+          usedFallback,
+          outputSize: JSON.stringify(validated).length,
+        });
+        
+        return validated;
+      } catch (validationError) {
+        const errorContext = usedFallback ? 'fallback mode' : 'structured output mode';
+        logger.error(`Schema validation failed in ${errorContext}`, {
+          operation: 'generateStructuredOutput',
+          component: 'openaiService',
+          model: finalConfig.model,
+          usedFallback,
+          validationError: validationError instanceof z.ZodError ? validationError.message : String(validationError),
+          rawResponse: JSON.stringify(parsed).substring(0, 1000),
+        });
+        throw new Error(`Schema validation failed in ${errorContext}: ${validationError instanceof z.ZodError ? validationError.message : String(validationError)}`);
+      }
     } catch (error) {
       logger.error('OpenAI Structured Output Error', {
         operation: 'generateStructuredOutput',

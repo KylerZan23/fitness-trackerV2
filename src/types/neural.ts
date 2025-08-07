@@ -44,6 +44,16 @@ export interface OnboardingData {
 }
 
 /**
+ * Extended onboarding data returned after program generation
+ */
+export interface OnboardingCompletionData extends OnboardingData {
+  /** Persistent program ID from database */
+  programId?: string;
+  /** Timestamp when program was created */
+  createdAt?: string;
+}
+
+/**
  * Individual exercise within a workout
  */
 export interface Exercise {

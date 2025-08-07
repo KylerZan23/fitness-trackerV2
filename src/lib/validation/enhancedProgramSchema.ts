@@ -60,18 +60,62 @@ export const NeuralWorkoutSchema = z.object({
 });
 
 /**
- * Neural training program validation
+ * Simplified Neural training program validation
+ * Matches the actual AI output structure for better compatibility
  */
-export const NeuralTrainingProgramSchema = z.object({
-  id: z.string(),
-  userId: z.string(),
-  programName: z.string().min(1),
-  weekNumber: z.number().int().positive(),
-  workouts: z.array(NeuralWorkoutSchema),
-  progressionNotes: z.string(),
-  createdAt: z.string().datetime(),
-  neuralInsights: z.string(),
+export const SimplifiedNeuralProgramSchema = z.object({
+  program_name: z.string(),
+  workouts: z.array(z.object({
+    day: z.string(),
+    focus: z.string(),
+    warmup: z.array(z.object({
+      exercise: z.string(),
+      sets: z.number().optional(),
+      reps: z.union([z.string(), z.number()]).optional(),
+      load: z.string().optional(),
+      rest: z.string().optional(),
+      description: z.string().optional()
+    })).optional(),
+    main_exercises: z.array(z.object({
+      exercise: z.string(),
+      sets: z.number(),
+      reps: z.union([z.string(), z.number()]),
+      load: z.string(),
+      rest: z.string(),
+      RPE: z.number().optional()
+    })),
+    finisher: z.union([
+      z.array(z.object({
+        exercise: z.string(),
+        sets: z.number(),
+        reps: z.union([z.string(), z.number()]),
+        load: z.string(),
+        rest: z.string()
+      })),
+      z.object({
+        exercise: z.string(),
+        sets: z.number(),
+        reps: z.union([z.string(), z.number()]),
+        load: z.string(),
+        rest: z.string(),
+        RPE: z.number().optional()
+      })
+    ]).optional(),
+    optional_finisher: z.array(z.object({
+      exercise: z.string(),
+      sets: z.number(),
+      reps: z.union([z.string(), z.number()]),
+      load: z.string(),
+      rest: z.string()
+    })).optional()
+  }))
 });
+
+/**
+ * Original Neural training program validation (keeping for backward compatibility)
+ * @deprecated Use SimplifiedNeuralProgramSchema for new implementations
+ */
+export const NeuralTrainingProgramSchema = SimplifiedNeuralProgramSchema;
 
 /**
  * Progress data validation for Neural system
@@ -266,7 +310,8 @@ export const ENHANCED_PROGRAM_VALIDATION = {
 export type NeuralOnboardingData = z.infer<typeof NeuralOnboardingDataSchema>;
 export type NeuralExercise = z.infer<typeof NeuralExerciseSchema>;
 export type NeuralWorkout = z.infer<typeof NeuralWorkoutSchema>;
-export type NeuralTrainingProgram = z.infer<typeof NeuralTrainingProgramSchema>;
+export type SimplifiedNeuralProgram = z.infer<typeof SimplifiedNeuralProgramSchema>;
+export type NeuralTrainingProgram = SimplifiedNeuralProgram;
 export type NeuralProgressData = z.infer<typeof NeuralProgressDataSchema>;
 export type NeuralRequest = z.infer<typeof NeuralRequestSchema>;
 export type NeuralResponse = z.infer<typeof NeuralResponseSchema>;

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { NeuralOnboardingFlow } from '@/components/onboarding/NeuralOnboardingFlow'
 import { createClient } from '@/utils/supabase/client'
 import { toast } from 'sonner'
+import type { OnboardingCompletionData } from '@/types/neural'
 
 /**
  * Neural Onboarding Page
@@ -35,14 +36,14 @@ export default function NeuralOnboardingPage() {
     getUserSession()
   }, [router])
 
-  const handleComplete = async (programData: any) => {
+  const handleComplete = async (programData: OnboardingCompletionData) => {
     console.log('Neural onboarding completed with program data:', programData)
     
     try {
-      // Redirect to the new program view
-      if (programData?.id) {
+      // Redirect to the persistent program view using the programId from the database
+      if (programData?.programId) {
         toast.success('Your Neural program has been created!')
-        router.push(`/programs/${programData.id}`)
+        router.push(`/programs/${programData.programId}`)
       } else {
         // Fallback to programs dashboard
         toast.success('Neural onboarding completed!')

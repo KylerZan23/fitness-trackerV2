@@ -17,7 +17,7 @@
 import { logger } from '@/lib/logging';
 import { createClient } from '@/utils/supabase/server';
 import { neuralAPI, NeuralAPI, NeuralAPIError, NeuralAPIErrorType } from './neuralAPI';
-import { ENHANCED_PROGRAM_VALIDATION } from '@/lib/validation/enhancedProgramSchema';
+import { validateNeuralOnboardingData, validateNeuralProgram, validateNeuralProgressData } from '@/lib/validation/neuralProgramSchema';
 import type {
   OnboardingData,
   ProgressData,
@@ -319,7 +319,11 @@ export class ProgramGenerator {
    */
   private validateOnboardingData(data: OnboardingData): OnboardingData {
     try {
-      return ENHANCED_PROGRAM_VALIDATION.neural.onboardingData.parse(data);
+      const validation = validateNeuralOnboardingData(data);
+      if (!validation.success) {
+        throw new Error(validation.error);
+      }
+      return validation.data;
     } catch (error) {
       logger.error('Onboarding data validation failed', {
         operation: 'validateOnboardingData',
@@ -342,7 +346,27 @@ export class ProgramGenerator {
    */
   private validateTrainingProgram(program: TrainingProgram): TrainingProgram {
     try {
-      return ENHANCED_PROGRAM_VALIDATION.neural.program.parse(program);
+      // Note: We validate the simplified program structure, not the full TrainingProgram
+      // because the validateNeuralProgram expects the simplified structure
+      const validation = validateNeuralProgram({
+        program_name: program.programName,
+        workouts: program.workouts.map(workout => ({
+          day: workout.name.split(' - ')[0] || 'Monday',
+          focus: workout.focus,
+          main_exercises: workout.mainExercises.map(exercise => ({
+            exercise: exercise.name,
+            sets: exercise.sets,
+            reps: exercise.reps,
+            load: exercise.load,
+            rest: exercise.rest,
+            RPE: parseInt(exercise.rpe) || 7
+          }))
+        }))
+      });
+      if (!validation.success) {
+        throw new Error(validation.error);
+      }
+      return program; // Return original program since structure is valid
     } catch (error) {
       logger.error('Training program validation failed', {
         operation: 'validateTrainingProgram',
@@ -365,7 +389,11 @@ export class ProgramGenerator {
    */
   private validateProgressData(data: ProgressData): ProgressData {
     try {
-      return ENHANCED_PROGRAM_VALIDATION.neural.progressData.parse(data);
+      const validation = validateNeuralProgressData(data);
+      if (!validation.success) {
+        throw new Error(validation.error);
+      }
+      return validation.data;
     } catch (error) {
       logger.error('Progress data validation failed', {
         operation: 'validateProgressData',
