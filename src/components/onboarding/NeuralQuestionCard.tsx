@@ -22,6 +22,8 @@ interface NeuralQuestionCardProps {
   type: 'single-select' | 'multi-select' | 'number' | 'text'
   /** Available options for select types */
   options?: BaseOption[]
+  /** Layout for select options */
+  optionsLayout?: 'stack' | 'grid'
   /** Current value */
   value: any
   /** Change handler */
@@ -61,6 +63,7 @@ export function NeuralQuestionCard({
   description,
   type,
   options = [],
+  optionsLayout = 'stack',
   value,
   onChange,
   error,
@@ -109,7 +112,7 @@ export function NeuralQuestionCard({
   }
 
   const renderSingleSelect = () => (
-    <div className="space-y-2">
+    <div className={cn(optionsLayout === 'grid' ? 'grid gap-4 sm:grid-cols-3' : 'space-y-2')}>
       {options.map((option) => (
         <button
           key={option.value}
@@ -117,23 +120,23 @@ export function NeuralQuestionCard({
           onClick={() => handleSingleSelect(option.value)}
           disabled={option.disabled}
           className={cn(
-            "w-full p-4 text-left rounded-lg border-2 transition-all duration-200",
-            "hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+            "w-full p-5 text-left rounded-xl border-2 transition-all duration-200",
+            "hover:border-purple-300 hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2",
             value === option.value 
-              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200" 
+              ? "border-purple-500 bg-purple-50 ring-2 ring-purple-200" 
               : "border-gray-200 bg-white",
             option.disabled && "opacity-50 cursor-not-allowed"
           )}
         >
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <div className="font-medium text-gray-900">{option.label}</div>
+              <div className="font-semibold text-gray-900">{option.label}</div>
               {option.description && (
                 <div className="text-sm text-gray-600 mt-1">{option.description}</div>
               )}
             </div>
             {value === option.value && (
-              <CheckCircle2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-purple-600 flex-shrink-0" />
             )}
           </div>
         </button>
@@ -298,110 +301,112 @@ export function NeuralQuestionCard({
 // Preset question configurations for common Neural onboarding questions
 export const NEURAL_QUESTION_CONFIGS = {
   primaryFocus: {
-    title: "What's your primary fitness goal?",
-    description: "This helps Neural create the most effective program for you",
+    title: "Primary Focus",
+    description: "What is your main goal?",
     emoji: "🎯",
     type: 'single-select' as const,
+    optionsLayout: 'grid' as const,
     options: [
       {
         value: 'hypertrophy',
-        label: 'Build Muscle (Hypertrophy)',
-        description: 'Focus on muscle growth and size'
+        label: 'Hypertrophy',
+        description: 'Build muscle size and shape'
       },
       {
         value: 'strength',
-        label: 'Get Stronger',
-        description: 'Maximize your strength in key lifts'
+        label: 'Strength',
+        description: 'Lift heavier, get stronger'
       },
       {
         value: 'general_fitness',
         label: 'General Fitness',
-        description: 'Improve overall health and conditioning'
+        description: 'Move better, feel better'
       }
     ]
   },
   experienceLevel: {
-    title: "What's your training experience?",
-    description: "Neural will adjust the complexity and intensity based on your background",
+    title: "Experience",
+    description: "How experienced are you?",
     emoji: "📈",
     type: 'single-select' as const,
+    optionsLayout: 'grid' as const,
     options: [
       {
         value: 'beginner',
         label: 'Beginner',
-        description: 'New to structured training (0-1 years)'
+        description: '0–6 months — new or returning'
       },
       {
         value: 'intermediate',
         label: 'Intermediate',
-        description: 'Regular training experience (1-3 years)'
+        description: '6–24 months — consistent training'
       },
       {
         value: 'advanced',
         label: 'Advanced',
-        description: 'Extensive training background (3+ years)'
+        description: '2+ years — optimizing performance'
       }
     ]
   },
   sessionDuration: {
-    title: "How long can you train per session?",
-    description: "Be realistic - Neural will optimize your time efficiently",
+    title: "Session Duration",
+    description: "How long per session?",
     emoji: "⏱️",
     type: 'single-select' as const,
     options: [
       {
         value: 30,
         label: '30 minutes',
-        description: 'Quick, efficient sessions'
+        description: 'Quick & focused'
       },
       {
         value: 45,
         label: '45 minutes',
-        description: 'Balanced workout length'
+        description: 'Balanced'
       },
       {
         value: 60,
         label: '60 minutes',
-        description: 'Standard gym session'
+        description: 'Full session'
       },
       {
         value: 90,
         label: '90 minutes',
-        description: 'Extended training time'
+        description: 'Extended work'
       }
     ]
   },
   equipmentAccess: {
-    title: "What equipment do you have access to?",
-    description: "Neural will design your program around your available resources",
+    title: "Equipment",
+    description: "What can you access?",
     emoji: "🏋️",
     type: 'single-select' as const,
     options: [
       {
         value: 'full_gym',
         label: 'Full Gym',
-        description: 'Complete gym with barbells, machines, etc.'
+        description: 'Machines & free weights'
       },
       {
         value: 'dumbbells_only',
         label: 'Dumbbells Only',
-        description: 'Home gym or limited equipment'
+        description: 'Pairs and adjustable'
       },
       {
         value: 'bodyweight_only',
-        label: 'Bodyweight Only',
-        description: 'No equipment needed'
+        label: 'Bodyweight',
+        description: 'Minimal equipment'
       }
     ]
   },
   trainingDaysPerWeek: {
-    title: "How many days per week do you want to train?",
-    description: "Neural will tailor the number of weekly workouts to your schedule",
+    title: "Days/Week",
+    description: "How many days can you train?",
     emoji: "🗓️",
     type: 'single-select' as const,
     options: [
       { value: 2, label: '2 days/week', description: 'Minimal schedule' },
-      { value: 3, label: '3 days/week', description: 'Popular full-body cadence' },
+      { value: 3, label: '3 days/week', description: 'We recommend at least 2–3 days/week' },
       { value: 4, label: '4 days/week', description: 'Upper/Lower split friendly' },
       { value: 5, label: '5 days/week', description: 'High frequency' },
       { value: 6, label: '6 days/week', description: 'Advanced training' },

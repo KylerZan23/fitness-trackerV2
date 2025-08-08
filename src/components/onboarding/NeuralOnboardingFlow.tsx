@@ -101,7 +101,7 @@ export function NeuralOnboardingFlow({
   const steps = [
     {
       id: 'primaryFocus',
-      title: 'Your Goals',
+      title: 'Primary Focus',
       component: () => renderQuestion('primaryFocus'),
       isRequired: true,
       validate: (data: Partial<OnboardingData>) => data.primaryFocus ? null : 'Please select your primary fitness goal'
@@ -115,7 +115,7 @@ export function NeuralOnboardingFlow({
     },
     {
       id: 'sessionDuration',
-      title: 'Schedule',
+      title: 'Session Duration',
       component: () => renderQuestion('sessionDuration'),
       isRequired: true,
       validate: (data: Partial<OnboardingData>) => data.sessionDuration ? null : 'Please select your preferred session duration'
@@ -129,14 +129,14 @@ export function NeuralOnboardingFlow({
     },
     {
       id: 'trainingDaysPerWeek',
-      title: 'Frequency',
+      title: 'Days/Week',
       component: () => renderQuestion('trainingDaysPerWeek'),
       isRequired: true,
       validate: (data: Partial<OnboardingData>) => (data as any).trainingDaysPerWeek ? null : 'Please select how many days per week you want to train'
     },
     {
       id: 'personalRecords',
-      title: 'Strength',
+      title: 'Optional PRs',
       component: () => renderStrengthQuestion(),
       isRequired: false,
       validate: () => null // Optional step

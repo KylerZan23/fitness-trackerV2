@@ -179,28 +179,33 @@ export function NeuralProgressIndicator({
 // Default step configurations for Neural onboarding
 export const NEURAL_ONBOARDING_STEPS: Step[] = [
   {
-    id: 'focus',
-    title: 'Your Goals',
-    description: 'What do you want to achieve?'
+    id: 'primary-focus',
+    title: 'Primary Focus',
+    description: 'What is your main goal?'
   },
   {
     id: 'experience',
     title: 'Experience',
-    description: 'Tell us your fitness background'
+    description: 'How experienced are you?'
   },
   {
-    id: 'schedule',
-    title: 'Schedule',
-    description: 'How much time can you commit?'
+    id: 'session-duration',
+    title: 'Session Duration',
+    description: 'How long per session?'
   },
   {
     id: 'equipment',
     title: 'Equipment',
-    description: 'What do you have access to?'
+    description: 'What can you access?'
   },
   {
-    id: 'strength',
-    title: 'Strength',
-    description: 'Optional: Share your current levels'
+    id: 'days-per-week',
+    title: 'Days/Week',
+    description: 'How many days can you train?'
+  },
+  {
+    id: 'optional-prs',
+    title: 'Optional PRs',
+    description: 'Add PRs to refine your plan'
   }
 ]

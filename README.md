@@ -117,11 +117,13 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
   - Accessible design with proper keyboard navigation and focus management
   - Professional styling with hover effects and validation states
   - Built-in help text and error display for user guidance
+  - New `optionsLayout` prop enabling grid layout for single-select (used on Primary Focus)
 - **NeuralProgressIndicator**: Visual progress tracker with Neural branding
   - Clean progress bar with animated completion states
   - Step indicators with Neural's signature blue-to-purple gradient
   - Responsive design for mobile and desktop experiences
   - Progress statistics and completion percentage display
+  - Updated to 6 steps: Primary Focus, Experience, Session Duration, Equipment, Days/Week, Optional PRs
 - **API Integration**: Complete backend integration for program generation
   - RESTful endpoints for onboarding status and program creation
   - User authentication and authorization with Supabase
