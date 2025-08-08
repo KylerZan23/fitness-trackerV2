@@ -21,6 +21,8 @@ export interface OnboardingData {
   
   /** Available equipment access */
   equipmentAccess: 'full_gym' | 'dumbbells_only' | 'bodyweight_only';
+  /** Desired training frequency (workouts per week) */
+  trainingDaysPerWeek?: 2 | 3 | 4 | 5 | 6;
   
   /** Optional personal records for strength assessment */
   personalRecords?: {
@@ -38,7 +40,7 @@ export interface OnboardingData {
     injuryHistory?: string;
     /** Training preferences (e.g., "compound movements", "high intensity") */
     preferences?: string[];
-    /** Available training days per week */
+    /** Available training days per week (legacy) */
     availableDays?: number;
   };
 }

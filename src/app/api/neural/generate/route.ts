@@ -54,6 +54,8 @@ export async function POST(request: Request) {
                 sessionDuration: body.sessionDuration,
                 equipmentAccess: body.equipmentAccess,
                 personalRecords: body.personalRecords,
+                // New frequency input from onboarding
+                trainingDaysPerWeek: body.trainingDaysPerWeek,
             },
             regenerate: body.regenerate || false,
             weekNumber: body.weekNumber || 1,

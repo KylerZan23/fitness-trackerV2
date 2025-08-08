@@ -128,6 +128,13 @@ export function NeuralOnboardingFlow({
       validate: (data: Partial<OnboardingData>) => data.equipmentAccess ? null : 'Please select your equipment access'
     },
     {
+      id: 'trainingDaysPerWeek',
+      title: 'Frequency',
+      component: () => renderQuestion('trainingDaysPerWeek'),
+      isRequired: true,
+      validate: (data: Partial<OnboardingData>) => (data as any).trainingDaysPerWeek ? null : 'Please select how many days per week you want to train'
+    },
+    {
       id: 'personalRecords',
       title: 'Strength',
       component: () => renderStrengthQuestion(),
@@ -244,7 +251,9 @@ export function NeuralOnboardingFlow({
           experienceLevel: validatedData.experienceLevel,
           sessionDuration: validatedData.sessionDuration,
           equipmentAccess: validatedData.equipmentAccess,
-          personalRecords: validatedData.personalRecords
+          personalRecords: validatedData.personalRecords,
+          // Pass training frequency if provided
+          trainingDaysPerWeek: (state.formData as any).trainingDaysPerWeek
         })
       })
 

@@ -149,7 +149,10 @@ export class NeuralAPI {
       );
 
       // Additional validation and enhancement
-      const validatedResponse = this.validateNeuralResponse(response);
+      const validatedResponse = this.validateNeuralResponse(
+        response,
+        validatedRequest.onboardingData.sessionDuration
+      );
       
       const duration = Date.now() - startTime;
       this.metrics.successCount++;
@@ -293,12 +296,13 @@ export class NeuralAPI {
    * 
    * @private
    */
-  private transformRawResponseToNeuralResponse(rawResponse: RawAIResponse): NeuralResponse {
+  private transformRawResponseToNeuralResponse(rawResponse: RawAIResponse, sessionDuration?: number): NeuralResponse {
     // Generate unique IDs and transform workouts
+    const desiredDuration = typeof sessionDuration === 'number' ? sessionDuration : 60
     const transformedWorkouts = rawResponse.workouts.map((workout, index) => ({
       id: crypto.randomUUID(),
       name: `${workout.day} - ${workout.focus}`,
-      duration: 60, // Default duration, could be calculated from exercises
+      duration: desiredDuration,
       focus: workout.focus,
       warmup: workout.warmup?.map(exercise => ({
         id: crypto.randomUUID(),
@@ -340,7 +344,7 @@ export class NeuralAPI {
         rest: exercise.rest,
         rpe: "6",
       })) || [],
-      totalEstimatedTime: 60, // Would be calculated from exercises + rest
+      totalEstimatedTime: desiredDuration,
     }));
 
     // Create the training program
@@ -368,7 +372,7 @@ export class NeuralAPI {
    * 
    * @private
    */
-  private validateNeuralResponse(response: any): NeuralResponse {
+  private validateNeuralResponse(response: any, sessionDuration?: number): NeuralResponse {
     try {
       // First validate the basic structure
       const validation = validateRawAIResponse(response);
@@ -378,7 +382,7 @@ export class NeuralAPI {
       const rawResponse = validation.data;
       
       // Transform raw AI response to expected NeuralResponse format
-      const validatedResponse = this.transformRawResponseToNeuralResponse(rawResponse);
+      const validatedResponse = this.transformRawResponseToNeuralResponse(rawResponse, sessionDuration);
       
       // Additional business logic validation
       this.validateProgramBusinessLogic(validatedResponse.program);
@@ -522,10 +526,21 @@ CURRENT WEEK: ${currentWeek}`;
       }
     }
 
+    // Scale expected number of main exercises based on requested session duration
+    const expectedExercises = (() => {
+      switch (onboardingData.sessionDuration) {
+        case 90: return '6-8';
+        case 60: return '4-6';
+        case 45: return '3-5';
+        case 30: return '2-4';
+        default: return '4-6';
+      }
+    })();
+
     prompt += `\n\nGenerate a complete training program that includes:
 1. A descriptive program name that reflects the focus and approach
-2. 3-5 workouts for the current week
-3. Each workout should include warmup, main exercises, and optional finisher
+ 2. ${onboardingData.trainingDaysPerWeek ? `${onboardingData.trainingDaysPerWeek} workouts` : '3-5 workouts'} for the current week (match the user's preferred training frequency)
+3. Each workout should include warmup, main exercises (${expectedExercises} exercises for the main block based on the ${onboardingData.sessionDuration} minute session), and an optional finisher
 4. Provide detailed exercise specifications (sets, reps, load, rest, RPE)
 5. Include Neural's reasoning for the program design choices
 6. Provide a detailed progression plan for upcoming weeks

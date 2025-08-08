@@ -4,6 +4,15 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
 
 ## Recent Updates
 
+### Neural Programs Page UI Refresh (Latest)
+✅ Modern glassmorphism redesign for `/programs`
+- Gradient background (blue → purple) with subtle blur and soft shadows
+- Refined header with Neural icon and concise subtext
+- Black rounded CTA “Create Neural Program” with ArrowRight icon
+- Quick actions row: Create New Program, Share Progress, View Analytics
+- Program cards with compact Neural badge, created/updated metadata, and inline “View Program” affordance
+- Polished loading, empty, and error states matching the new aesthetic
+
 ### Neural Program Generation E2E Testing (Latest)
 ✅ **Comprehensive End-to-End Test Suite**
 - **Complete User Flow Testing**: Automated testing of entire Neural onboarding process

@@ -393,5 +393,18 @@ export const NEURAL_QUESTION_CONFIGS = {
         description: 'No equipment needed'
       }
     ]
+  },
+  trainingDaysPerWeek: {
+    title: "How many days per week do you want to train?",
+    description: "Neural will tailor the number of weekly workouts to your schedule",
+    emoji: "🗓️",
+    type: 'single-select' as const,
+    options: [
+      { value: 2, label: '2 days/week', description: 'Minimal schedule' },
+      { value: 3, label: '3 days/week', description: 'Popular full-body cadence' },
+      { value: 4, label: '4 days/week', description: 'Upper/Lower split friendly' },
+      { value: 5, label: '5 days/week', description: 'High frequency' },
+      { value: 6, label: '6 days/week', description: 'Advanced training' },
+    ]
   }
 }

@@ -221,6 +221,31 @@ export class ProgramGenerator {
       
       // Enhance and validate the generated program
       const enhancedProgram = this.enhanceProgramForUser(neuralResponse.program, userId);
+      // Ensure workout durations reflect user's sessionDuration preference
+      if (validatedOnboardingData.sessionDuration) {
+        enhancedProgram.workouts = enhancedProgram.workouts.map(w => ({
+          ...w,
+          duration: validatedOnboardingData.sessionDuration,
+          totalEstimatedTime: validatedOnboardingData.sessionDuration,
+        }))
+      }
+
+      // Ensure number of workouts matches user's desired training frequency when provided
+      if (validatedOnboardingData.trainingDaysPerWeek) {
+        const days = validatedOnboardingData.trainingDaysPerWeek
+        if (enhancedProgram.workouts.length > days) {
+          enhancedProgram.workouts = enhancedProgram.workouts.slice(0, days)
+        }
+        // If fewer workouts than days, we will duplicate the last workout with a new id and adjusted name
+        while (enhancedProgram.workouts.length < days && enhancedProgram.workouts.length > 0) {
+          const last = enhancedProgram.workouts[enhancedProgram.workouts.length - 1]
+          enhancedProgram.workouts.push({
+            ...last,
+            id: crypto.randomUUID(),
+            name: `Day ${enhancedProgram.workouts.length + 1} - ${last.focus}`,
+          })
+        }
+      }
       
       // Database persistence is MANDATORY for transactional integrity
       // The success response must NOT be sent until database commit is confirmed

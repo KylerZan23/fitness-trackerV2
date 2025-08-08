@@ -21,25 +21,8 @@ interface ProgramData {
     userId: string
     programName: string
     weekNumber: number
-    workouts: Array<{
-      id: string
-      name: string
-      dayOfWeek: string
-      isRestDay: boolean
-      focus: string
-      estimatedDuration: number
-      exercises: Array<{
-        id: string
-        name: string
-        sets: number
-        reps: string
-        load?: string
-        rpe?: string
-        restBetweenSets?: string
-        instructions?: string
-      }>
-      instructions?: string
-    }>
+    // Persisted Neural program content follows the TrainingProgram/Workout types
+    workouts: Workout[]
     progressionNotes: string
     createdAt: string
     neuralInsights: string
@@ -49,60 +32,26 @@ interface ProgramData {
 
 interface ProgramPageProps {}
 
-// Transform API response to match the component's expected format
+// Transform API response to match the Neural display components (Workout/mainExercises)
 const transformProgramData = (apiProgram: ProgramData): TrainingProgram => {
-  const transformedWorkouts: Workout[] = apiProgram.program.workouts.map((workout) => {
-    // Handle rest days (no exercises)
-    if (workout.isRestDay || !workout.exercises || workout.exercises.length === 0) {
-      return {
-        id: workout.id,
-        name: workout.name,
-        duration: 0,
-        focus: workout.focus || 'recovery',
-        warmup: [],
-        mainExercises: [],
-        finisher: [],
-        totalEstimatedTime: 0
-      }
-    }
+  const transformedWorkouts: Workout[] = apiProgram.program.workouts.map((workout: any) => {
+    const mainExercises: Exercise[] = Array.isArray(workout.mainExercises) ? workout.mainExercises : []
+    const warmup: Exercise[] = Array.isArray(workout.warmup) ? workout.warmup : []
+    const finisher: Exercise[] | undefined = Array.isArray(workout.finisher) ? workout.finisher : undefined
 
-    // Transform exercises to match the expected format
-    const transformedExercises: Exercise[] = workout.exercises.map((exercise) => {
-      // Simple target muscle inference based on exercise name
-      const inferTargetMuscles = (exerciseName: string): string[] => {
-        const name = exerciseName.toLowerCase()
-        if (name.includes('squat') || name.includes('lunge')) return ['quads', 'glutes']
-        if (name.includes('deadlift')) return ['hamstrings', 'glutes', 'back']
-        if (name.includes('bench') || name.includes('chest')) return ['chest']
-        if (name.includes('row') || name.includes('pull')) return ['back']
-        if (name.includes('shoulder') || name.includes('press')) return ['shoulders']
-        if (name.includes('curl') || name.includes('bicep')) return ['biceps']
-        if (name.includes('tricep') || name.includes('extension')) return ['triceps']
-        return ['general']
-      }
-
-      return {
-        id: exercise.id,
-        name: exercise.name,
-        targetMuscles: inferTargetMuscles(exercise.name),
-        sets: exercise.sets,
-        reps: exercise.reps,
-        load: exercise.load || 'bodyweight',
-        rest: exercise.restBetweenSets || '90 seconds',
-        rpe: exercise.rpe || '7-8',
-        notes: exercise.instructions
-      }
-    })
+    const duration = typeof workout.duration === 'number'
+      ? workout.duration
+      : (typeof workout.totalEstimatedTime === 'number' ? workout.totalEstimatedTime : 0)
 
     return {
       id: workout.id,
       name: workout.name,
-      duration: workout.estimatedDuration,
-      focus: workout.focus,
-      warmup: [], // No warmup exercises in current structure
-      mainExercises: transformedExercises,
-      finisher: [], // No finisher exercises in current structure
-      totalEstimatedTime: workout.estimatedDuration
+      duration,
+      focus: workout.focus ?? 'General',
+      warmup,
+      mainExercises,
+      finisher,
+      totalEstimatedTime: duration,
     }
   })
 
@@ -114,7 +63,7 @@ const transformProgramData = (apiProgram: ProgramData): TrainingProgram => {
     workouts: transformedWorkouts,
     progressionNotes: apiProgram.program.progressionNotes,
     createdAt: new Date(apiProgram.createdAt),
-    neuralInsights: apiProgram.program.neuralInsights
+    neuralInsights: apiProgram.program.neuralInsights,
   }
 }
 
@@ -289,12 +238,12 @@ export default function ProgramPage() {
     })
   }
 
-  const totalWorkouts = program.program.workouts.filter(w => !w.isRestDay).length
-  const avgDuration = Math.round(
-    program.program.workouts
-      .filter(w => !w.isRestDay)
-      .reduce((sum, w) => sum + w.estimatedDuration, 0) / totalWorkouts
-  )
+  const totalWorkouts = transformedProgram.workouts.length
+  const avgDuration = totalWorkouts > 0
+    ? Math.round(
+        transformedProgram.workouts.reduce((sum, w) => sum + (w.duration ?? 0), 0) / totalWorkouts
+      )
+    : 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">

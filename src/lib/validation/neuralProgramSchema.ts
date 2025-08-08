@@ -8,6 +8,8 @@ export const neuralOnboardingDataSchema = z.object({
   experienceLevel: z.enum(['beginner', 'intermediate', 'advanced']),
   sessionDuration: z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90)]),
   equipmentAccess: z.enum(['full_gym', 'dumbbells_only', 'bodyweight_only']),
+  // New training frequency input (optional)
+  trainingDaysPerWeek: z.number().int().min(2).max(6).optional(),
   personalRecords: z.object({
     squat: z.number().optional(),
     bench: z.number().optional(),
