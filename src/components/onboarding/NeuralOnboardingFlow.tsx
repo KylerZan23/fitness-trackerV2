@@ -36,6 +36,10 @@ const NeuralOnboardingSchema = z.object({
   experienceLevel: z.enum(['beginner', 'intermediate', 'advanced']),
   sessionDuration: z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90)]),
   equipmentAccess: z.enum(['full_gym', 'dumbbells_only', 'bodyweight_only']),
+  unitPreference: z.enum(['kg', 'lbs']).optional(),
+  gender: z.enum(['male', 'female', 'other']).optional(),
+  height: z.object({ value: z.number().optional(), unit: z.enum(['cm', 'in']).optional() }).optional(),
+  weight: z.object({ value: z.number().optional(), unit: z.enum(['kg', 'lbs']).optional() }).optional(),
   personalRecords: z.object({
     squat: z.number().optional(),
     bench: z.number().optional(),
@@ -99,6 +103,14 @@ export function NeuralOnboardingFlow({
 
   // Step configuration
   const steps = [
+    {
+      id: 'quickInfo',
+      title: 'Quick Info',
+      component: () => renderQuickInfo(),
+      isRequired: true,
+      validate: (data: Partial<OnboardingData> & any) =>
+        data?.unitPreference ? null : 'Please select your preferred unit (kg/lbs)'
+    },
     {
       id: 'primaryFocus',
       title: 'Primary Focus',
@@ -252,6 +264,12 @@ export function NeuralOnboardingFlow({
           sessionDuration: validatedData.sessionDuration,
           equipmentAccess: validatedData.equipmentAccess,
           personalRecords: validatedData.personalRecords,
+          unitPreference: validatedData.unitPreference,
+          quickInfo: {
+            gender: validatedData.gender,
+            height: validatedData.height,
+            weight: validatedData.weight,
+          },
           // Pass training frequency if provided
           trainingDaysPerWeek: (state.formData as any).trainingDaysPerWeek
         })
@@ -457,6 +475,83 @@ export function NeuralOnboardingFlow({
     )
   }
 
+  const renderQuickInfo = () => {
+    const unitPref = (state.formData as any).unitPreference
+    const gender = (state.formData as any).gender
+    const height = ((state.formData as any).height as any) || { value: undefined, unit: 'cm' }
+    const weight = ((state.formData as any).weight as any) || { value: undefined, unit: 'kg' }
+
+    return (
+      <div className="space-y-6">
+        <NeuralQuestionCard
+          title="Preferred Unit"
+          description="Choose how to display and calculate weights"
+          emoji="⚖️"
+          type="single-select"
+          optionsLayout="grid"
+          options={[
+            { value: 'kg', label: 'Kilograms (kg)', description: 'International standard' },
+            { value: 'lbs', label: 'Pounds (lbs)', description: 'US customary' },
+          ]}
+          value={unitPref}
+          onChange={(value) => updateFormData('unitPreference' as any, value)}
+        />
+
+        <NeuralQuestionCard
+          title="Gender"
+          emoji="🧍"
+          type="single-select"
+          optionsLayout="grid"
+          options={[
+            { value: 'male', label: 'Male' },
+            { value: 'female', label: 'Female' },
+            { value: 'other', label: 'Other' },
+          ]}
+          value={gender}
+          onChange={(value) => (setState(prev => ({ ...prev, formData: { ...prev.formData, gender: value as any } })))}
+        />
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <NeuralQuestionCard
+            title="Height"
+            type="number"
+            placeholder={height.unit === 'cm' ? '175' : '69'}
+            unit={height.unit}
+            value={height.value}
+            onChange={(value) => (setState(prev => ({ ...prev, formData: { ...prev.formData, height: { ...(prev.formData as any).height, value } as any } })))}
+          />
+          <NeuralQuestionCard
+            title="Height Unit"
+            type="single-select"
+            optionsLayout="grid"
+            options={[{ value: 'cm', label: 'cm' }, { value: 'in', label: 'inches' }]}
+            value={height.unit}
+            onChange={(value) => (setState(prev => ({ ...prev, formData: { ...prev.formData, height: { value: ((prev.formData as any).height as any)?.value, unit: value } as any } })))}
+          />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <NeuralQuestionCard
+            title="Weight"
+            type="number"
+            placeholder={unitPref === 'lbs' ? '180' : '82'}
+            unit={unitPref === 'lbs' ? 'lbs' : 'kg'}
+            value={weight.value}
+            onChange={(value) => (setState(prev => ({ ...prev, formData: { ...prev.formData, weight: { ...(prev.formData as any).weight, value } as any } })))}
+          />
+          <NeuralQuestionCard
+            title="Weight Unit"
+            type="single-select"
+            optionsLayout="grid"
+            options={[{ value: 'kg', label: 'kg' }, { value: 'lbs', label: 'lbs' }]}
+            value={weight.unit ?? unitPref ?? 'kg'}
+            onChange={(value) => (setState(prev => ({ ...prev, formData: { ...prev.formData, weight: { value: ((prev.formData as any).weight as any)?.value, unit: value } as any } })))}
+          />
+        </div>
+      </div>
+    )
+  }
+
   const currentStepConfig = steps[state.currentStep]
   const isLastStep = state.currentStep === steps.length - 1
   const canProceed = currentStepConfig ? !currentStepConfig.validate(state.formData) : false
@@ -472,7 +567,7 @@ export function NeuralOnboardingFlow({
         />
 
         {/* Question Content */}
-        <div className="mt-8">
+        <div className="mt-8 animate-fade-in-up">
           {currentStepConfig && (
             <div className="mb-8">
               {currentStepConfig.component()}
@@ -481,25 +576,25 @@ export function NeuralOnboardingFlow({
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between mt-12">
+        <div className="mt-12 flex items-center justify-between">
           <Button
             variant="outline"
             onClick={state.currentStep === 0 ? onCancel : goToPreviousStep}
             disabled={state.isSubmitting}
-            className="flex items-center space-x-2"
+            className="flex items-center gap-2"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             <span>{state.currentStep === 0 ? 'Cancel' : 'Previous'}</span>
           </Button>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-4">
             {/* Skip button for optional steps */}
             {!currentStepConfig?.isRequired && !isLastStep && (
               <Button
                 variant="ghost"
                 onClick={goToNextStep}
                 disabled={state.isSubmitting}
-                className="text-gray-600"
+                className="text-gray-600 hover:bg-blue-50"
               >
                 Skip for now
               </Button>
@@ -508,18 +603,18 @@ export function NeuralOnboardingFlow({
             <Button
               onClick={goToNextStep}
               disabled={state.isSubmitting || (currentStepConfig?.isRequired && !canProceed)}
-              className="flex items-center space-x-2 min-w-[120px]"
+              className="flex min-w-[140px] items-center justify-center gap-2 shadow-md hover:shadow-lg"
             >
               {state.isSubmitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Creating...</span>
                 </>
               ) : (
                 <>
                   <span>{isLastStep ? 'Create Program' : 'Continue'}</span>
-                  {!isLastStep && <ArrowRight className="w-4 h-4" />}
-                  {isLastStep && <Brain className="w-4 h-4" />}
+                  {!isLastStep && <ArrowRight className="h-4 w-4" />}
+                  {isLastStep && <Brain className="h-4 w-4" />}
                 </>
               )}
             </Button>
@@ -528,8 +623,8 @@ export function NeuralOnboardingFlow({
 
         {/* Error Display */}
         {state.errors.submit && (
-          <div className="mt-6 flex items-center space-x-2 text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          <div className="mt-6 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+            <AlertTriangle className="h-5 w-5 flex-shrink-0" />
             <span className="font-medium">{state.errors.submit}</span>
           </div>
         )}

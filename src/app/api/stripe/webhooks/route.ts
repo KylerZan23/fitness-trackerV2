@@ -12,7 +12,7 @@ const {
 } = getServerEnv();
 
 const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-04-10' });
+const stripe = new Stripe(STRIPE_SECRET_KEY!, { apiVersion: '2024-04-10' });
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -30,30 +30,46 @@ export async function POST(req: Request) {
 
   // Handle the event
   console.log(`✅ Stripe event received: ${event.type}`);
-  const session = event.data.object as Stripe.Checkout.Session;
-  const customerId = session.customer as string;
+  const object = event.data.object as any;
+  const customerId = (object.customer ?? object.customer_id) as string;
 
   switch (event.type) {
-    case 'checkout.session.completed':
-      const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+    case 'checkout.session.completed': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const subscriptionId = session.subscription as string;
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const planTier = (subscription.metadata?.plan_tier || session.metadata?.plan_tier) as 'standard' | 'pro' | undefined;
+
       await supabase
         .from('profiles')
         .update({
           is_premium: true,
+          subscription_tier: planTier === 'pro' ? 'pro' : 'standard',
           stripe_subscription_id: subscription.id,
-          // You might also want to store subscription details like current_period_end
         })
         .eq('stripe_customer_id', customerId);
-      break;
+      break; }
+
+    case 'customer.subscription.updated': {
+      const subUpdated = event.data.object as Stripe.Subscription;
+      const planTier = (subUpdated.metadata?.plan_tier) as 'standard' | 'pro' | undefined;
+      await supabase
+        .from('profiles')
+        .update({
+          is_premium: subUpdated.status === 'active' || subUpdated.status === 'trialing',
+          subscription_tier: planTier === 'pro' ? 'pro' : 'standard',
+        })
+        .eq('stripe_subscription_id', subUpdated.id);
+      break; }
 
     case 'customer.subscription.deleted':
-    case 'invoice.payment_failed':
+    case 'invoice.payment_failed': {
       const subscriptionDeleted = event.data.object as Stripe.Subscription;
       await supabase
         .from('profiles')
-        .update({ is_premium: false })
+        .update({ is_premium: false, subscription_tier: 'trial', stripe_subscription_id: null })
         .eq('stripe_subscription_id', subscriptionDeleted.id);
-      break;
+      break; }
     
     // Add other event types you want to handle
     default:

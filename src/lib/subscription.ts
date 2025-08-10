@@ -222,7 +222,8 @@ export function getSubscriptionStatusFromHeaders(): {
  */
 export async function hasProAccess(userId: string): Promise<boolean> {
   const status = await getSubscriptionStatus(userId)
-  return status.isPro
+  // Trial grants Premium only; Pro features require Pro tier
+  return status.isPro === true
 }
 
 /**

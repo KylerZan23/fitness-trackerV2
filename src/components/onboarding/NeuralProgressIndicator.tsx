@@ -49,29 +49,29 @@ export function NeuralProgressIndicator({
       className
     )}>
       {/* Neural Branding Header */}
-      <div className="text-center mb-12">
-        <div className="flex items-center justify-center mb-4">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-            <Brain className="w-5 h-5 text-white" />
+      <div className="mb-10 text-center">
+        <div className="mb-3 flex items-center justify-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
+            <Brain className="h-5 w-5 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 ml-3">Neural Setup</h2>
+          <h2 className="ml-3 text-xl font-bold text-gray-900">Neural Setup</h2>
         </div>
         <p className="text-sm text-gray-600">Personalizing your fitness journey</p>
       </div>
 
       {/* Progress Bar Container */}
-      <div className="relative mb-24">
-        {/* Background Progress Track */}
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div className="relative mb-36">
+        {/* Background Progress Track (glass) */}
+        <div className="h-2 w-full overflow-hidden rounded-full border border-blue-200/50 bg-white/70 backdrop-blur">
           {/* Animated Progress Fill */}
-          <div 
-            className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-700 ease-out shadow-sm"
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-600 shadow-[0_0_12px_rgba(99,102,241,0.35)] transition-all duration-700 ease-out"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
 
         {/* Step Indicators */}
-        <div className="absolute top-0 left-0 w-full flex justify-between items-start transform -translate-y-1/2">
+        <div className="absolute left-0 top-0 flex w-full -translate-y-[45%] items-start justify-between">
           {steps.map((step, index) => {
             const isCompleted = index < currentStep
             const isCurrent = index === currentStep
@@ -80,23 +80,20 @@ export function NeuralProgressIndicator({
             return (
               <div
                 key={step.id}
-                className={cn(
-                  "relative flex flex-col items-center",
-                  !compact && "min-w-0 flex-1"
-                )}
+                className={cn("relative flex flex-col items-center", !compact && "min-w-0 flex-1")}
               >
                 {/* Step Circle */}
                 <div
                   className={cn(
-                    "relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-500 ease-out",
+                    "relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-500 ease-out",
                     "shadow-sm",
-                    isCompleted && "bg-gradient-to-r from-blue-500 to-purple-600 border-blue-500 scale-110",
-                    isCurrent && "bg-white border-blue-500 ring-4 ring-blue-100 scale-110",
-                    isUpcoming && "bg-white border-gray-300"
+                    isCompleted && "scale-110 border-transparent bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md",
+                    isCurrent && "scale-110 border-blue-500 bg-white ring-4 ring-blue-100",
+                    isUpcoming && "border-gray-300 bg-white"
                   )}
                 >
                   {isCompleted ? (
-                    <Check className="w-4 h-4 text-white" />
+                    <Check className="h-4 w-4 text-white" />
                   ) : (
                     <span
                       className={cn(
@@ -112,7 +109,7 @@ export function NeuralProgressIndicator({
 
                 {/* Step Label */}
                 {!compact && (
-                  <div className="mt-4 text-center min-w-0 max-w-[120px]">
+                  <div className="mt-10 text-center min-w-0 max-w-[120px]">
                     <div
                       className={cn(
                         "text-sm font-medium transition-colors duration-300 leading-tight",
@@ -161,16 +158,12 @@ export function NeuralProgressIndicator({
       )}
 
       {/* Progress Stats */}
-      <div className="mt-6 flex justify-between items-center text-sm">
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full" />
-          <span className="text-gray-600">
-            {currentStep + 1} of {steps.length} completed
-          </span>
+      <div className="mt-6 flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600" />
+          <span className="text-gray-600">Step {currentStep + 1} of {steps.length}</span>
         </div>
-        <div className="text-blue-600 font-medium">
-          {Math.round(progressPercentage)}% complete
-        </div>
+        <div className="font-medium text-blue-700">{Math.round(progressPercentage)}% complete</div>
       </div>
     </div>
   )
@@ -178,6 +171,11 @@ export function NeuralProgressIndicator({
 
 // Default step configurations for Neural onboarding
 export const NEURAL_ONBOARDING_STEPS: Step[] = [
+  {
+    id: 'quick-info',
+    title: 'Quick Info',
+    description: 'Gender, height, weight, unit'
+  },
   {
     id: 'primary-focus',
     title: 'Primary Focus',

@@ -129,6 +129,26 @@ export const BaseEnvironmentSchema = z.object({
       message: 'STRIPE_PRICE_ID_ANNUAL must start with price_',
     }),
 
+  // Pro plan (monthly) - server and client
+  STRIPE_PRICE_ID_PRO_MONTHLY: envStringRequired('STRIPE_PRICE_ID_PRO_MONTHLY')
+    .refine(priceId => priceId.startsWith('price_'), {
+      message: 'STRIPE_PRICE_ID_PRO_MONTHLY must start with price_',
+    }),
+  NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_MONTHLY: envStringRequired('NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_MONTHLY')
+    .refine(priceId => priceId.startsWith('price_'), {
+      message: 'NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_MONTHLY must start with price_',
+    }),
+
+  // Pro plan (annual) - server and client
+  STRIPE_PRICE_ID_PRO_ANNUAL: envStringRequired('STRIPE_PRICE_ID_PRO_ANNUAL')
+    .refine(priceId => priceId.startsWith('price_'), {
+      message: 'STRIPE_PRICE_ID_PRO_ANNUAL must start with price_',
+    }),
+  NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_ANNUAL: envStringRequired('NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_ANNUAL')
+    .refine(priceId => priceId.startsWith('price_'), {
+      message: 'NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_ANNUAL must start with price_',
+    }),
+
   // Public Stripe Price IDs (for client-side access)
   NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: envStringRequired('NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY')
     .refine(priceId => priceId.startsWith('price_'), {
@@ -190,6 +210,8 @@ export const ClientEnvironmentSchema = z.object({
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
   NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY,
   NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PRICE_ID_ANNUAL,
+  NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_MONTHLY: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_MONTHLY,
+  NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_ANNUAL: BaseEnvironmentSchema.shape.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_ANNUAL,
 })
 
 // Server-side environment schema (all variables)

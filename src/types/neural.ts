@@ -23,6 +23,16 @@ export interface OnboardingData {
   equipmentAccess: 'full_gym' | 'dumbbells_only' | 'bodyweight_only';
   /** Desired training frequency (workouts per week) */
   trainingDaysPerWeek?: 2 | 3 | 4 | 5 | 6;
+  /** Preferred display unit for weights */
+  unitPreference?: 'kg' | 'lbs';
+
+  /** Optional biological sex/gender for adjustments */
+  gender?: 'male' | 'female' | 'other';
+  /** Optional height */
+  height?: { value?: number; unit?: 'cm' | 'in' };
+  /** Optional body weight and unit */
+  bodyWeight?: number;
+  bodyWeightUnit?: 'kg' | 'lbs';
   
   /** Optional personal records for strength assessment */
   personalRecords?: {

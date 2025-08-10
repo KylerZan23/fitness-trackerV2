@@ -15,7 +15,13 @@ export async function createCheckoutSession(priceId: string) {
     return { error: 'You must be logged in to subscribe.' };
   }
 
-  const { STRIPE_SECRET_KEY } = getServerEnv();
+  const {
+    STRIPE_SECRET_KEY,
+    STRIPE_PRICE_ID_MONTHLY,
+    STRIPE_PRICE_ID_ANNUAL,
+    STRIPE_PRICE_ID_PRO_MONTHLY,
+    STRIPE_PRICE_ID_PRO_ANNUAL,
+  } = getServerEnv();
 
   // --- FIX IS HERE ---
   if (!STRIPE_SECRET_KEY) {
@@ -47,6 +53,14 @@ export async function createCheckoutSession(priceId: string) {
     await updateStripeCustomerId(user.id, stripeCustomerId);
   }
 
+  // Determine plan tier from price ID
+  let planTier: 'standard' | 'pro' = 'standard'
+  if (priceId === STRIPE_PRICE_ID_PRO_MONTHLY || priceId === STRIPE_PRICE_ID_PRO_ANNUAL) {
+    planTier = 'pro'
+  } else if (priceId === STRIPE_PRICE_ID_MONTHLY || priceId === STRIPE_PRICE_ID_ANNUAL) {
+    planTier = 'standard'
+  }
+
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -57,8 +71,9 @@ export async function createCheckoutSession(priceId: string) {
       cancel_url: `${(await headers()).get('origin')}/profile`,
       subscription_data: {
         trial_period_days: 7,
-        metadata: { supabaseUUID: user.id }
-      }
+        metadata: { supabaseUUID: user.id, plan_tier: planTier }
+      },
+      metadata: { supabaseUUID: user.id, plan_tier: planTier }
     });
 
     return { sessionId: session.id };

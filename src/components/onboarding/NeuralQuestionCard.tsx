@@ -120,23 +120,25 @@ export function NeuralQuestionCard({
           onClick={() => handleSingleSelect(option.value)}
           disabled={option.disabled}
           className={cn(
-            "w-full p-5 text-left rounded-xl border-2 transition-all duration-200",
-            "hover:border-purple-300 hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2",
-            value === option.value 
-              ? "border-purple-500 bg-purple-50 ring-2 ring-purple-200" 
-              : "border-gray-200 bg-white",
-            option.disabled && "opacity-50 cursor-not-allowed"
+            "group w-full rounded-2xl border-2 p-5 text-left transition-all duration-200",
+            "hover:-translate-y-[1px] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+            value === option.value
+              ? "border-transparent bg-gradient-to-br from-blue-50 to-purple-50 ring-2 ring-blue-200"
+              : "border-gray-200 bg-white/90",
+            option.disabled && "cursor-not-allowed opacity-50"
           )}
         >
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="font-semibold text-gray-900">{option.label}</div>
               {option.description && (
-                <div className="text-sm text-gray-600 mt-1">{option.description}</div>
+                <div className="mt-1 text-sm text-gray-600">{option.description}</div>
               )}
             </div>
             {value === option.value && (
-              <CheckCircle2 className="w-5 h-5 text-purple-600 flex-shrink-0" />
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-purple-600 shadow">
+                <CheckCircle2 className="h-4 w-4 text-white" />
+              </div>
             )}
           </div>
         </button>
@@ -155,23 +157,23 @@ export function NeuralQuestionCard({
             onClick={() => handleMultiSelect(option.value)}
             disabled={option.disabled}
             className={cn(
-              "w-full p-4 text-left rounded-lg border-2 transition-all duration-200",
-              "hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
-              isSelected
-                ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
-                : "border-gray-200 bg-white",
-              option.disabled && "opacity-50 cursor-not-allowed"
+              "w-full rounded-xl border-2 p-4 text-left transition-all duration-200",
+              "hover:-translate-y-[1px] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+              isSelected ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200" : "border-gray-200 bg-white/90",
+              option.disabled && "cursor-not-allowed opacity-50"
             )}
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="font-medium text-gray-900">{option.label}</div>
                 {option.description && (
-                  <div className="text-sm text-gray-600 mt-1">{option.description}</div>
+                  <div className="mt-1 text-sm text-gray-600">{option.description}</div>
                 )}
               </div>
               {isSelected && (
-                <CheckCircle2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 shadow">
+                  <CheckCircle2 className="h-4 w-4 text-white" />
+                </div>
               )}
             </div>
           </button>
@@ -247,9 +249,9 @@ export function NeuralQuestionCard({
     <div
       ref={cardRef}
       className={cn(
-        "bg-white rounded-xl shadow-lg border border-gray-200 p-6 transition-all duration-300",
-        "hover:shadow-xl hover:border-blue-300",
-        isActive && "ring-2 ring-blue-500 ring-offset-2 shadow-xl",
+        "rounded-2xl border border-gray-200/70 bg-white/90 p-6 shadow-lg backdrop-blur-sm transition-all duration-300",
+        "hover:-translate-y-[1px] hover:shadow-xl",
+        isActive && "ring-2 ring-blue-500 ring-offset-2",
         hasError && "ring-2 ring-red-500 ring-offset-2",
         isValid && "ring-2 ring-green-500 ring-offset-2",
         className
@@ -281,8 +283,8 @@ export function NeuralQuestionCard({
 
       {/* Error Message */}
       {hasError && (
-        <div className="flex items-center space-x-2 text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-600">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <span className="text-sm font-medium">{error}</span>
         </div>
       )}
@@ -300,6 +302,12 @@ export function NeuralQuestionCard({
 
 // Preset question configurations for common Neural onboarding questions
 export const NEURAL_QUESTION_CONFIGS = {
+  quickInfo: {
+    title: "Quick Info",
+    description: "Tell us your gender, height, weight, and preferred unit",
+    emoji: "⚡",
+    type: 'text' as const,
+  },
   primaryFocus: {
     title: "Primary Focus",
     description: "What is your main goal?",

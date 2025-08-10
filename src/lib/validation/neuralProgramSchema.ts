@@ -10,6 +10,12 @@ export const neuralOnboardingDataSchema = z.object({
   equipmentAccess: z.enum(['full_gym', 'dumbbells_only', 'bodyweight_only']),
   // New training frequency input (optional)
   trainingDaysPerWeek: z.number().int().min(2).max(6).optional(),
+  // User unit preference for display and calculations
+  unitPreference: z.enum(['kg', 'lbs']).optional(),
+  gender: z.enum(['male', 'female', 'other']).optional(),
+  height: z.object({ value: z.number().optional(), unit: z.enum(['cm', 'in']).optional() }).optional(),
+  bodyWeight: z.number().optional(),
+  bodyWeightUnit: z.enum(['kg', 'lbs']).optional(),
   personalRecords: z.object({
     squat: z.number().optional(),
     bench: z.number().optional(),

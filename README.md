@@ -1,6 +1,6 @@
 # NeuralLift - AI-Powered Fitness Tracker
 
-A comprehensive fitness tracking application powered by Next.js and Supabase, featuring AI-driven program generation, community features, and real-time progress tracking. Includes multi-tier subscription system with Pro tier Advanced Analytics and external Trainer API for programmatic access.
+A comprehensive fitness tracking application powered by Next.js and Supabase, featuring AI-driven program generation, community features, and real-time progress tracking. Includes multi-tier subscription system with Pro tier Advanced Analytics and external Trainer API for programmatic access. Trial grants Premium (Standard) access only; Pro features require Pro subscription.
 
 ## Recent Updates
 
@@ -78,6 +78,12 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
   - Request tracking and performance monitoring
   - Input sanitization and validation at all layers
 
+#### Tailored Weight Suggestions from Onboarding PRs (New)
+- When users provide Squat/Bench/Deadlift PRs during onboarding, Neural now appends concrete kg-based weight suggestions to main lifts in generated workouts.
+- Suggestions are derived from PRs using RPE or reps and rounded to the nearest 2.5 kg.
+- Output format merges any AI-provided load with suggestions as: `"<ai load> | ~{kg} kg ({percent}% 1RM)"`.
+- See `docs/implementation_plans/neural-pr-weight-suggestions.md` for details.
+
 ### Neural Program Display System
 ✅ **Premium AI Program Display Components**
 - **NeuralProgramDisplay**: Main program overview with prominent Neural branding
@@ -118,6 +124,11 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
   - Professional styling with hover effects and validation states
   - Built-in help text and error display for user guidance
   - New `optionsLayout` prop enabling grid layout for single-select (used on Primary Focus)
+  - UI Refresh (2025-08):
+    - Polished page header with Neural badge and gradient title
+    - Glassmorphism progress indicator with gradient fill and refined step circles
+    - Elevated question cards with gradient ring when selected and hover lift
+    - Improved navigation controls and subtle entrance animations
 - **NeuralProgressIndicator**: Visual progress tracker with Neural branding
   - Clean progress bar with animated completion states
   - Step indicators with Neural's signature blue-to-purple gradient

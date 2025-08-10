@@ -91,20 +91,32 @@ export default function NeuralOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+    <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50">
+      {/* Decorative background orbs */}
+      <div className="pointer-events-none absolute -top-10 left-0 h-64 w-64 rounded-full bg-blue-200/30 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-10 right-0 h-72 w-72 rounded-full bg-purple-200/30 blur-3xl" />
+
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          {/* Header */}
+          <div className="text-center mb-10 animate-fade-in-up">
+            <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/70 px-3 py-1 text-sm font-medium shadow-sm backdrop-blur">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                {/* Brain glyph via emoji to avoid heavy icon here */}
+                🧠
+              </span>
+              <span className="text-blue-700">Coach Neural</span>
+            </div>
+            <h1 className="bg-gradient-to-r from-blue-700 to-purple-700 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent md:text-5xl">
               Create Your Neural Program
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Experience the future of personalized training with AI-powered program generation 
-              tailored specifically to your goals, experience, and preferences.
+            <p className="mx-auto mt-3 max-w-2xl text-lg text-gray-600 md:text-xl">
+              AI-crafted programming tailored to your goals, experience, and schedule.
             </p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          {/* Flow container */}
+          <div className="rounded-2xl border border-blue-200/50 bg-white/80 shadow-xl backdrop-blur-sm">
             <NeuralOnboardingFlow
               userId={userId}
               onComplete={handleComplete}

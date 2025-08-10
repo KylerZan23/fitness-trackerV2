@@ -153,7 +153,7 @@ export default function PricingPage() {
             </CardContent>
           </Card>
 
-          {/* Standard Plan */}
+           {/* Premium (Standard) Plan */}
           <Card className="relative">
             <CardHeader className="text-center pb-8">
               <CardTitle className="text-2xl font-bold">Standard</CardTitle>
@@ -198,7 +198,7 @@ export default function PricingPage() {
             </CardContent>
           </Card>
 
-          {/* Pro Plan */}
+          {/* Pro Plan (Monthly) */}
           <Card className="relative border-2 border-purple-500">
             <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
               <Badge className="bg-purple-500 text-white px-3 py-1">
@@ -210,7 +210,7 @@ export default function PricingPage() {
               <CardTitle className="text-2xl font-bold">Pro</CardTitle>
               <CardDescription className="text-lg">For serious athletes</CardDescription>
               <div className="mt-4">
-                <div className="text-4xl font-bold text-gray-900">$19.99</div>
+                <div className="text-4xl font-bold text-gray-900">$14.99</div>
                 <div className="text-gray-500">per month</div>
               </div>
             </CardHeader>
@@ -246,7 +246,7 @@ export default function PricingPage() {
                 </li>
               </ul>
               <Button
-                onClick={() => handleSubscribe('price_pro_monthly')} // TODO: Add actual Stripe Pro price ID
+                onClick={() => handleSubscribe(getClientEnv().NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_MONTHLY)}
                 disabled={isLoading}
                 className="w-full bg-purple-600 hover:bg-purple-700"
                 size="lg"
@@ -269,11 +269,9 @@ export default function PricingPage() {
               <CardTitle className="text-2xl font-bold">Pro Annual</CardTitle>
               <CardDescription className="text-lg">Best value for committed athletes</CardDescription>
               <div className="mt-4">
-                <div className="text-4xl font-bold text-gray-900">$159.99</div>
+                <div className="text-4xl font-bold text-gray-900">$39.99</div>
                 <div className="text-gray-500">per year</div>
-                <div className="text-sm text-green-600 font-medium mt-1">
-                  Save 33% vs Pro monthly
-                </div>
+                <div className="text-sm text-green-600 font-medium mt-1">Annual pricing</div>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -304,7 +302,7 @@ export default function PricingPage() {
                 </li>
               </ul>
               <Button
-                onClick={() => handleSubscribe('price_pro_annual')} // TODO: Add actual Stripe Pro Annual price ID
+                onClick={() => handleSubscribe(getClientEnv().NEXT_PUBLIC_STRIPE_PRICE_ID_PRO_ANNUAL)}
                 disabled={isLoading}
                 className="w-full bg-blue-600 hover:bg-blue-700"
                 size="lg"

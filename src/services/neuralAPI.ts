@@ -151,7 +151,8 @@ export class NeuralAPI {
       // Additional validation and enhancement
       const validatedResponse = this.validateNeuralResponse(
         response,
-        validatedRequest.onboardingData.sessionDuration
+        validatedRequest.onboardingData.sessionDuration,
+        validatedRequest.onboardingData
       );
       
       const duration = Date.now() - startTime;
@@ -296,7 +297,11 @@ export class NeuralAPI {
    * 
    * @private
    */
-  private transformRawResponseToNeuralResponse(rawResponse: RawAIResponse, sessionDuration?: number): NeuralResponse {
+  private transformRawResponseToNeuralResponse(
+    rawResponse: RawAIResponse,
+    sessionDuration?: number,
+    onboardingData?: OnboardingData
+  ): NeuralResponse {
     // Generate unique IDs and transform workouts
     const desiredDuration = typeof sessionDuration === 'number' ? sessionDuration : 60
     const transformedWorkouts = rawResponse.workouts.map((workout, index) => ({
@@ -315,35 +320,38 @@ export class NeuralAPI {
         rpe: exercise.RPE?.toString() || "4",
         notes: exercise.description,
       })) || [],
-      mainExercises: workout.main_exercises.map(exercise => ({
-        id: crypto.randomUUID(),
-        name: exercise.exercise,
-        targetMuscles: [], // Would need to be mapped from exercise names
-        sets: exercise.sets,
-        reps: exercise.reps?.toString() || 'AMRAP',
-        load: exercise.load,
-        rest: exercise.rest,
-        rpe: exercise.RPE?.toString() || "7",
-      })),
-      finisher: workout.finisher?.map(exercise => ({
-        id: crypto.randomUUID(),
-        name: exercise.exercise,
-        targetMuscles: [],
-        sets: exercise.sets,
-        reps: exercise.reps?.toString() || 'AMRAP',
-        load: exercise.load,
-        rest: exercise.rest,
-        rpe: exercise.RPE?.toString() || "6",
-      })) || workout.optional_finisher?.map(exercise => ({
-        id: crypto.randomUUID(),
-        name: exercise.exercise,
-        targetMuscles: [],
-        sets: exercise.sets,
-        reps: exercise.reps?.toString() || 'AMRAP',
-        load: exercise.load,
-        rest: exercise.rest,
-        rpe: "6",
-      })) || [],
+      mainExercises: workout.main_exercises.map(exercise => {
+        const id = crypto.randomUUID();
+        const name = exercise.exercise;
+        const sets = exercise.sets;
+        const repsStr = exercise.reps?.toString() || 'AMRAP';
+        const rpeStr = exercise.RPE?.toString() || '7';
+        const baseLoad = exercise.load;
+
+        const suggested = this.computeSuggestedLoadKg(name, repsStr, rpeStr, onboardingData);
+        const useLbs = onboardingData?.unitPreference === 'lbs';
+        const suggestedText = (() => {
+          if (!suggested) return null;
+          const kg = suggested.weightRoundedKg;
+          const val = useLbs ? Math.round(kg * 2.20462 / 5) * 5 : kg; // round lbs to nearest 5
+          const unit = useLbs ? 'lbs' : 'kg';
+          return `~${val} ${unit} (${Math.round(suggested.percent * 100)}% 1RM)`;
+        })();
+        const loadWithSuggestion = suggestedText
+          ? `${baseLoad ?? ''}${baseLoad ? ' | ' : ''}${suggestedText}`
+          : baseLoad;
+
+        return {
+          id,
+          name,
+          targetMuscles: [],
+          sets,
+          reps: repsStr,
+          load: loadWithSuggestion,
+          rest: exercise.rest,
+          rpe: rpeStr,
+        };
+      }),
       totalEstimatedTime: desiredDuration,
     }));
 
@@ -372,7 +380,11 @@ export class NeuralAPI {
    * 
    * @private
    */
-  private validateNeuralResponse(response: any, sessionDuration?: number): NeuralResponse {
+  private validateNeuralResponse(
+    response: any,
+    sessionDuration?: number,
+    onboardingData?: OnboardingData
+  ): NeuralResponse {
     try {
       // First validate the basic structure
       const validation = validateRawAIResponse(response);
@@ -382,10 +394,28 @@ export class NeuralAPI {
       const rawResponse = validation.data;
       
       // Transform raw AI response to expected NeuralResponse format
-      const validatedResponse = this.transformRawResponseToNeuralResponse(rawResponse, sessionDuration);
+      const validatedResponse = this.transformRawResponseToNeuralResponse(rawResponse, sessionDuration, onboardingData);
       
       // Additional business logic validation
       this.validateProgramBusinessLogic(validatedResponse.program);
+
+      // Attach predictive accessory ranges when possible
+      if (onboardingData) {
+        validatedResponse.program.workouts = validatedResponse.program.workouts.map(w => ({
+          ...w,
+          mainExercises: w.mainExercises.map(ex => {
+            const predicted = this.predictAccessoryRange(ex.name, ex.reps, onboardingData);
+            if (!predicted) return ex;
+            const unit = (onboardingData.unitPreference === 'lbs') ? 'lbs' : 'kg';
+            const repsLabel = predicted.repsLabel ? ` for ${predicted.repsLabel}` : '';
+            const rangeText = `~${predicted.min}–${predicted.max} ${unit}${repsLabel}`;
+            return {
+              ...ex,
+              notes: ex.notes ? `${ex.notes}\nSuggested range: ${rangeText}` : `Suggested range: ${rangeText}`,
+            };
+          })
+        }));
+      }
       
       // Enhance response with additional metadata
       return this.enhanceNeuralResponse(validatedResponse);
@@ -493,6 +523,14 @@ CURRENT WEEK: ${currentWeek}`;
       }
     }
 
+    // Add anthropometrics for better predictions
+    if (typeof (onboardingData as any).bodyWeight === 'number') {
+      prompt += `\n\nBODY WEIGHT: ${(onboardingData as any).bodyWeight} ${(onboardingData as any).bodyWeightUnit || onboardingData.unitPreference || 'kg'}`;
+    }
+    if (onboardingData.gender) {
+      prompt += `\nGENDER: ${onboardingData.gender}`;
+    }
+
     // Add additional context
     if (onboardingData.additionalInfo) {
       if (onboardingData.additionalInfo.injuryHistory) {
@@ -540,7 +578,7 @@ CURRENT WEEK: ${currentWeek}`;
     prompt += `\n\nGenerate a complete training program that includes:
 1. A descriptive program name that reflects the focus and approach
  2. ${onboardingData.trainingDaysPerWeek ? `${onboardingData.trainingDaysPerWeek} workouts` : '3-5 workouts'} for the current week (match the user's preferred training frequency)
-3. Each workout should include warmup, main exercises (${expectedExercises} exercises for the main block based on the ${onboardingData.sessionDuration} minute session), and an optional finisher
+3. Each workout should include warmup and main exercises only (${expectedExercises} exercises for the main block based on the ${onboardingData.sessionDuration} minute session). Do NOT include any finishers.
 4. Provide detailed exercise specifications (sets, reps, load, rest, RPE)
 5. Include Neural's reasoning for the program design choices
 6. Provide a detailed progression plan for upcoming weeks
@@ -554,8 +592,9 @@ Focus on creating a program that:
 - Considers any injury history or preferences mentioned
 
 Be specific with exercise names, rep ranges, and coaching cues. Use natural language for load descriptions (e.g., "moderate weight", "15-20lb dumbbells", "bodyweight").
+When providing absolute loads, prefer the user's unit preference (${onboardingData.unitPreference || 'kg'}).
 
-REQUIRED JSON FORMAT:
+REQUIRED JSON FORMAT (NO FINISHERS):
 {
   "program_name": "Descriptive program name",
   "workouts": [
@@ -579,14 +618,6 @@ REQUIRED JSON FORMAT:
           "RPE": 7,
           "coaching_cues": "Control the descent, drive through chest"
         }
-      ],
-      "optional_finisher": [
-        {
-          "exercise": "Push-ups",
-          "sets": 2,
-          "reps": "AMRAP",
-          "rest": "60 seconds"
-        }
       ]
     }
   ]
@@ -603,6 +634,267 @@ Use exactly this structure. The key field is "workouts" (not "week_1_workouts" o
     });
 
     return prompt;
+  }
+
+  /**
+   * Compute suggested absolute load (kg) from PRs for big-3 variants
+   * Uses RPE when available, otherwise rep-based percentage mapping
+   * Rounds to nearest 2.5 kg
+   */
+  private computeSuggestedLoadKg(
+    exerciseName: string,
+    reps: string,
+    rpe: string,
+    onboardingData?: OnboardingData
+  ): { weightRoundedKg: number; percent: number } | null {
+    if (!onboardingData?.personalRecords) return null;
+
+    const liftType = this.inferLiftType(exerciseName);
+    if (!liftType) return null;
+
+    const pr = onboardingData.personalRecords[liftType];
+    if (!pr || pr <= 0) return null;
+
+    const percentFromRPE = this.percentFromRPE(rpe);
+    const percentFromReps = this.percentFromReps(reps);
+    const percent = percentFromRPE ?? percentFromReps ?? 0.7; // default 70%
+
+    const suggested = pr * percent;
+    const weightRoundedKg = Math.round(suggested / 2.5) * 2.5;
+    if (!isFinite(weightRoundedKg) || weightRoundedKg <= 0) return null;
+    return { weightRoundedKg, percent };
+  }
+
+  private inferLiftType(name: string): 'squat' | 'bench' | 'deadlift' | null {
+    const n = name.toLowerCase();
+    // Deadlift before squat to avoid matching "squat" substring in some names
+    if (n.includes('deadlift') || n.includes('rdl') || n.includes('romanian')) return 'deadlift';
+    if (n.includes('bench')) return 'bench';
+    if (n.includes('squat') || n.includes('hack squat') || n.includes('front squat') || n.includes('back squat')) return 'squat';
+    return null;
+  }
+
+  private percentFromRPE(rpeStr: string): number | null {
+    const parse = (s: string): number | null => {
+      const m = s.match(/\d+(?:\.\d+)?/);
+      return m ? Math.min(10, Math.max(1, parseFloat(m[0]))) : null;
+    };
+    if (!rpeStr) return null;
+    if (rpeStr.includes('-')) {
+      const parts = rpeStr.split('-').map(p => parse(p)).filter((v): v is number => v != null);
+      if (parts.length) {
+        const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
+        return this.mapRpeToPercent(avg);
+      }
+      return null;
+    }
+    const val = parse(rpeStr);
+    return val != null ? this.mapRpeToPercent(val) : null;
+  }
+
+  private mapRpeToPercent(rpe: number): number {
+    // Approximate mapping consistent with prompt guidance
+    if (rpe >= 9.5) return 1.0;
+    if (rpe >= 9.0) return 0.9;
+    if (rpe >= 8.5) return 0.875;
+    if (rpe >= 8.0) return 0.8;
+    if (rpe >= 7.5) return 0.75;
+    if (rpe >= 7.0) return 0.7;
+    if (rpe >= 6.5) return 0.65;
+    if (rpe >= 6.0) return 0.6;
+    return 0.55;
+  }
+
+  private percentFromReps(repsStr: string): number | null {
+    if (!repsStr) return null;
+    // Extract the first numeric in range or single
+    const firstNumMatch = repsStr.match(/\d+/);
+    if (!firstNumMatch) return null;
+    const reps = parseInt(firstNumMatch[0], 10);
+    // Simple table midpoints commonly used
+    const table: Record<number, number> = {
+      1: 1.0,
+      2: 0.95,
+      3: 0.92,
+      4: 0.9,
+      5: 0.875,
+      6: 0.85,
+      7: 0.825,
+      8: 0.8,
+      9: 0.775,
+      10: 0.75,
+      11: 0.725,
+      12: 0.7,
+    };
+    // Clamp between 1 and 12 reps
+    const key = Math.max(1, Math.min(12, reps));
+    return table[key] ?? null;
+  }
+
+  // === Predictive Accessory Range System ===
+  private predictAccessoryRange(
+    exerciseName: string,
+    repsStr: string | undefined,
+    onboardingData: OnboardingData
+  ): { min: number; max: number; repsLabel?: string } | null {
+    const mapping = this.getAccessoryMapping(exerciseName);
+    if (!mapping) return null;
+
+    const bigLift = mapping.linked as 'bench' | 'squat' | 'deadlift';
+    const pr = onboardingData.personalRecords?.[bigLift];
+    if (!pr || pr <= 0) return null;
+
+    const bodyWeightKg = this.getBodyWeightKg(onboardingData);
+    if (!bodyWeightKg || bodyWeightKg <= 0) return null;
+
+    const relative = pr / bodyWeightKg; // PR is assumed kg; BW in kg
+    const level = this.strengthLevel(bigLift, relative);
+
+    const [minPct, maxPct] = mapping.percent[level];
+    // 1RM range predicted for accessory
+    const acc1RMminKg = pr * minPct;
+    const acc1RMmaxKg = pr * maxPct;
+
+    const genderAdj = this.genderAdjustment(onboardingData.gender, bigLift);
+    const adjAcc1RMminKg = acc1RMminKg * genderAdj;
+    const adjAcc1RMmaxKg = acc1RMmaxKg * genderAdj;
+
+    // Convert 1RM range → working weight range for target reps
+    const { minReps, maxReps, label } = this.parseRepsRange(repsStr);
+    const percentLowReps = this.percentForReps(minReps); // heavier end
+    const percentHighReps = this.percentForReps(maxReps); // lighter end
+
+    const workMinKg = adjAcc1RMminKg * percentHighReps;
+    const workMaxKg = adjAcc1RMmaxKg * percentLowReps;
+
+    const useLbs = onboardingData.unitPreference === 'lbs';
+    if (useLbs) {
+      const minLbs = Math.round((workMinKg * 2.20462) / 5) * 5;
+      const maxLbs = Math.round((workMaxKg * 2.20462) / 5) * 5;
+      return { min: minLbs, max: maxLbs, repsLabel: label };
+    }
+    const minRounded = Math.round(workMinKg / 2.5) * 2.5;
+    const maxRounded = Math.round(workMaxKg / 2.5) * 2.5;
+    return { min: minRounded, max: maxRounded, repsLabel: label };
+  }
+
+  private getAccessoryMapping(exerciseName: string): {
+    linked: 'bench' | 'squat' | 'deadlift';
+    percent: Record<'novice' | 'intermediate' | 'advanced' | 'elite', [number, number]>;
+  } | null {
+    const n = exerciseName.toLowerCase();
+
+    // Reference table: predicts accessory 1RM % of linked big lift PR
+    const table: Array<{ match: RegExp; linked: 'bench' | 'squat' | 'deadlift'; ratios: [number, number, number, number, number, number, number, number] }>
+      = [
+        // Upper Body – Push
+        { match: /(triceps?\s+pushdown|cable\s+pushdown|triceps?\s+extension)/, linked: 'bench', ratios: [0.25,0.35, 0.65,0.80, 0.90,1.10, 1.30,1.60] },
+        { match: /(overhead\s+press|strict\s+press|military\s+press|ohp\b)/, linked: 'bench', ratios: [0.55,0.65, 0.65,0.75, 0.75,0.85, 0.85,0.95] },
+        { match: /(dumbbell\s+shoulder\s+press|db\s+shoulder\s+press|shoulder\s+press)/, linked: 'bench', ratios: [0.25,0.35, 0.35,0.45, 0.45,0.55, 0.55,0.65] },
+        { match: /(close[- ]grip\s+bench|cgbp)/, linked: 'bench', ratios: [0.65,0.75, 0.80,0.90, 0.90,1.00, 1.00,1.10] },
+        { match: /(incline\s+bench)/, linked: 'bench', ratios: [0.50,0.60, 0.65,0.75, 0.75,0.85, 0.85,0.95] },
+        { match: /(weighted\s+dips?|dips?\s*\(weighted\)|dips?)/, linked: 'bench', ratios: [0.25,0.35, 0.50,0.65, 0.65,0.80, 0.80,1.00] },
+        { match: /(lateral\s+raise|side\s+raise)/, linked: 'bench', ratios: [0.10,0.15, 0.15,0.25, 0.25,0.35, 0.35,0.45] },
+        { match: /(weighted\s+push[- ]?ups?|push[- ]?ups?\s*\(weighted\)|push[- ]?ups?)/, linked: 'bench', ratios: [0.30,0.40, 0.50,0.65, 0.65,0.80, 0.80,1.00] },
+
+        // Upper Body – Pull
+        { match: /(barbell\s+row|bent[- ]over\s+row|t[- ]bar\s+row)/, linked: 'deadlift', ratios: [0.40,0.55, 0.70,0.85, 0.90,1.05, 1.10,1.30] },
+        { match: /(one[- ]?arm\s+dumbbell\s+row|single[- ]?arm\s+row|dumbbell\s+row)/, linked: 'deadlift', ratios: [0.25,0.35, 0.40,0.50, 0.50,0.60, 0.60,0.70] },
+        { match: /(pull[- ]?ups?|chin[- ]?ups?)\s*(\(weighted\))?/, linked: 'deadlift', ratios: [0.25,0.35, 0.50,0.65, 0.65,0.80, 0.80,0.95] },
+        { match: /(lat\s+pull[- ]?down|pulldown)/, linked: 'deadlift', ratios: [0.30,0.40, 0.50,0.65, 0.65,0.80, 0.80,0.95] },
+        { match: /(face\s+pull)/, linked: 'deadlift', ratios: [0.10,0.15, 0.15,0.25, 0.25,0.35, 0.35,0.45] },
+        { match: /(barbell\s+biceps?\s+curl|biceps?\s+curl(?!\s+machine))/ , linked: 'deadlift', ratios: [0.15,0.25, 0.25,0.35, 0.35,0.45, 0.45,0.55] },
+        { match: /(hammer\s+curl|db\s+hammer\s+curl)/, linked: 'deadlift', ratios: [0.10,0.20, 0.20,0.30, 0.30,0.40, 0.40,0.50] },
+
+        // Lower Body – Quad-Dominant
+        { match: /(front\s+squat)/, linked: 'squat', ratios: [0.50,0.60, 0.70,0.80, 0.80,0.90, 0.90,1.00] },
+        { match: /(leg\s+press)/, linked: 'squat', ratios: [0.90,1.10, 1.40,1.60, 1.60,2.00, 2.00,2.50] },
+        { match: /(bulgarian\s+split\s+squat|split\s+squat)/, linked: 'squat', ratios: [0.20,0.30, 0.35,0.45, 0.45,0.55, 0.55,0.65] },
+        { match: /(lunge)/, linked: 'squat', ratios: [0.20,0.30, 0.35,0.45, 0.45,0.55, 0.55,0.65] },
+        { match: /(leg\s+extension)/, linked: 'squat', ratios: [0.30,0.45, 0.55,0.70, 0.80,0.95, 1.00,1.15] },
+
+        // Lower Body – Hip-Dominant
+        { match: /(romanian\s+deadlift|rdl\b|stiff[- ]leg)/, linked: 'deadlift', ratios: [0.40,0.50, 0.60,0.70, 0.70,0.80, 0.80,0.90] },
+        { match: /(hip\s+thrust)/, linked: 'deadlift', ratios: [0.50,0.70, 0.90,1.10, 1.10,1.30, 1.30,1.50] },
+        { match: /(glute\s+bridge)/, linked: 'deadlift', ratios: [0.40,0.60, 0.80,1.00, 1.00,1.20, 1.20,1.40] },
+        { match: /(good\s+morning)/, linked: 'deadlift', ratios: [0.25,0.35, 0.40,0.50, 0.50,0.60, 0.60,0.70] },
+        { match: /(cable\s+pull[- ]?through|pull[- ]?through)/, linked: 'deadlift', ratios: [0.20,0.30, 0.35,0.45, 0.45,0.55, 0.55,0.65] },
+        { match: /(hamstring\s+curl|leg\s+curl)/, linked: 'deadlift', ratios: [0.15,0.25, 0.25,0.35, 0.35,0.45, 0.45,0.55] },
+      ];
+
+    for (const row of table) {
+      if (row.match.test(n)) {
+        return {
+          linked: row.linked,
+          percent: {
+            novice: [row.ratios[0], row.ratios[1]],
+            intermediate: [row.ratios[2], row.ratios[3]],
+            advanced: [row.ratios[4], row.ratios[5]],
+            elite: [row.ratios[6], row.ratios[7]],
+          }
+        };
+      }
+    }
+    return null;
+  }
+
+  private parseRepsRange(repsStr?: string): { minReps: number; maxReps: number; label?: string } {
+    if (!repsStr) return { minReps: 8, maxReps: 10, label: undefined };
+    const nums = (repsStr.match(/\d+/g) || []).map(n => parseInt(n, 10)).filter(n => n > 0 && Number.isFinite(n));
+    if (nums.length === 0) return { minReps: 8, maxReps: 10, label: undefined };
+    if (nums.length === 1) return { minReps: nums[0], maxReps: nums[0], label: `${nums[0]} reps` };
+    const min = Math.min(nums[0], nums[1]);
+    const max = Math.max(nums[0], nums[1]);
+    return { minReps: min, maxReps: max, label: `${min}-${max} reps` };
+  }
+
+  private percentForReps(reps: number): number {
+    // Shortcut table (avg Epley & Brzycki)
+    const map: Record<number, number> = {
+      1: 1.00,
+      3: 0.93,
+      5: 0.87,
+      8: 0.80,
+      10: 0.75,
+      12: 0.70,
+      15: 0.65,
+    };
+    if (map[reps] != null) return map[reps];
+    // Fallback to Epley percent
+    const epleyPercent = 1 / (1 + reps / 30);
+    return Math.max(0.5, Math.min(1.0, epleyPercent));
+  }
+
+  private strengthLevel(
+    lift: 'bench' | 'squat' | 'deadlift',
+    relative: number
+  ): 'novice' | 'intermediate' | 'advanced' | 'elite' {
+    const thresholds: Record<'bench' | 'squat' | 'deadlift', [number, number, number]> = {
+      bench: [0.75, 1.0, 1.25],
+      squat: [1.25, 1.5, 2.0],
+      deadlift: [1.5, 2.0, 2.5],
+    };
+    const [nov, inter, adv] = thresholds[lift];
+    if (relative < nov) return 'novice';
+    if (relative < inter) return 'intermediate';
+    if (relative < adv) return 'advanced';
+    return 'elite';
+  }
+
+  private getBodyWeightKg(onboardingData: OnboardingData): number | null {
+    const unitPref = onboardingData.unitPreference || 'kg';
+    const bw = (onboardingData as any).bodyWeight ?? (onboardingData as any).weight?.value;
+    const bwUnit = (onboardingData as any).bodyWeightUnit ?? (onboardingData as any).weight?.unit ?? unitPref;
+    if (!bw || bw <= 0) return null;
+    return bwUnit === 'lbs' ? bw / 2.20462 : bw;
+  }
+
+  private genderAdjustment(gender: OnboardingData['gender'], lift: 'bench' | 'squat' | 'deadlift'): number {
+    if (lift === 'bench') {
+      // Women’s accessory lifts tend to be ~5–10% higher relative to big lift
+      if (gender === 'female') return 1.08;
+    }
+    return 1.0;
   }
 
   /**
