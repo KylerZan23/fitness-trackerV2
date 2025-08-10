@@ -41,7 +41,7 @@ PERIODIZATION GUIDELINES:
 
 TRAINING SPLIT RECOMMENDATIONS:
 - 2-3 days: Full body split
-- 4 days: Upper/Lower or Push/Pull/Legs/Rest
+- 4 days: Upper/Lower or Push/Pull/Legs/Full body
 - 5-6 days: Push/Pull/Legs or specialized splits
 
 EXAMPLE OUTPUT:

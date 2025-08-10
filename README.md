@@ -155,6 +155,7 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
   - Integration with Data Access Layer following established patterns
   - Business logic validation and enhancement of AI-generated programs
   - Database storage with metadata tracking and audit trail
+  - Deterministic PPLx2 (6-day advanced hypertrophy) and non-rejecting guardian harmonizer enforcing weekly set targets
 - **Enhanced Error Handling**: Multi-layered error management system
   - Service-specific error types with detailed context information
   - Graceful error recovery with fallback mechanisms
@@ -190,6 +191,29 @@ A comprehensive fitness tracking application powered by Next.js and Supabase, fe
   - Simplified type system optimized for AI generation reliability
   - Flexible validation with required core fields for better success rates
   - Direct integration with modern LLM capabilities
+  - Guardian harmonizer adjusts accessory volume to meet per-focus weekly set targets while respecting session duration
+## Deterministic PPLx2 & Guardian Harmonizer
+
+For users with primary focus hypertrophy, experience advanced, and 6 training days, the system enforces a PPLx2 split:
+
+- Mon: Push (Chest, Shoulders, Triceps)
+- Tue: Pull (Back, Biceps)
+- Wed: Legs (Quads, Hamstrings, Glutes, Calves)
+- Thu: Push (Chest, Shoulders, Triceps)
+- Fri: Pull (Back, Biceps)
+- Sat: Legs (Quads, Hamstrings, Glutes, Calves)
+
+Weekly working-set targets by focus:
+
+- Hypertrophy: experience-scaled within 12–20 sets/muscle/week
+  - Beginner: 12–14
+  - Intermediate: 12–18
+  - Advanced: 14–20
+- Strength (powerlifting): 10–15 sets/muscle/week
+- General fitness: 6–9 sets/muscle/week
+
+The guardian normalizes day focuses and accessory set counts to land within targets without rejecting outputs; all corrections are logged as notes.
+
 - **Streamlined Architecture**: Eliminated complex nested schemas that caused validation failures
   - Program → Workouts → Exercises structure for clarity
   - Natural language fields for AI-generated descriptions

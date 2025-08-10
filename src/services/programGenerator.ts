@@ -220,7 +220,33 @@ export class ProgramGenerator {
       }
       
       // Enhance and validate the generated program
-      const enhancedProgram = this.enhanceProgramForUser(neuralResponse.program, userId);
+      let enhancedProgram = this.enhanceProgramForUser(neuralResponse.program, userId);
+
+      // Apply Guardian/Harmonizer (non-rejecting): enforce split and harmonize weekly sets
+      try {
+        const { applyGuardian } = await import('@/lib/training/guardian');
+        const guardianResult = applyGuardian(enhancedProgram, {
+          primaryFocus: validatedOnboardingData.primaryFocus,
+          experienceLevel: validatedOnboardingData.experienceLevel,
+          trainingDaysPerWeek: validatedOnboardingData.trainingDaysPerWeek,
+          sessionDurationMinutes: validatedOnboardingData.sessionDuration,
+        });
+        enhancedProgram = guardianResult.program;
+        logger.info('Guardian harmonizer applied', {
+          operation: 'createNewProgram',
+          component: 'programGenerator',
+          requestId,
+          notes: guardianResult.notes.corrections,
+          perMuscleSets: guardianResult.notes.perMuscleSets,
+        });
+      } catch (guardianError) {
+        logger.warn('Guardian harmonizer failed or unavailable; proceeding without harmonization', {
+          operation: 'createNewProgram',
+          component: 'programGenerator',
+          requestId,
+          error: guardianError instanceof Error ? guardianError.message : String(guardianError),
+        });
+      }
       // Ensure workout durations reflect user's sessionDuration preference
       if (validatedOnboardingData.sessionDuration) {
         enhancedProgram.workouts = enhancedProgram.workouts.map(w => ({

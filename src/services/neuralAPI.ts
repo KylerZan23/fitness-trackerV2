@@ -575,7 +575,68 @@ CURRENT WEEK: ${currentWeek}`;
       }
     })();
 
-    prompt += `\n\nGenerate a complete training program that includes:
+    // Inject deterministic split and weekly set targets for hypertrophy across 2–6 days
+    if (onboardingData.primaryFocus === 'hypertrophy' && onboardingData.trainingDaysPerWeek) {
+      const days = onboardingData.trainingDaysPerWeek;
+      const splitMap: Record<number, string[]> = {
+        2: [
+          'Full Body',
+          'Full Body',
+        ],
+        3: [
+          'Upper',
+          'Lower',
+          'Full Body (Upper-Biased)',
+        ],
+        4: [
+          'Upper',
+          'Lower',
+          'Upper',
+          'Lower',
+        ],
+        5: [
+          'Push (Chest, Shoulders, Triceps)',
+          'Pull (Back, Biceps)',
+          'Legs (Quads, Hamstrings, Glutes, Calves)',
+          'Upper (Chest/Back/Shoulders focus)',
+          'Lower (Quads/Hamstrings/Glutes focus)',
+        ],
+        6: [
+          'Push (Chest, Shoulders, Triceps)',
+          'Pull (Back, Biceps)',
+          'Legs (Quads, Hamstrings, Glutes, Calves)',
+          'Push (Chest, Shoulders, Triceps)',
+          'Pull (Back, Biceps)',
+          'Legs (Quads, Hamstrings, Glutes, Calves)',
+        ],
+      };
+      const template = splitMap[days];
+      if (template) {
+        const header = 'MANDATORY WEEKLY SPLIT (DO NOT DEVIATE):';
+        const lines = template.map((f, i) => {
+          const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+          return `${dayNames[i]}: ${f}`;
+        }).join('\n');
+        prompt += `\n\n${header}\n${lines}`;
+        prompt += `\n\nWEEKLY WORKING-SET TARGETS (PER MUSCLE):\n- Follow hypertrophy targets based on experience level (Beginner: 12–14, Intermediate: 12–18, Advanced: 14–20 sets per muscle per week).\n- Keep sessions within ${onboardingData.sessionDuration} minutes; prioritize anchor and primary lifts; adjust accessories to stay within time.`;
+      }
+    } else {
+      // Non-6-day or non-advanced-hypertrophy cases: embed per-focus general targets for guidance
+      const focusTargets = (() => {
+        if (onboardingData.primaryFocus === 'strength') return 'Aim for 10–15 sets per muscle per week.';
+        if (onboardingData.primaryFocus === 'general_fitness') return 'Aim for 6–9 sets per muscle per week.';
+        // hypertrophy
+        switch (onboardingData.experienceLevel) {
+          case 'beginner': return 'Aim for 12–14 sets per muscle per week.';
+          case 'intermediate': return 'Aim for 12–18 sets per muscle per week.';
+          default: return 'Aim for 14–20 sets per muscle per week.';
+        }
+      })();
+      prompt += `\n\nWEEKLY WORKING-SET TARGET GUIDANCE: ${focusTargets}`;
+    }
+
+    // Global banned exercises and preferred substitutions
+    prompt += `\n\nEXERCISE POLICY:\n- BANNED: Arnold Press (do NOT include).\n- SUBSTITUTE: Use Seated Dumbbell Shoulder Press instead for shoulder pressing variations.\n\nGenerate a complete training program that includes:
 1. A descriptive program name that reflects the focus and approach
  2. ${onboardingData.trainingDaysPerWeek ? `${onboardingData.trainingDaysPerWeek} workouts` : '3-5 workouts'} for the current week (match the user's preferred training frequency)
 3. Each workout should include warmup and main exercises only (${expectedExercises} exercises for the main block based on the ${onboardingData.sessionDuration} minute session). Do NOT include any finishers.
