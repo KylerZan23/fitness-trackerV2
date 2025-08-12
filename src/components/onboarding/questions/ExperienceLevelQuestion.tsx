@@ -12,26 +12,26 @@ const EXPERIENCE_LEVELS: {
   color: string
 }[] = [
   {
-    value: 'Beginner (<6 months)',
+    value: 'Beginner (0-3 months)',
     label: 'Beginner',
     description: 'New to fitness or returning after a long break',
-    details: 'Less than 6 months of consistent training',
+    details: '0–3 months of consistent training',
     emoji: '🌱',
     color: 'bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300'
   },
   {
-    value: 'Intermediate (6mo-2yr)',
+    value: 'Intermediate (3-12 months)',
     label: 'Intermediate',
     description: 'Have some experience with regular training',
-    details: '6 months to 2 years of consistent training',
+    details: '3–12 months of consistent training',
     emoji: '🏃‍♂️',
     color: 'bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300'
   },
   {
-    value: 'Advanced (2+ years)',
+    value: 'Advanced (12+ months)',
     label: 'Advanced',
     description: 'Experienced with consistent long-term training',
-    details: '2+ years of dedicated training experience',
+    details: '12+ months of dedicated training experience',
     emoji: '🏆',
     color: 'bg-purple-50 border-purple-200 hover:bg-purple-100 hover:border-purple-300'
   }

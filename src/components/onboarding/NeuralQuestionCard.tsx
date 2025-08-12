@@ -342,17 +342,17 @@ export const NEURAL_QUESTION_CONFIGS = {
       {
         value: 'beginner',
         label: 'Beginner',
-        description: '0–6 months — new or returning'
+          description: '0–3 months — new or returning'
       },
       {
         value: 'intermediate',
         label: 'Intermediate',
-        description: '6–24 months — consistent training'
+          description: '3–12 months — consistent training'
       },
       {
         value: 'advanced',
         label: 'Advanced',
-        description: '2+ years — optimizing performance'
+          description: '12+ months — optimizing performance'
       }
     ]
   },

@@ -33,13 +33,18 @@ INTENSITY ZONES:
 export const HYPERTROPHY_GUIDELINES = `
 HYPERTROPHY OPTIMIZATION:
 - Volume: 12-20 sets per muscle group per week
-- Intensity: 65-85% 1RM (6-15 rep range)
+- Intensity: 67-88% 1RM (6-15 rep range)
 - Frequency: 2-3x per muscle group per week
 - Rest: 2-4 minutes between sets
 - Time Under Tension: 40-70 seconds per set
 - Rep Ranges: Varied (6-8, 8-12, 12-15+ for complete stimulus)
 - Exercise Selection: Compound movements + isolation for weak points
 - Progressive Overload: Volume progression primary, load secondary
+ 
+ RPE TARGETING FOR HYPERTROPHY:
+ - Beginners (0-3 months): Emphasize RPE 7-8 (1-3 reps in reserve)
+ - Intermediate/Advanced (3+ months): Emphasize RPE 8-9 (0-2 reps in reserve)
+ - Most working sets should approach near failure safely within prescribed rep ranges.
 `;
 
 export const STRENGTH_GUIDELINES = `
@@ -68,7 +73,7 @@ GENERAL FITNESS OPTIMIZATION:
 
 // Experience level modifications
 export const EXPERIENCE_MODIFICATIONS = `
-BEGINNER (0-1 years):
+BEGINNER (0-3 months):
 - Progression: Linear progression (2.5-5lbs per week)
 - Volume: Lower end of ranges (MV-MEV)
 - Exercise Selection: Basic compound movements
@@ -76,7 +81,7 @@ BEGINNER (0-1 years):
 - Focus: Movement quality and consistency
 - Recovery: Extra rest days, conservative loading
 
-INTERMEDIATE (1-3 years):
+INTERMEDIATE (3-12 months):
 - Progression: Weekly progression with deload weeks
 - Volume: Moderate ranges (MEV-MAV)
 - Exercise Selection: Compound + targeted accessories
@@ -84,7 +89,7 @@ INTERMEDIATE (1-3 years):
 - Focus: Weak point identification and addressing
 - Recovery: Planned deloads every 4-6 weeks
 
-ADVANCED (3+ years):
+ADVANCED (12+ months):
 - Progression: Monthly progression with planned peaks
 - Volume: Higher ranges (MAV approaching MRV)
 - Exercise Selection: Specialized variations and techniques
@@ -194,8 +199,8 @@ RPE SCALE AND INTENSITY MAPPING:
 
 USE RPE FOR AUTOREGULATION:
 - Adjust daily loads based on readiness
-- Use RPE 7-8 for most training
-- Reserve RPE 9-10 for testing or peak weeks
+- Hypertrophy focus: program most sets at RPE 7-9 depending on experience (beginner 7-8, intermediate/advanced 8-9)
+- Reserve RPE 9-10 for testing or peak weeks (strength focus) and occasional top sets
 `;
 
 // Data normalization function to handle different onboarding formats

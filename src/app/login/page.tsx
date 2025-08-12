@@ -232,10 +232,19 @@ function LoginContent() {
             profileData.fitness_goals = 'Get fit' // Default value
           }
 
-          // Perform upsert without additional select/single to simplify operation
-          const { error: createError } = await supabase.from('profiles').upsert(profileData)
+          // Prefer RPC that creates profile and sets 7-day trial
+          const { error: rpcCreateError } = await supabase.rpc('create_profile_for_new_user', {
+            user_id: userId,
+            user_email: userEmail,
+            user_name: profileData.name,
+          })
 
-          if (createError) {
+          // If RPC fails (e.g., already exists), fall back to upsert
+          const { error: createError } = rpcCreateError
+            ? await supabase.from('profiles').upsert(profileData)
+            : { error: null as any }
+
+          if (rpcCreateError && createError) {
             // Log detailed error information
             console.error('Profile creation error:', JSON.stringify(createError, null, 2))
 
@@ -328,8 +337,12 @@ function LoginContent() {
             } else {
               console.log('Continuing without profile creation due to unexpected error')
             }
+          } else if (!rpcCreateError) {
+            console.log('Profile created with trial via RPC')
           } else {
-            console.log('Profile created successfully')
+            console.log('Profile created successfully (fallback upsert)')
+            // Ensure trial is started if RPC wasn't used
+            await supabase.rpc('start_user_trial', { user_id: userId })
           }
         } else {
           console.log('Existing profile found')

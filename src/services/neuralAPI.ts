@@ -325,17 +325,35 @@ export class NeuralAPI {
         const name = exercise.exercise;
         const sets = exercise.sets;
         const repsStr = exercise.reps?.toString() || 'AMRAP';
-        const rpeStr = exercise.RPE?.toString() || '7';
+        const rpeStrRaw = exercise.RPE?.toString() || '7';
+        const rpeStr = (() => {
+          const focus = onboardingData?.primaryFocus?.toLowerCase();
+          const exp = (onboardingData as any)?.experienceLevel as ('beginner'|'intermediate'|'advanced'|undefined);
+          if (focus === 'hypertrophy') {
+            const targetMin = exp === 'beginner' ? 7 : 8;
+            const targetMax = exp === 'beginner' ? 8 : 9;
+            const nums = (rpeStrRaw.match(/\d+(?:\.\d+)?/g) || []).map(parseFloat);
+            if (nums.length === 0) return `${targetMin}-${targetMax}`;
+            const avg = nums.reduce((a,b)=>a+b,0)/nums.length;
+            if (avg < targetMin - 0.1 || avg > targetMax + 0.1) return `${targetMin}-${targetMax}`;
+            if (nums.length === 1) return `${Math.max(targetMin, Math.min(targetMax, Math.round(avg)))}`;
+            const lo = Math.max(targetMin, Math.min(targetMax, Math.min(nums[0], nums[1])));
+            const hi = Math.max(targetMin, Math.min(targetMax, Math.max(nums[0], nums[1])));
+            return lo === hi ? `${lo}` : `${lo}-${hi}`;
+          }
+          return rpeStrRaw;
+        })();
         const baseLoad = exercise.load;
+        const restStr = (() => {
+          const focus = onboardingData?.primaryFocus?.toLowerCase();
+          if (focus === 'hypertrophy') return '2-3 minutes';
+          return exercise.rest || '90 seconds';
+        })();
 
-        const suggested = this.computeSuggestedLoadKg(name, repsStr, rpeStr, onboardingData);
-        const useLbs = onboardingData?.unitPreference === 'lbs';
+        const suggested = this.computeSuggestedLoad(name, repsStr, rpeStr, onboardingData);
         const suggestedText = (() => {
           if (!suggested) return null;
-          const kg = suggested.weightRoundedKg;
-          const val = useLbs ? Math.round(kg * 2.20462 / 5) * 5 : kg; // round lbs to nearest 5
-          const unit = useLbs ? 'lbs' : 'kg';
-          return `~${val} ${unit} (${Math.round(suggested.percent * 100)}% 1RM)`;
+          return `~${suggested.weightRounded} ${suggested.unit} (${Math.round(suggested.percent * 100)}% 1RM)`;
         })();
         const loadWithSuggestion = suggestedText
           ? `${baseLoad ?? ''}${baseLoad ? ' | ' : ''}${suggestedText}`
@@ -348,7 +366,7 @@ export class NeuralAPI {
           sets,
           reps: repsStr,
           load: loadWithSuggestion,
-          rest: exercise.rest,
+          rest: restStr,
           rpe: rpeStr,
         };
       }),
@@ -408,9 +426,22 @@ export class NeuralAPI {
             if (!predicted) return ex;
             const unit = (onboardingData.unitPreference === 'lbs') ? 'lbs' : 'kg';
             const repsLabel = predicted.repsLabel ? ` for ${predicted.repsLabel}` : '';
-            const rangeText = `~${predicted.min}–${predicted.max} ${unit}${repsLabel}`;
+            const isDumbbell = ex.name.toLowerCase().includes('dumbbell') || ex.name.toLowerCase().includes('db ');
+            const eachSuffix = isDumbbell ? ' each' : '';
+            const rangeCore = `~${predicted.min}–${predicted.max} ${unit}${eachSuffix}`;
+            const rangeText = `${rangeCore}${repsLabel}`;
+
+            // Promote the range to the visible load line
+            const hasMeaningfulLoad = typeof ex.load === 'string' && ex.load.trim().length > 0;
+            const looksNumeric = hasMeaningfulLoad && /\d/.test(ex.load as string);
+            const genericWeight = hasMeaningfulLoad && /(light|moderate|heavy|bodyweight)/i.test(ex.load as string);
+            const mergedLoad = (!hasMeaningfulLoad || genericWeight || !looksNumeric)
+              ? rangeText
+              : `${ex.load} | ${rangeText}`;
+
             return {
               ...ex,
+              load: mergedLoad,
               notes: ex.notes ? `${ex.notes}\nSuggested range: ${rangeText}` : `Suggested range: ${rangeText}`,
             };
           })
@@ -698,16 +729,16 @@ Use exactly this structure. The key field is "workouts" (not "week_1_workouts" o
   }
 
   /**
-   * Compute suggested absolute load (kg) from PRs for big-3 variants
+   * Compute suggested absolute load from PRs for big-3 variants
    * Uses RPE when available, otherwise rep-based percentage mapping
-   * Rounds to nearest 2.5 kg
+   * Rounds to nearest 2.5 kg or 5 lbs based on user preference
    */
-  private computeSuggestedLoadKg(
+  private computeSuggestedLoad(
     exerciseName: string,
     reps: string,
     rpe: string,
     onboardingData?: OnboardingData
-  ): { weightRoundedKg: number; percent: number } | null {
+  ): { weightRounded: number; percent: number; unit: 'kg' | 'lbs' } | null {
     if (!onboardingData?.personalRecords) return null;
 
     const liftType = this.inferLiftType(exerciseName);
@@ -716,14 +747,23 @@ Use exactly this structure. The key field is "workouts" (not "week_1_workouts" o
     const pr = onboardingData.personalRecords[liftType];
     if (!pr || pr <= 0) return null;
 
+    const unit: 'kg' | 'lbs' = onboardingData.unitPreference === 'lbs' ? 'lbs' : 'kg';
+
     const percentFromRPE = this.percentFromRPE(rpe);
     const percentFromReps = this.percentFromReps(reps);
-    const percent = percentFromRPE ?? percentFromReps ?? 0.7; // default 70%
+    let percent = percentFromRPE ?? percentFromReps ?? 0.7; // default 70%
 
+    // Hypertrophy slight intensity bump (+2–3%)
+    if (onboardingData?.primaryFocus?.toLowerCase() === 'hypertrophy') {
+      percent = Math.min(1.0, percent + 0.025);
+    }
+
+    // Compute in the same unit as the user's PR to avoid double conversion
     const suggested = pr * percent;
-    const weightRoundedKg = Math.round(suggested / 2.5) * 2.5;
-    if (!isFinite(weightRoundedKg) || weightRoundedKg <= 0) return null;
-    return { weightRoundedKg, percent };
+    const increment = unit === 'kg' ? 2.5 : 5;
+    const weightRounded = Math.round(suggested / increment) * increment;
+    if (!isFinite(weightRounded) || weightRounded <= 0) return null;
+    return { weightRounded, percent, unit };
   }
 
   private inferLiftType(name: string): 'squat' | 'bench' | 'deadlift' | null {
@@ -805,37 +845,66 @@ Use exactly this structure. The key field is "workouts" (not "week_1_workouts" o
     const pr = onboardingData.personalRecords?.[bigLift];
     if (!pr || pr <= 0) return null;
 
-    const bodyWeightKg = this.getBodyWeightKg(onboardingData);
-    if (!bodyWeightKg || bodyWeightKg <= 0) return null;
-
-    const relative = pr / bodyWeightKg; // PR is assumed kg; BW in kg
-    const level = this.strengthLevel(bigLift, relative);
+    // Determine level purely from declared experience (eliminate BW dependency)
+    const exp = (onboardingData as any).experienceLevel as ('beginner'|'intermediate'|'advanced'|undefined);
+    const level: 'novice'|'intermediate'|'advanced'|'elite' =
+      exp === 'beginner' ? 'novice' : exp === 'advanced' ? 'advanced' : 'intermediate';
 
     const [minPct, maxPct] = mapping.percent[level];
-    // 1RM range predicted for accessory
-    const acc1RMminKg = pr * minPct;
-    const acc1RMmaxKg = pr * maxPct;
+    // 1RM range predicted for accessory (compute in user's native unit)
+    const useLbs = onboardingData.unitPreference === 'lbs';
+    const acc1RMminNative = pr * minPct;
+    const acc1RMmaxNative = pr * maxPct;
 
     const genderAdj = this.genderAdjustment(onboardingData.gender, bigLift);
-    const adjAcc1RMminKg = acc1RMminKg * genderAdj;
-    const adjAcc1RMmaxKg = acc1RMmaxKg * genderAdj;
+    let adjAcc1RMmin = acc1RMminNative * genderAdj;
+    let adjAcc1RMmax = acc1RMmaxNative * genderAdj;
 
     // Convert 1RM range → working weight range for target reps
     const { minReps, maxReps, label } = this.parseRepsRange(repsStr);
-    const percentLowReps = this.percentForReps(minReps); // heavier end
-    const percentHighReps = this.percentForReps(maxReps); // lighter end
+    let percentLowReps = this.percentForReps(minReps); // heavier end
+    let percentHighReps = this.percentForReps(maxReps); // lighter end
 
-    const workMinKg = adjAcc1RMminKg * percentHighReps;
-    const workMaxKg = adjAcc1RMmaxKg * percentLowReps;
+    // Hypertrophy rep-percent bias (10→0.77, 12→0.72)
+    if (onboardingData.primaryFocus?.toLowerCase() === 'hypertrophy') {
+      if (minReps === 10) percentLowReps = 0.77;
+      if (minReps === 12) percentLowReps = 0.72;
+      if (maxReps === 10) percentHighReps = 0.77;
+      if (maxReps === 12) percentHighReps = 0.72;
+    }
 
-    const useLbs = onboardingData.unitPreference === 'lbs';
+    let workMin = adjAcc1RMmin * percentHighReps;
+    let workMax = adjAcc1RMmax * percentLowReps;
+
+    // Hypertrophy slight intensity bump for accessories (+2–3%)
+    if (onboardingData.primaryFocus?.toLowerCase() === 'hypertrophy') {
+      workMin *= 1.025;
+      workMax *= 1.025;
+    }
+
+    // Per-arm correction for dumbbell pressing patterns
+    const nameLower = exerciseName.toLowerCase();
+    const isPerArmPress = /(dumbbell|db)/.test(nameLower) && /press|bench|shoulder/.test(nameLower) && !/fly|flye/.test(nameLower);
+    if (isPerArmPress) {
+      workMin = workMin / 2;
+      workMax = workMax / 2;
+    }
+
     if (useLbs) {
-      const minLbs = Math.round((workMinKg * 2.20462) / 5) * 5;
-      const maxLbs = Math.round((workMaxKg * 2.20462) / 5) * 5;
+      let minLbs = Math.round(workMin / 5) * 5;
+      let maxLbs = Math.round(workMax / 5) * 5;
+
+      // Apply machine-floor for Cable Tricep Pushdown to avoid unrealistically low loads
+      if (/(cable\s+)?triceps?\s+pushdown|push-down|pressdown/i.test(exerciseName)) {
+        const floor = 40; // lbs
+        minLbs = Math.max(floor, minLbs);
+        maxLbs = Math.max(minLbs, Math.max(floor, maxLbs));
+      }
       return { min: minLbs, max: maxLbs, repsLabel: label };
     }
-    const minRounded = Math.round(workMinKg / 2.5) * 2.5;
-    const maxRounded = Math.round(workMaxKg / 2.5) * 2.5;
+    // Convert to kg if needed (PR was lbs, all previous math in lbs)
+    const minRounded = Math.round((workMin / 2.20462) / 2.5) * 2.5;
+    const maxRounded = Math.round((workMax / 2.20462) / 2.5) * 2.5;
     return { min: minRounded, max: maxRounded, repsLabel: label };
   }
 
@@ -850,37 +919,40 @@ Use exactly this structure. The key field is "workouts" (not "week_1_workouts" o
       = [
         // Upper Body – Push
         { match: /(triceps?\s+pushdown|cable\s+pushdown|triceps?\s+extension)/, linked: 'bench', ratios: [0.25,0.35, 0.65,0.80, 0.90,1.10, 1.30,1.60] },
-        { match: /(overhead\s+press|strict\s+press|military\s+press|ohp\b)/, linked: 'bench', ratios: [0.55,0.65, 0.65,0.75, 0.75,0.85, 0.85,0.95] },
-        { match: /(dumbbell\s+shoulder\s+press|db\s+shoulder\s+press|shoulder\s+press)/, linked: 'bench', ratios: [0.25,0.35, 0.35,0.45, 0.45,0.55, 0.55,0.65] },
+        { match: /(overhead\s+press|strict\s+press|military\s+press|ohp\b|seated\s+overhead\s+press|standing\s+overhead\s+press)/, linked: 'bench', ratios: [0.45,0.55, 0.45,0.55, 0.50,0.60, 0.55,0.65] },
+        { match: /(seated\s+dumbbell\s+shoulder\s+press|standing\s+dumbbell\s+press|dumbbell\s+shoulder\s+press|db\s+shoulder\s+press|shoulder\s+press)/, linked: 'bench', ratios: [0.45,0.55, 0.60,0.75, 0.70,0.85, 0.75,0.90] },
+        { match: /(dumbbell\s+bench\s+press|db\s+bench\s+press)/, linked: 'bench', ratios: [0.50,0.60, 0.60,0.70, 0.65,0.75, 0.70,0.80] },
+        { match: /(incline\s+dumbbell\s+press|incline\s+db\s+press|incline\s+bench)/, linked: 'bench', ratios: [0.55,0.65, 0.65,0.75, 0.70,0.85, 0.75,0.90] },
         { match: /(close[- ]grip\s+bench|cgbp)/, linked: 'bench', ratios: [0.65,0.75, 0.80,0.90, 0.90,1.00, 1.00,1.10] },
         { match: /(incline\s+bench)/, linked: 'bench', ratios: [0.50,0.60, 0.65,0.75, 0.75,0.85, 0.85,0.95] },
-        { match: /(weighted\s+dips?|dips?\s*\(weighted\)|dips?)/, linked: 'bench', ratios: [0.25,0.35, 0.50,0.65, 0.65,0.80, 0.80,1.00] },
-        { match: /(lateral\s+raise|side\s+raise)/, linked: 'bench', ratios: [0.10,0.15, 0.15,0.25, 0.25,0.35, 0.35,0.45] },
+        { match: /(weighted\s+dips?|dips?\s*(\(weighted\)|with\s+weight|belt(ed)?))/, linked: 'bench', ratios: [0.25,0.35, 0.50,0.65, 0.65,0.80, 0.80,1.00] },
+        { match: /(lateral\s+raise|side\s+raise|db\s+lateral\s+raise|dumbbell\s+lateral\s+raise)/, linked: 'bench', ratios: [0.12,0.18, 0.20,0.34, 0.22,0.36, 0.24,0.38] },
         { match: /(weighted\s+push[- ]?ups?|push[- ]?ups?\s*\(weighted\)|push[- ]?ups?)/, linked: 'bench', ratios: [0.30,0.40, 0.50,0.65, 0.65,0.80, 0.80,1.00] },
 
         // Upper Body – Pull
-        { match: /(barbell\s+row|bent[- ]over\s+row|t[- ]bar\s+row)/, linked: 'deadlift', ratios: [0.40,0.55, 0.70,0.85, 0.90,1.05, 1.10,1.30] },
-        { match: /(one[- ]?arm\s+dumbbell\s+row|single[- ]?arm\s+row|dumbbell\s+row)/, linked: 'deadlift', ratios: [0.25,0.35, 0.40,0.50, 0.50,0.60, 0.60,0.70] },
+        { match: /(barbell\s+row|bent[- ]over\s+row|t[- ]bar\s+row|pendlay)/, linked: 'deadlift', ratios: [0.45,0.55, 0.55,0.65, 0.60,0.70, 0.70,0.80] },
+        { match: /(one[- ]?arm\s+dumbbell\s+row|single[- ]?arm\s+row|dumbbell\s+row)/, linked: 'deadlift', ratios: [0.20,0.28, 0.25,0.32, 0.30,0.38, 0.35,0.45] },
         { match: /(pull[- ]?ups?|chin[- ]?ups?)\s*(\(weighted\))?/, linked: 'deadlift', ratios: [0.25,0.35, 0.50,0.65, 0.65,0.80, 0.80,0.95] },
-        { match: /(lat\s+pull[- ]?down|pulldown)/, linked: 'deadlift', ratios: [0.30,0.40, 0.50,0.65, 0.65,0.80, 0.80,0.95] },
+        { match: /(lat\s+pull[- ]?down|pulldown|cable\s+pulldown)/, linked: 'deadlift', ratios: [0.45,0.55, 0.50,0.60, 0.55,0.65, 0.60,0.70] },
         { match: /(face\s+pull)/, linked: 'deadlift', ratios: [0.10,0.15, 0.15,0.25, 0.25,0.35, 0.35,0.45] },
         { match: /(barbell\s+biceps?\s+curl|biceps?\s+curl(?!\s+machine))/ , linked: 'deadlift', ratios: [0.15,0.25, 0.25,0.35, 0.35,0.45, 0.45,0.55] },
         { match: /(hammer\s+curl|db\s+hammer\s+curl)/, linked: 'deadlift', ratios: [0.10,0.20, 0.20,0.30, 0.30,0.40, 0.40,0.50] },
 
         // Lower Body – Quad-Dominant
         { match: /(front\s+squat)/, linked: 'squat', ratios: [0.50,0.60, 0.70,0.80, 0.80,0.90, 0.90,1.00] },
-        { match: /(leg\s+press)/, linked: 'squat', ratios: [0.90,1.10, 1.40,1.60, 1.60,2.00, 2.00,2.50] },
+        { match: /(leg\s+press)/, linked: 'squat', ratios: [1.40,1.70, 1.60,1.90, 1.80,2.10, 2.00,2.30] },
         { match: /(bulgarian\s+split\s+squat|split\s+squat)/, linked: 'squat', ratios: [0.20,0.30, 0.35,0.45, 0.45,0.55, 0.55,0.65] },
-        { match: /(lunge)/, linked: 'squat', ratios: [0.20,0.30, 0.35,0.45, 0.45,0.55, 0.55,0.65] },
+        { match: /(walking\s+lunge|lunge|db\s+lunge|dumbbell\s+lunge)/, linked: 'squat', ratios: [0.20,0.30, 0.27,0.43, 0.32,0.48, 0.36,0.52] },
         { match: /(leg\s+extension)/, linked: 'squat', ratios: [0.30,0.45, 0.55,0.70, 0.80,0.95, 1.00,1.15] },
 
         // Lower Body – Hip-Dominant
-        { match: /(romanian\s+deadlift|rdl\b|stiff[- ]leg)/, linked: 'deadlift', ratios: [0.40,0.50, 0.60,0.70, 0.70,0.80, 0.80,0.90] },
+        { match: /(romanian\s+deadlift|rdl\b|stiff[- ]leg)/, linked: 'deadlift', ratios: [0.45,0.55, 0.55,0.65, 0.60,0.70, 0.65,0.75] },
         { match: /(hip\s+thrust)/, linked: 'deadlift', ratios: [0.50,0.70, 0.90,1.10, 1.10,1.30, 1.30,1.50] },
         { match: /(glute\s+bridge)/, linked: 'deadlift', ratios: [0.40,0.60, 0.80,1.00, 1.00,1.20, 1.20,1.40] },
         { match: /(good\s+morning)/, linked: 'deadlift', ratios: [0.25,0.35, 0.40,0.50, 0.50,0.60, 0.60,0.70] },
         { match: /(cable\s+pull[- ]?through|pull[- ]?through)/, linked: 'deadlift', ratios: [0.20,0.30, 0.35,0.45, 0.45,0.55, 0.55,0.65] },
-        { match: /(hamstring\s+curl|leg\s+curl)/, linked: 'deadlift', ratios: [0.15,0.25, 0.25,0.35, 0.35,0.45, 0.45,0.55] },
+        { match: /(hamstring\s+curl|leg\s+curl|lying\s+leg\s+curl|seated\s+leg\s+curl)/, linked: 'deadlift', ratios: [0.15,0.25, 0.25,0.35, 0.35,0.45, 0.45,0.55] },
+        { match: /(standing\s+calf\s+raise|calf\s+raise|seated\s+calf\s+raise|smith\s+calf\s+raise)/, linked: 'squat', ratios: [0.90,1.10, 1.00,1.20, 1.10,1.30, 1.15,1.35] },
       ];
 
     for (const row of table) {

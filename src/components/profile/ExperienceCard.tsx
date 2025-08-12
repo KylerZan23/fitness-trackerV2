@@ -19,24 +19,24 @@ interface ExperienceCardProps {
 
 function getExperienceData(experienceLevel: string | null) {
   switch (experienceLevel) {
-    case 'Beginner (<6 months)':
+    case 'Beginner (0-3 months)':
       return {
         level: 'Beginner',
-        duration: '<6 Months',
+        duration: '0-3 Months',
         progress: 25,
         color: 'bg-green-500'
       }
-    case 'Intermediate (6mo-2yr)':
+    case 'Intermediate (3-12 months)':
       return {
         level: 'Intermediate',
-        duration: '6mo-2yr',
+        duration: '3-12 Months',
         progress: 60,
         color: 'bg-blue-500'
       }
-    case 'Advanced (2+ years)':
+    case 'Advanced (12+ months)':
       return {
         level: 'Advanced',
-        duration: '2+ Years',
+        duration: '12+ Months',
         progress: 90,
         color: 'bg-purple-500'
       }

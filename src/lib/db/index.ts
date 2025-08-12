@@ -513,35 +513,59 @@ export async function getUserProfile(client?: SupabaseClient) {
 
     const { user } = session
     
-    // --- START: ATOMIC SELF-HEALING LOGIC ---
-    // This block ensures a profile exists without a race condition.
-    console.log(`Ensuring profile exists for user ${user.id} using atomic upsert...`);
-    
-    const minimalProfile = {
-      id: user.id,
-      email: user.email,
-      name: user.user_metadata?.name || user.email?.split('@')[0] || 'New User',
-      onboarding_completed: false,
-    };
-    
-    // Use upsert with ignoreDuplicates: true. This is equivalent to
-    // an 'INSERT ... ON CONFLICT DO NOTHING' statement. It's atomic.
-    const { error: upsertError } = await supabaseInstance
-      .from('profiles')
-      .upsert(minimalProfile, { ignoreDuplicates: true });
-    
-    if (upsertError) {
-      console.error('FATAL: Failed to upsert profile during self-healing:', upsertError.message);
-      return null; // If this atomic operation fails, we cannot proceed.
-    }
-    
-    // Now that we are CERTAIN a profile exists, fetch the definitive record.
-    // We use .single() because it SHOULD exist.
-    const { data: profileData, error: profileError } = await supabaseInstance
+    // --- START: PROFILE SELF-HEALING WITH TRIAL PROVISIONING ---
+    // Ensure a profile exists and that a 7-day trial is granted on first creation.
+    console.log(`Ensuring profile + trial for user ${user.id} using RPC...`)
+
+    // 1) Try to fetch the profile first
+    let { data: profileData, error: profileError } = await supabaseInstance
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle()
+
+    if (!profileData) {
+      // 2) Create via RPC to guarantee trial_ends_at is set server-side
+      const userName = user.user_metadata?.name || user.email?.split('@')[0] || 'New User'
+      const { error: rpcCreateError } = await supabaseInstance.rpc('create_profile_for_new_user', {
+        user_id: user.id,
+        user_email: user.email,
+        user_name: userName,
+      })
+
+      if (rpcCreateError) {
+        console.error('Failed RPC profile creation; falling back to upsert:', rpcCreateError.message)
+
+        const minimalProfile = {
+          id: user.id,
+          email: user.email,
+          name: userName,
+          onboarding_completed: false,
+        }
+
+        const { error: upsertError } = await supabaseInstance
+          .from('profiles')
+          .upsert(minimalProfile, { ignoreDuplicates: true })
+
+        if (upsertError) {
+          console.error('FATAL: Failed to upsert profile during self-healing:', upsertError.message)
+          return null
+        }
+
+        // Best-effort start of trial if missing
+        await supabaseInstance.rpc('start_user_trial', { user_id: user.id })
+      }
+
+      // 3) Fetch again after creation
+      const refetch = await supabaseInstance
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      profileData = refetch.data as typeof profileData
+      profileError = refetch.error
+    }
     
     if (profileError) {
       // This would be an unexpected error (e.g., RLS policy change, network failure).
